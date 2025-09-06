@@ -82,32 +82,45 @@ def register():
 @auth_bp.post("/login")
 def login():
     try:
-        data = request.json
-        if data is None:
-            return error_response(message="Missing JSON payload", status=400)
-        email = data.get("email")
-        password = data.get("password")
-        otp = data.get("otp")
+        data = request.json or {}
 
-        user = find_user_by_email(email)
+        # Validate input
+        validated: Dict[str, str] = login_schema.load(data)
+        password: str = validated.get("password")
+        otp: str = validated.get("otp")
+
+        # Find user
+        user = find_user_by_email(validated.get("email"))
         if not user:
             return error_response(
-                message="Invalid credentials", details="User not found", status=401
+                message="Invalid credentials",
+                details={"email": ["User not exist"]},
+                status=401,
             )
 
+        # Verify password
         if not bcrypt.verify(password, user["password_hash"]):
             return error_response(
-                message="Invalid credentials", details="Wrong password", status=401
+                message="Invalid credentials",
+                details={"password": ["Invalid password"]},
+                status=401,
             )
 
-        # Handle 2FA
+        # Handle 2FA if enabled
         if user.get("twofa_secret"):
             if not otp:
-                return error_response(message="OTP required", status=401)
+                return error_response(
+                    message="OTP required",
+                    details={"otp": ["OTP is required"]},
+                    status=401,
+                )
             totp = pyotp.TOTP(user["twofa_secret"])
             if not totp.verify(str(otp)):
-                return error_response(message="Invalid OTP", status=401)
+                return error_response(
+                    message="Invalid OTP", details={"otp": ["Invalid OTP"]}, status=401
+                )
 
+        # Create JWT token
         token = create_token(
             {"sub": user["id"], "email": user["email"], "role": user["role"]}
         )
@@ -117,12 +130,25 @@ def login():
             return token
 
         user_info = {k: user[k] for k in ["id", "email", "username", "name", "role"]}
+
         return success_response(
             result={"access_token": token, "user": user_info},
             message="Sign-in successful",
         )
+
+    except ValidationError as ve:
+        # Marshmallow validation errors
+        return error_response(
+            message="Validation Error",
+            details=ve.messages,  # field-wise errors
+            status=400,
+        )
+
     except Exception as e:
-        return error_response(message="Sign-in failed", details=str(e))
+        # Catch-all for unexpected errors
+        return error_response(
+            message="Sign-in failed", details={"error": [str(e)]}, status=500
+        )
 
 
 @auth_bp.post("/enable-2fa")
