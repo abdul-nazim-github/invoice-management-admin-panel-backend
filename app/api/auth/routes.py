@@ -5,30 +5,34 @@ from flask import Blueprint, request
 from passlib.hash import bcrypt
 import pyotp
 from pymysql.err import IntegrityError
+from app.api.auth.schemas import Enable2FASchema, LoginSchema, RegisterSchema
 from app.utils.auth import create_token, require_auth
 from app.utils.response import success_response, error_response
 from app.database.models.user_model import (
     find_user_by_email,
-    find_user_by_id,
-    update_user_password,
     update_user_2fa,
     create_user,
 )
 
 auth_bp = Blueprint("auth", __name__)
-
+# Schemas
+register_schema = RegisterSchema()
+login_schema = LoginSchema()
+enable_2fa_schema = Enable2FASchema()
 
 @auth_bp.post("/register")
 def register():
     try:
-        data = request.json
-        username = data["username"]
-        email = data["email"]
-        password = data["password"]
-        name = data.get("name")
+        data = request.json or {}
+        validated = register_schema.load(data)
 
-        password_hash = bcrypt.hash(password)
-        uid = create_user(username, email, password_hash, name=name)
+        password_hash = bcrypt.hash(validated["password"])
+        uid = create_user(
+            validated["username"],
+            validated["email"],
+            password_hash,
+            name=validated.get("name"),
+        )
 
         return success_response(result={"user_id": uid}, message="User registered successfully", status=201)
     except IntegrityError as e:
@@ -45,6 +49,8 @@ def register():
 def login():
     try:
         data = request.json
+        if data is None:
+            return error_response(message="Missing JSON payload", status=400)
         email = data.get("email")
         password = data.get("password")
         otp = data.get("otp")
