@@ -118,12 +118,12 @@ def list_():
         )
 
 
-@customers_bp.get("/<int:customer_id>")
+@customers_bp.get("/<customer_id>")
 @require_auth
 def detail(customer_id):
     customer = get_customer(customer_id)
     if not customer:
-        return error_response(message="Customer not found", status=404)
+        return error_response(message="Customer not found", status=400)
 
     agg = customer_aggregates(customer_id)
     return success_response(

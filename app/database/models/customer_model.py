@@ -26,6 +26,7 @@ def get_customer(customer_id):
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM customers WHERE id=%s", (customer_id,))
         c = cur.fetchone()
+    conn.commit()
     conn.close()
     return c
 
@@ -111,7 +112,7 @@ def customer_aggregates(customer_id):
 
         cur.execute(
             """
-            SELECT id, invoice_number, invoice_date, due_date, total_amount, status
+            SELECT id, invoice_number, created_at AS invoice_date, due_date, total_amount, status
             FROM invoices WHERE customer_id=%s ORDER BY invoice_date DESC LIMIT 50
         """,
             (customer_id,),
