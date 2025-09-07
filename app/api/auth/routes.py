@@ -132,7 +132,7 @@ def login():
         user_info = {k: user[k] for k in ["id", "email", "username", "name", "role"]}
 
         return success_response(
-            result={"access_token": token, "user": user_info},
+            result={"access_token": token, "user_info": user_info},
             message="Sign-in successful",
         )
 
