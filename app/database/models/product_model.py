@@ -1,18 +1,21 @@
 # =============================
 # app/database/models/product_model.py
 # =============================
+from uuid6 import uuid7
 from app.database.base import get_db_connection
 
 
 def create_product(product_code, name, description, price, stock, status="active"):
     conn = get_db_connection()
     with conn.cursor() as cur:
+        pid = str(uuid7())
         cur.execute(
-            """INSERT INTO products (product_code, name, description, price, stock, status)
-                 VALUES (%s,%s,%s,%s,%s,%s)""",
-            (product_code, name, description, price, stock, status)
+            """
+            INSERT INTO products (id, product_code, name, description, price, stock, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (pid, product_code, name, description, price, stock, status),
         )
-        pid = cur.lastrowid
     conn.commit()
     conn.close()
     return pid
@@ -31,8 +34,10 @@ def list_products(q=None, status=None, offset=0, limit=20):
     where_sql = " WHERE " + " AND ".join(where) if where else ""
 
     with conn.cursor() as cur:
-        cur.execute(f"SELECT SQL_CALC_FOUND_ROWS * FROM products{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
-                    (*params, limit, offset))
+        cur.execute(
+            f"SELECT SQL_CALC_FOUND_ROWS * FROM products{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (*params, limit, offset),
+        )
         rows = cur.fetchall()
         cur.execute("SELECT FOUND_ROWS() AS total")
         total = cur.fetchone()["total"]

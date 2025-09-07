@@ -1,54 +1,172 @@
 # =============================
 # app/api/products/routes.py
 # =============================
-from flask import Blueprint, request, jsonify
+import re
+from typing import Dict
+from flask import Blueprint, request
+from marshmallow import ValidationError
+from pymysql.err import IntegrityError
+
+from app.api.products.schemas import (
+    ProductBulkDeleteSchema,
+    ProductCreateSchema,
+    ProductFilterSchema,
+    ProductUpdateSchema,
+)
 from app.utils.auth import require_auth
 from app.utils.pagination import get_pagination
 from app.database.models.product_model import (
-    create_product, list_products, get_product, update_product, bulk_delete_products
+    create_product,
+    list_products,
+    get_product,
+    update_product,
+    bulk_delete_products,
 )
+from app.utils.response import error_response, success_response
 
 products_bp = Blueprint("products", __name__)
+
+# schemas
+create_schema = ProductCreateSchema()
+update_schema = ProductUpdateSchema()
+bulk_delete_schema = ProductBulkDeleteSchema()
+filter_schema = ProductFilterSchema()
 
 
 @products_bp.post("/")
 @require_auth
 def add_product():
-    data = request.json
-    pid = create_product(data["product_code"], data["name"], data.get("description"), data["price"], data.get("stock", 0), data.get("status", "active"))
-    return jsonify({"message": "created", "id": pid}), 201
+    try:
+        data = request.json or {}
+        validated: Dict[str, str] = create_schema.load(data)
+
+        pid = create_product(
+            validated["product_code"],
+            validated["name"],
+            validated.get("description"),
+            validated["price"],
+            validated.get("stock", 0),
+            validated.get("status", "active"),
+        )
+        return success_response(
+            result={"id": pid},
+            message="Product created successfully",
+        )
+
+    except ValidationError as ve:
+        return error_response(
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
+
+    except IntegrityError as ie:
+        # Duplicate entry handling
+        msg = str(ie)
+        details = {}
+
+        if "Duplicate entry" in msg:
+            match = re.search(r"Duplicate entry '(.+)' for key '.*\.(.+)'", msg)
+            if match:
+                value, field = match.groups()
+                details[field] = [f"Duplicate entry '{value}'"]
+            else:
+                details["error"] = [msg]
+
+            return error_response(
+                message="Duplicate entry", details=details, status=409
+            )
+
+        return error_response(
+            message="Integrity error", details={"error": [msg]}, status=400
+        )
+
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
 
 
 @products_bp.get("/")
 @require_auth
 def list_():
-    page, limit, offset = get_pagination()
-    q = request.args.get("q")
-    status = request.args.get("status")  # active/inactive
-    rows, total = list_products(q=q, status=status, offset=offset, limit=limit)
-    return jsonify({"items": rows, "total": total, "page": page, "limit": limit})
+    try:
+        args = request.args or {}
+        validated: Dict[str, str] = filter_schema.load(args)
+
+        page, limit, offset = get_pagination()
+        rows, total = list_products(
+            q=validated.get("q"),
+            status=validated.get("status"),
+            offset=offset,
+            limit=limit,
+        )
+        return success_response(
+            result=rows,
+            message="Products fetched successfully",
+            meta={"page": page, "limit": limit, "total": total},
+        )
+
+    except ValidationError as ve:
+        return error_response(
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
 
 
-@products_bp.get("/<int:product_id>")
+@products_bp.get("/<product_id>")
 @require_auth
 def detail(product_id):
     product = get_product(product_id)
     if not product:
-        return jsonify({"error": "not found"}), 404
-    return jsonify(product)
+        return error_response(message="Product not found", status=404)
+
+    return success_response(
+        result=product,
+        message="Product details fetched successfully",
+    )
 
 
-@products_bp.put("/<int:product_id>")
+@products_bp.put("/<product_id>")
 @require_auth
 def update(product_id):
-    data = request.json
-    update_product(product_id, **data)
-    return jsonify({"message": "updated"})
+    try:
+        data = request.json or {}
+        validated: Dict[str, str] = update_schema.load(data)
+
+        update_product(product_id, **validated)
+        return success_response(
+            message="Product updated successfully",
+            result={"id": product_id},
+        )
+
+    except ValidationError as ve:
+        return error_response(
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
 
 
 @products_bp.post("/bulk-delete")
 @require_auth
 def bulk_delete():
-    ids = request.json.get("ids", [])
-    deleted = bulk_delete_products(ids)
-    return jsonify({"deleted": deleted})
+    try:
+        data = request.json or {}
+        validated: Dict[str] = bulk_delete_schema.load(data)
+
+        deleted = bulk_delete_products(validated["ids"])
+        return success_response(
+            message="Products deleted successfully",
+            result={"deleted": deleted},
+        )
+
+    except ValidationError as ve:
+        return error_response(
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
