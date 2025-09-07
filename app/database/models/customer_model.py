@@ -16,10 +16,9 @@ def create_customer(
                  VALUES (%s, %s,%s,%s,%s,%s,%s)""",
             (customer_id, name, email, phone, address, gst_number, status),
         )
-        cid = cur.lastrowid
     conn.commit()
     conn.close()
-    return cid
+    return customer_id
 
 
 def get_customer(customer_id):

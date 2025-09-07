@@ -52,7 +52,6 @@ def add_customer():
         return success_response(
             result={"id": cid},
             message="Customer created successfully",
-            status=201,
         )
 
     except ValidationError as ve:
@@ -106,8 +105,9 @@ def list_():
             limit=limit,
         )
         return success_response(
-            result={"items": rows, "total": total, "page": page, "limit": limit},
+            result=rows,
             message="Customers fetched successfully",
+            meta={"page": page, "limit": limit, "total": total},
         )
 
     except ValidationError as ve:

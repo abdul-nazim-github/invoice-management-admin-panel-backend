@@ -40,7 +40,7 @@ def register():
         )
 
         return success_response(
-            result={"user_id": uid}, message="User registered successfully", status=201
+            result={"id": uid}, message="User registered successfully", status=201
         )
     except ValidationError as ve:
         # Marshmallow validation errors
