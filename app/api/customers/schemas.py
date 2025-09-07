@@ -62,7 +62,10 @@ class CustomerUpdateSchema(Schema):
 # ------------------------
 class CustomerBulkDeleteSchema(Schema):
     ids = fields.List(
-        fields.Int(), required=True, error_messages={"required": "IDs are required"}
+        fields.UUID(),
+        required=True,
+        validate=validate.Length(min=1),
+        error_messages={"required": "IDs are required"},
     )
 
 

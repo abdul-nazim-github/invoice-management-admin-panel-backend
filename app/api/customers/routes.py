@@ -132,12 +132,12 @@ def detail(customer_id):
     )
 
 
-@customers_bp.put("/<int:customer_id>")
+@customers_bp.put("/<customer_id>")
 @require_auth
 def update(customer_id):
     try:
         data = request.json or {}
-        validated = update_schema.load(data)
+        validated: Dict[str, str] = update_schema.load(data)
 
         update_customer(customer_id, **validated)
         return success_response(

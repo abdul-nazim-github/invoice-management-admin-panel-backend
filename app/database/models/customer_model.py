@@ -45,12 +45,20 @@ def list_customers(q=None, status=None, offset=0, limit=20):
 
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT SQL_CALC_FOUND_ROWS * FROM customers{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            f"""
+            SELECT SQL_CALC_FOUND_ROWS * 
+            FROM customers{where_sql} 
+            ORDER BY created_at DESC 
+            LIMIT %s OFFSET %s
+            """,
             (*params, limit, offset),
         )
         rows = cur.fetchall()
+
         cur.execute("SELECT FOUND_ROWS() AS total")
-        total = cur.fetchone()["total"]
+        result = cur.fetchone()
+        total = result["total"] if result else 0
+
     conn.close()
     return rows, total
 
@@ -73,7 +81,7 @@ def update_customer(customer_id, **fields):
     conn.close()
 
 
-def bulk_delete_customers(ids: list[int]):
+def bulk_delete_customers(ids: list[str]):
     if not ids:
         return 0
     conn = get_db_connection()
