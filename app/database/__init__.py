@@ -66,6 +66,8 @@ def init_db():
         id CHAR(36) PRIMARY KEY,
         invoice_number VARCHAR(50) UNIQUE NOT NULL,
         customer_id CHAR(36) NOT NULL,
+        tax_percent DECIMAL(5,2) DEFAULT 0,
+        discount DECIMAL(10,2) DEFAULT 0,
         total_amount DECIMAL(10,2) NOT NULL,
         status ENUM('pending','paid','partial') DEFAULT 'pending',
         due_date DATE,
@@ -83,7 +85,8 @@ def init_db():
         invoice_id CHAR(36) NOT NULL,
         product_id CHAR(36) NOT NULL,
         quantity INT NOT NULL,
-        price DECIMAL(10,2) NOT NULL,
+        price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_amount DECIMAL(10,2) NOT NULL,
         FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
     );

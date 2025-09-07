@@ -1,21 +1,42 @@
 # =============================
 # app/database/models/invoice_model.py
 # =============================
+from uuid6 import uuid7
 from app.database.base import get_db_connection
 
 
-def create_invoice(invoice_number, customer_id, user_id, invoice_date, due_date, total_amount, status="unpaid"):
+def create_invoice(
+    invoice_number,
+    customer_id,
+    due_date,
+    tax_percent,
+    discount,
+    total_amount,
+    status,
+):
     conn = get_db_connection()
+    invoice_id = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
-            """INSERT INTO invoices (invoice_number, customer_id, user_id, invoice_date, due_date, total_amount, status)
-                 VALUES (%s,%s,%s,%s,%s,%s,%s)""",
-            (invoice_number, customer_id, user_id, invoice_date, due_date, total_amount, status)
+            """
+            INSERT INTO invoices
+            (id, invoice_number, customer_id, tax_percent, discount, total_amount, status, due_date)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            (
+                invoice_id,
+                invoice_number,
+                customer_id,
+                tax_percent,
+                discount,
+                total_amount,
+                status,
+                due_date,
+            ),
         )
-        iid = cur.lastrowid
     conn.commit()
     conn.close()
-    return iid
+    return invoice_id
 
 
 def get_invoice(invoice_id):
@@ -40,11 +61,14 @@ def list_invoices(q=None, status=None, offset=0, limit=20):
     where_sql = " WHERE " + " AND ".join(where) if where else ""
 
     with conn.cursor() as cur:
-        cur.execute(f"SELECT SQL_CALC_FOUND_ROWS * FROM invoices{where_sql} ORDER BY invoice_date DESC LIMIT %s OFFSET %s",
-                    (*params, limit, offset))
+        cur.execute(
+            f"SELECT SQL_CALC_FOUND_ROWS * FROM invoices{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (*params, limit, offset),
+        )
         rows = cur.fetchall()
         cur.execute("SELECT FOUND_ROWS() AS total")
-        total = cur.fetchone()["total"]
+        result = cur.fetchone()
+        total = result["total"] if result else 0
     conn.close()
     return rows, total
 

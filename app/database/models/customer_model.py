@@ -120,8 +120,8 @@ def customer_aggregates(customer_id):
 
         cur.execute(
             """
-            SELECT id, invoice_number, created_at AS invoice_date, due_date, total_amount, status
-            FROM invoices WHERE customer_id=%s ORDER BY invoice_date DESC LIMIT 50
+            SELECT id, invoice_number, due_date, total_amount, status
+            FROM invoices WHERE customer_id=%s ORDER BY created_at DESC LIMIT 50
         """,
             (customer_id,),
         )
