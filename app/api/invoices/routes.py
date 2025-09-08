@@ -13,6 +13,7 @@ from app.api.invoices.schemas import (
     InvoiceBulkDeleteSchema,
     InvoiceFilterSchema,
 )
+from app.database.base import get_db_connection
 from app.utils.auth import require_auth
 from app.utils.exceptions.exception import OutOfStockError
 from app.utils.pagination import get_pagination
@@ -44,6 +45,7 @@ filter_schema = InvoiceFilterSchema()
 @invoices_bp.post("/")
 @require_auth
 def add_invoice():
+    conn = get_db_connection()
     try:
         data = request.json or {}
         validated: Dict[str, str] = create_schema.load(data)
@@ -57,12 +59,12 @@ def add_invoice():
 
         tax_percent = float(validated.get("tax_percent", 0))
         discount = float(validated.get("discount", 0))
-
-        # Total formula: subtotal + tax - discount
         tax_amount = subtotal * (tax_percent / 100)
         total = subtotal + tax_amount - discount
 
+        # Create invoice (inside TX)
         invoice_id = create_invoice(
+            conn,
             validated["invoice_number"],
             validated["customer_id"],
             validated.get("due_date"),
@@ -72,11 +74,13 @@ def add_invoice():
             validated.get("status", "pending"),
         )
 
+        # Add all items
         for it in items:
             prod: Dict[str] = get_product(it["product_id"])
-            add_invoice_item(
-                invoice_id, it["product_id"], it["quantity"], prod["price"]
-            )
+            add_invoice_item(conn, invoice_id, it["product_id"], it["quantity"], prod["price"])
+
+        # ✅ Everything succeeded → commit once
+        conn.commit()
 
         return success_response(
             result={"id": invoice_id, "total": total},
@@ -85,27 +89,23 @@ def add_invoice():
         )
 
     except ValidationError as ve:
-        return error_response(
-            message="Validation Error", details=ve.messages, status=400
-        )
+        conn.rollback()
+        return error_response(message="Validation Error", details=ve.messages, status=400)
     except IntegrityError as ie:
-        return error_response(
-            message="Integrity Error", details={"error": [str(ie)]}, status=400
-        )
+        conn.rollback()
+        return error_response(message="Integrity Error", details={"error": [str(ie)]}, status=400)
     except OutOfStockError as oe:
+        conn.rollback()
         return error_response(
             message="Stock Error",
             details={"product_id": oe.product_id, "error": str(oe)},
             status=400,
         )
     except Exception as e:
-        return error_response(
-            message="Something went wrong",
-            details={"exception": [str(e)]},
-            status=500,
-        )
-
-
+        conn.rollback()
+        return error_response(message="Something went wrong", details={"exception": [str(e)]}, status=500)
+    finally:
+        conn.close()
 @invoices_bp.get("/")
 @require_auth
 def list_():

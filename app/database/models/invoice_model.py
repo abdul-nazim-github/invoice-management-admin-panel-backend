@@ -6,6 +6,7 @@ from app.database.base import get_db_connection
 
 
 def create_invoice(
+    conn,
     invoice_number,
     customer_id,
     due_date,
@@ -14,7 +15,6 @@ def create_invoice(
     total_amount,
     status,
 ):
-    conn = get_db_connection()
     invoice_id = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
@@ -34,8 +34,6 @@ def create_invoice(
                 due_date,
             ),
         )
-    conn.commit()
-    conn.close()
     return invoice_id
 
 
