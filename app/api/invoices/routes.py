@@ -106,6 +106,7 @@ def add_invoice():
         return error_response(message="Something went wrong", details={"exception": [str(e)]}, status=500)
     finally:
         conn.close()
+
 @invoices_bp.get("/")
 @require_auth
 def list_():
@@ -136,7 +137,6 @@ def list_():
         return error_response(
             message="Validation Error", details=ve.messages, status=400
         )
-
 
 @invoices_bp.get("/<invoice_id>")
 @require_auth

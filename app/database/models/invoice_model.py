@@ -51,22 +51,37 @@ def list_invoices(q=None, status=None, offset=0, limit=20):
     where, params = [], []
     if q:
         like = f"%{q}%"
-        where.append("(invoice_number LIKE %s)")
-        params += [like]
+        where.append("(i.invoice_number LIKE %s OR c.name LIKE %s)")
+        params += [like, like]
     if status:
-        where.append("status=%s")
+        where.append("i.status = %s")
         params.append(status)
     where_sql = " WHERE " + " AND ".join(where) if where else ""
 
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT SQL_CALC_FOUND_ROWS * FROM invoices{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            f"""
+            SELECT SQL_CALC_FOUND_ROWS 
+                i.id,
+                i.invoice_number,
+                c.name AS customer_name,
+                i.created_at,
+                i.total_amount,
+                i.status
+            FROM invoices i
+            JOIN customers c ON c.id = i.customer_id
+            {where_sql}
+            ORDER BY i.created_at DESC 
+            LIMIT %s OFFSET %s
+            """,
             (*params, limit, offset),
         )
         rows = cur.fetchall()
+
         cur.execute("SELECT FOUND_ROWS() AS total")
         result = cur.fetchone()
         total = result["total"] if result else 0
+
     conn.close()
     return rows, total
 
