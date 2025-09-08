@@ -55,10 +55,18 @@ def get_items_by_invoice(invoice_id):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT ii.*, p.name, p.product_code
+            SELECT 
+                ii.id,
+                ii.quantity,
+                ii.price,
+                ii.total_amount,
+                p.id AS product_id,
+                p.name AS product_name,
+                p.product_code AS product_sku,
+                p.price AS product_price
             FROM invoice_items ii
-            JOIN products p ON p.id=ii.product_id
-            WHERE ii.invoice_id=%s
+            JOIN products p ON p.id = ii.product_id
+            WHERE ii.invoice_id = %s
             """,
             (invoice_id,),
         )

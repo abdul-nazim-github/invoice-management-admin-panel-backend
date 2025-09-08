@@ -147,17 +147,33 @@ def detail(invoice_id):
 
     items = get_items_by_invoice(invoice_id)
     paid = sum_payments_for_invoice(invoice_id)
+    due = float(inv["total_amount"]) - paid
 
     return success_response(
         result={
-            "invoice": inv,
+            "invoice": {
+                "id": inv["id"],
+                "invoice_number": inv["invoice_number"],
+                "created_at": inv["created_at"],
+                "due_date": inv["due_date"],
+                "status": inv["status"],
+                "tax_percent": inv["tax_percent"],
+                "discount": inv["discount"],
+                "total_amount": inv["total_amount"],
+                "paid_amount": paid,
+                "due_amount": due,
+            },
+            "customer": {
+                "id": inv["customer_id"],
+                "name": inv["customer_name"],
+                "email": inv["customer_email"],
+                "phone": inv["customer_phone"],
+                "address": inv["customer_address"],
+            },
             "items": items,
-            "paid_amount": paid,
-            "due_amount": float(inv["total_amount"]) - paid,
         },
         message="Invoice details fetched successfully",
     )
-
 
 @invoices_bp.put("/<invoice_id>")
 @require_auth

@@ -40,10 +40,32 @@ def create_invoice(
 def get_invoice(invoice_id):
     conn = get_db_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
+        cur.execute(
+            """
+            SELECT 
+                i.id,
+                i.invoice_number,
+                i.created_at,
+                i.due_date,
+                i.tax_percent,
+                i.discount,
+                i.total_amount,
+                i.status,
+                c.id AS customer_id,
+                c.name AS customer_name,
+                c.email AS customer_email,
+                c.phone AS customer_phone,
+                c.address AS customer_address
+            FROM invoices i
+            JOIN customers c ON c.id = i.customer_id
+            WHERE i.id = %s
+            """,
+            (invoice_id,),
+        )
         inv = cur.fetchone()
     conn.close()
     return inv
+
 
 
 def list_invoices(q=None, status=None, offset=0, limit=20):
