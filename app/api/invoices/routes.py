@@ -12,7 +12,6 @@ from app.api.invoices.schemas import (
 )
 from app.database.base import get_db_connection
 from app.utils.auth import require_auth
-from app.utils.exceptions.exception import OutOfStockError
 from app.utils.pagination import get_pagination
 from app.utils.response import error_response, success_response
 from app.database.models.invoice_model import (
@@ -97,13 +96,6 @@ def add_invoice():
     except IntegrityError as ie:
         conn.rollback()
         return error_response(message="Integrity Error", details={"error": [str(ie)]}, status=400)
-    except OutOfStockError as oe:
-        conn.rollback()
-        return error_response(
-            message="Stock Error",
-            details={"product_id": oe.product_id, "error": str(oe)},
-            status=400,
-        )
     except Exception as e:
         conn.rollback()
         return error_response(message="Something went wrong", details={"exception": [str(e)]}, status=500)

@@ -3,7 +3,6 @@
 # =============================
 from uuid6 import uuid7
 from app.database.base import get_db_connection
-from app.utils.exceptions.exception import OutOfStockError
 
 
 def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
@@ -28,7 +27,7 @@ def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
 
         # 2️⃣ If no rows updated → not enough stock
         if cur.rowcount == 0:
-            raise OutOfStockError(product_id)
+            raise ValueError(f"Product {product_id} is out of stock.")
 
         # 3️⃣ Insert invoice item only after stock deduction success
         cur.execute(

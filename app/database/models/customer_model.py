@@ -1,6 +1,7 @@
 # =============================
 # app/database/models/customer_model.py
 # =============================
+from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 
@@ -66,7 +67,8 @@ def list_customers(q=None, status=None, offset=0, limit=20):
 
 def update_customer(customer_id, **fields):
     if not fields:
-        return
+        return get_customer(customer_id)  # return existing data if no fields to update
+
     keys = []
     params = []
     for k, v in fields.items():
@@ -76,10 +78,15 @@ def update_customer(customer_id, **fields):
     sql = f"UPDATE customers SET {', '.join(keys)} WHERE id=%s"
 
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(sql, tuple(params))
-    conn.commit()
-    conn.close()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            if cur.rowcount == 0:
+                raise ValidationError(f"Customer does not exist.")
+        conn.commit()
+    finally:
+        conn.close()
+    return get_customer(customer_id)
 
 
 def bulk_delete_customers(ids: list[str]):

@@ -114,21 +114,36 @@ def list_():
             details=ve.messages,
             status=400,
         )
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
 
 
 @customers_bp.get("/<customer_id>")
 @require_auth
 def detail(customer_id):
-    customer = get_customer(customer_id)
-    if not customer:
-        return error_response(message="Customer not found", status=400)
-
-    agg = customer_aggregates(customer_id)
-    return success_response(
-        result={"customer": customer, **agg},
-        message="Customer details fetched successfully",
-    )
-
+    try:
+        customer = get_customer(customer_id)
+        if not customer:
+            return error_response(
+                message="Validation Error",
+                details=["Customer does not exist."],
+                status=400,
+            )
+        agg = customer_aggregates(customer_id)
+        return success_response(
+            result={"customer": customer, **agg},
+            message="Customer details fetched successfully",
+        )
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
 
 @customers_bp.put("/<customer_id>")
 @require_auth
@@ -137,10 +152,10 @@ def update(customer_id):
         data = request.json or {}
         validated: Dict[str, str] = update_schema.load(data)
 
-        update_customer(customer_id, **validated)
+        updated_customer = update_customer(customer_id, **validated)
         return success_response(
             message="Customer updated successfully",
-            result={"id": customer_id},
+            result={"customer": updated_customer},
         )
 
     except ValidationError as ve:
@@ -149,6 +164,33 @@ def update(customer_id):
             details=ve.messages,
             status=400,
         )
+
+    except IntegrityError as ie:
+        msg = str(ie)
+        details = {}
+
+        if "Duplicate entry" in msg:
+            match = re.search(r"Duplicate entry '(.+)' for key '.*\.(.+)'", msg)
+            if match:
+                value, field = match.groups()
+                details[field] = [f"Duplicate entry '{value}'"]
+            else:
+                details["error"] = [msg]
+
+            return error_response(
+                message="Duplicate entry", details=details, status=409
+            )
+        return error_response(
+            message="Integrity error", details={"error": [msg]}, status=400
+        )
+
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
+
 
 
 @customers_bp.post("/bulk-delete")
@@ -169,4 +211,10 @@ def bulk_delete():
             message="Validation Error",
             details=ve.messages,
             status=400,
+        )
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )
