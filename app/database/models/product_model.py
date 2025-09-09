@@ -1,6 +1,8 @@
 # =============================
 # app/database/models/product_model.py
 # =============================
+from datetime import datetime
+from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 
@@ -60,34 +62,50 @@ def get_product(product_id):
     conn.close()
     return prod
 
-
 def update_product(product_id, **fields):
     if not fields:
-        return
+        return get_product(product_id)  # return existing data if no fields to update
+
     keys = []
     params = []
     for k, v in fields.items():
         keys.append(f"{k}=%s")
         params.append(v)
+    keys.append("updated_at=%s")
+    params.append(datetime.now())  # current timestamp
     params.append(product_id)
-
     sql = f"UPDATE products SET {', '.join(keys)} WHERE id=%s"
 
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute(sql, tuple(params))
-    conn.commit()
-    conn.close()
-
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            if cur.rowcount == 0:
+                raise ValidationError(f"Product does not exist.")
+        conn.commit()
+    finally:
+        conn.close()
+    return get_product(product_id)
 
 def bulk_delete_products(ids: list[str]):
     if not ids:
         return 0
+
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        placeholders = ",".join(["%s"] * len(ids))
-        cur.execute(f"DELETE FROM products WHERE id IN ({placeholders})", ids)
-        affected = cur.rowcount
-    conn.commit()
-    conn.close()
-    return affected
+    try:
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(ids))
+            sql = f"""
+                UPDATE products
+                SET deleted_at = %s
+                WHERE id IN ({placeholders})
+            """
+            # First parameter is current timestamp, followed by ids
+            params = [datetime.now()] + ids
+            cur.execute(sql, params)
+            affected = cur.rowcount
+
+        conn.commit()
+        return affected
+    finally:
+        conn.close()

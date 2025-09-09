@@ -136,10 +136,10 @@ def update(product_id):
         data = request.json or {}
         validated: Dict[str, str] = update_schema.load(data)
 
-        update_product(product_id, **validated)
+        updated_product = update_product(product_id, **validated)
         return success_response(
             message="Product updated successfully",
-            result={"id": product_id},
+            result={"product": updated_product},
         )
 
     except ValidationError as ve:
@@ -149,6 +149,31 @@ def update(product_id):
             status=400,
         )
 
+    except IntegrityError as ie:
+        msg = str(ie)
+        details = {}
+
+        if "Duplicate entry" in msg:
+            match = re.search(r"Duplicate entry '(.+)' for key '.*\.(.+)'", msg)
+            if match:
+                value, field = match.groups()
+                details[field] = [f"Duplicate entry '{value}'"]
+            else:
+                details["error"] = [msg]
+
+            return error_response(
+                message="Duplicate entry", details=details, status=409
+            )
+        return error_response(
+            message="Integrity error", details={"error": [msg]}, status=400
+        )
+
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
 
 @products_bp.post("/bulk-delete")
 @require_auth
