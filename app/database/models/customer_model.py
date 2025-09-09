@@ -4,6 +4,7 @@
 from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
+from datetime import datetime
 
 
 def create_customer(
@@ -74,6 +75,8 @@ def update_customer(customer_id, **fields):
     for k, v in fields.items():
         keys.append(f"{k}=%s")
         params.append(v)
+    keys.append("updated_at=%s")
+    params.append(datetime.now())  # current timestamp
     params.append(customer_id)
     sql = f"UPDATE customers SET {', '.join(keys)} WHERE id=%s"
 
@@ -92,14 +95,25 @@ def update_customer(customer_id, **fields):
 def bulk_delete_customers(ids: list[str]):
     if not ids:
         return 0
+
     conn = get_db_connection()
-    with conn.cursor() as cur:
-        placeholders = ",".join(["%s"] * len(ids))
-        cur.execute(f"DELETE FROM customers WHERE id IN ({placeholders})", ids)
-        affected = cur.rowcount
-    conn.commit()
-    conn.close()
-    return affected
+    try:
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(ids))
+            sql = f"""
+                UPDATE customers
+                SET deleted_at = %s
+                WHERE id IN ({placeholders})
+            """
+            # First parameter is current timestamp, followed by ids
+            params = [datetime.now()] + ids
+            cur.execute(sql, params)
+            affected = cur.rowcount
+
+        conn.commit()
+        return affected
+    finally:
+        conn.close()
 
 
 def customer_aggregates(customer_id):
