@@ -5,10 +5,10 @@ from marshmallow import Schema, fields, validate
 # Schema for creating a product
 # ------------------------
 class ProductCreateSchema(Schema):
-    product_code = fields.Str(
+    sku = fields.Str(                                 
         required=True,
         validate=validate.Length(min=1, max=50),
-        error_messages={"required": "Product code is required"},
+        error_messages={"required": "SKU is required"},
     )
     name = fields.Str(
         required=True,
@@ -17,13 +17,13 @@ class ProductCreateSchema(Schema):
     )
     description = fields.Str(required=False, allow_none=True)
 
-    price = fields.Decimal(
+    unit_price = fields.Decimal(                       # ✅ fixed
         required=True,
         as_string=True,
         places=2,
-        error_messages={"required": "Price is required"},
+        error_messages={"required": "Unit price is required"},
     )
-    stock = fields.Int(
+    stock_quantity = fields.Int(                       # ✅ fixed
         required=False,
         load_default=0,
         validate=validate.Range(min=0, error="Stock cannot be negative"),
@@ -40,11 +40,11 @@ class ProductCreateSchema(Schema):
 # Schema for updating a product
 # ------------------------
 class ProductUpdateSchema(Schema):
-    product_code = fields.Str(required=False, validate=validate.Length(max=50))
+    sku = fields.Str(required=False, validate=validate.Length(max=50))   # ✅ fixed
     name = fields.Str(required=False, validate=validate.Length(min=1, max=255))
     description = fields.Str(required=False, allow_none=True)
-    price = fields.Decimal(required=False, as_string=True, places=2)
-    stock = fields.Int(
+    unit_price = fields.Decimal(required=False, as_string=True, places=2)   # ✅ fixed
+    stock_quantity = fields.Int(                                           # ✅ fixed
         required=False, validate=validate.Range(min=0, error="Stock cannot be negative")
     )
     status = fields.Str(validate=validate.OneOf(["active", "inactive"]))

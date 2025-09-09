@@ -1,6 +1,3 @@
-# =============================
-# app/api/invoices/routes.py
-# =============================
 from datetime import date
 from typing import Dict
 from flask import Blueprint, request
@@ -55,12 +52,12 @@ def add_invoice():
         subtotal = 0.0
         for it in items:
             prod = get_product(it["product_id"]) or {}
-            subtotal += float(prod.get("price", 0)) * int(it.get("quantity", 1))
+            subtotal += float(prod.get("unit_price", 0)) * int(it.get("quantity", 1))   # ✅ fixed
 
         tax_percent = float(validated.get("tax_percent", 0))
-        discount = float(validated.get("discount", 0))
+        discount_amount = float(validated.get("discount_amount", 0))   # ✅ fixed
         tax_amount = subtotal * (tax_percent / 100)
-        total = subtotal + tax_amount - discount
+        total = subtotal + tax_amount - discount_amount
 
         # Create invoice (inside TX)
         invoice_id = create_invoice(
@@ -69,7 +66,7 @@ def add_invoice():
             validated["customer_id"],
             validated["due_date"],
             tax_percent,
-            discount,
+            discount_amount,   # ✅ fixed
             total,
             validated.get("status", "pending"),
         )
@@ -77,13 +74,19 @@ def add_invoice():
         # Add all items
         for it in items:
             prod: Dict[str] = get_product(it["product_id"])
-            add_invoice_item(conn, invoice_id, it["product_id"], it["quantity"], prod["price"])
+            add_invoice_item(
+                conn,
+                invoice_id,
+                it["product_id"],
+                it["quantity"],
+                prod["unit_price"],   # ✅ fixed
+            )
 
         # ✅ Everything succeeded → commit once
         conn.commit()
 
         return success_response(
-            result={"id": invoice_id, "total": total},
+            result={"id": invoice_id, "total_amount": total},   # ✅ name match
             message="Invoice created successfully",
             status=201,
         )
@@ -106,6 +109,7 @@ def add_invoice():
         return error_response(message="Something went wrong", details={"exception": [str(e)]}, status=500)
     finally:
         conn.close()
+
 
 @invoices_bp.get("/")
 @require_auth
@@ -138,6 +142,7 @@ def list_():
             message="Validation Error", details=ve.messages, status=400
         )
 
+
 @invoices_bp.get("/<invoice_id>")
 @require_auth
 def detail(invoice_id):
@@ -158,7 +163,7 @@ def detail(invoice_id):
                 "due_date": inv["due_date"],
                 "status": inv["status"],
                 "tax_percent": inv["tax_percent"],
-                "discount": inv["discount"],
+                "discount_amount": inv["discount_amount"],   # ✅ fixed
                 "total_amount": inv["total_amount"],
                 "paid_amount": paid,
                 "due_amount": due,
@@ -174,6 +179,7 @@ def detail(invoice_id):
         },
         message="Invoice details fetched successfully",
     )
+
 
 @invoices_bp.put("/<invoice_id>")
 @require_auth

@@ -17,10 +17,13 @@ class InvoiceCreateSchema(Schema):
     customer_id = fields.UUID(required=True)
     due_date = fields.Date(required=False, allow_none=True)
     status = fields.Str(
-        validate=validate.OneOf(["pending", "paid", "partial"]), load_default="pending"
+        validate=validate.OneOf(["pending", "paid", "partial"]),
+        load_default="pending",
     )
     tax_percent = fields.Decimal(as_string=True, load_default="0")
-    discount = fields.Decimal(as_string=True, load_default="0")
+    discount_amount = fields.Decimal(   # ✅ fixed name
+        as_string=True, load_default="0"
+    )
     items = fields.List(fields.Nested(InvoiceItemSchema), required=True)
 
 
@@ -33,7 +36,7 @@ class InvoiceUpdateSchema(Schema):
     due_date = fields.Date(required=False, allow_none=True)
     status = fields.Str(validate=validate.OneOf(["pending", "paid", "partial"]))
     tax_percent = fields.Decimal(as_string=True)
-    discount = fields.Decimal(as_string=True)
+    discount_amount = fields.Decimal(as_string=True)   # ✅ fixed name
 
 
 # ------------------------

@@ -36,14 +36,13 @@ def register():
             validated["username"],
             validated["email"],
             password_hash,
-            name=validated.get("name"),
+            full_name=validated["full_name"],
         )
 
         return success_response(
             result={"id": uid}, message="User registered successfully", status=201
         )
     except ValidationError as ve:
-        # Marshmallow validation errors
         return error_response(
             message="Validation error",
             details=ve.messages,
@@ -51,7 +50,6 @@ def register():
         )
 
     except IntegrityError as ie:
-        # Duplicate entry handling
         msg = str(ie)
         details = {}
 
@@ -66,13 +64,11 @@ def register():
             return error_response(
                 message="Duplicate entry", details=details, status=409
             )
-        # fallback for other IntegrityErrors
         return error_response(
             message="Integrity error", details={"error": [msg]}, status=400
         )
 
     except Exception as e:
-        # Catch-all for other errors
         print(e)
         return error_response(
             message="Something went wrong!", details={"error": [str(e)]}, status=500
@@ -83,14 +79,11 @@ def register():
 def login():
     try:
         data = request.json or {}
-
-        # Validate input
         validated: Dict[str, str] = login_schema.load(data)
         password: str = validated.get("password")
         otp: str = validated.get("otp")
 
-        # Find user
-        user = find_user_by_email(validated.get("email"))
+        user = find_user_by_email(validated["email"])
         if not user:
             return error_response(
                 message="Invalid credentials",
@@ -98,7 +91,6 @@ def login():
                 status=401,
             )
 
-        # Verify password
         if not bcrypt.verify(password, user["password_hash"]):
             return error_response(
                 message="Invalid credentials",
@@ -106,7 +98,6 @@ def login():
                 status=401,
             )
 
-        # Handle 2FA if enabled
         if user.get("twofa_secret"):
             if not otp:
                 return error_response(
@@ -120,16 +111,17 @@ def login():
                     message="Invalid OTP", details={"otp": ["Invalid OTP"]}, status=401
                 )
 
-        # Create JWT token
         token = create_token(
             {"sub": user["id"], "email": user["email"], "role": user["role"]}
         )
 
-        # If create_token failed and returned an error_response (tuple)
         if isinstance(token, tuple):
             return token
 
-        user_info = {k: user[k] for k in ["id", "email", "username", "name", "role"]}
+        user_info = {
+            k: user[k]
+            for k in ["id", "email", "username", "full_name", "role"]  # ✅ fixed field
+        }
 
         return success_response(
             result={"access_token": token, "user_info": user_info},
@@ -137,15 +129,13 @@ def login():
         )
 
     except ValidationError as ve:
-        # Marshmallow validation errors
         return error_response(
             message="Validation Error",
-            details=ve.messages,  # field-wise errors
+            details=ve.messages,
             status=400,
         )
 
     except Exception as e:
-        # Catch-all for unexpected errors
         return error_response(
             message="Sign-in failed", details={"error": [str(e)]}, status=500
         )

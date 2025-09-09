@@ -3,7 +3,7 @@ from marshmallow import Schema, ValidationError, fields, validate
 
 
 # ------------------------
-# Schema for creating a customer
+# Custom GST Validator
 # ------------------------
 def validate_gst(value):
     pattern = r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$"
@@ -11,11 +11,14 @@ def validate_gst(value):
         raise ValidationError("Invalid GST number")
 
 
+# ------------------------
+# Schema for creating a customer
+# ------------------------
 class CustomerCreateSchema(Schema):
-    name = fields.Str(
+    full_name = fields.Str(
         required=True,
         validate=validate.Length(min=1),
-        error_messages={"required": "Name is required"},
+        error_messages={"required": "Full name is required"},
     )
     email = fields.Email(
         required=False,
@@ -47,7 +50,10 @@ class CustomerCreateSchema(Schema):
 # Schema for updating a customer
 # ------------------------
 class CustomerUpdateSchema(Schema):
-    name = fields.Str(required=False, validate=validate.Length(min=1))
+    full_name = fields.Str(   # ✅ renamed here too
+        required=False,
+        validate=validate.Length(min=1)
+    )
     email = fields.Email(required=False, allow_none=True)
     phone = fields.Str(
         required=False, allow_none=True, validate=validate.Length(min=7, max=15)
@@ -70,10 +76,13 @@ class CustomerBulkDeleteSchema(Schema):
 
 
 # ------------------------
-# Schema for query/filtering (optional)
+# Schema for query/filtering
 # ------------------------
 class CustomerFilterSchema(Schema):
     q = fields.Str(required=False, allow_none=True)
-    status = fields.Str(validate=validate.OneOf(["active", "inactive"]), required=False)
+    status = fields.Str(
+        validate=validate.OneOf(["active", "inactive"]),
+        required=False,
+    )
     page = fields.Int(load_default=1)
     limit = fields.Int(load_default=10)

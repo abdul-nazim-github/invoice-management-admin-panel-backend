@@ -26,7 +26,7 @@ from app.utils.response import error_response, success_response
 
 products_bp = Blueprint("products", __name__)
 
-# schemas
+# Schemas
 create_schema = ProductCreateSchema()
 update_schema = ProductUpdateSchema()
 bulk_delete_schema = ProductBulkDeleteSchema()
@@ -41,11 +41,11 @@ def add_product():
         validated: Dict[str, str] = create_schema.load(data)
 
         pid = create_product(
-            validated["product_code"],
-            validated["name"],
+            validated["sku"],                       
+            validated["name"],                       
             validated.get("description"),
-            validated["price"],
-            validated.get("stock", 0),
+            validated["unit_price"],                 
+            validated.get("stock_quantity", 0),      
             validated.get("status", "active"),
         )
         return success_response(
@@ -61,7 +61,6 @@ def add_product():
         )
 
     except IntegrityError as ie:
-        # Duplicate entry handling
         msg = str(ie)
         details = {}
 

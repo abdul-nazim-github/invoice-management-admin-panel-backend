@@ -23,7 +23,7 @@ class RegisterSchema(Schema):
         ],
         error_messages={"required": "Password is required"},
     )
-    name = fields.Str(required=False)
+    full_name = fields.Str(required=False)  # ✅ fixed field
 
 
 class LoginSchema(Schema):

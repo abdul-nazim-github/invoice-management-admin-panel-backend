@@ -42,7 +42,7 @@ def add_customer():
         validated: Dict[str, str] = create_schema.load(data)
 
         cid = create_customer(
-            validated["name"],
+            validated["full_name"],   # ✅ fixed
             validated.get("email"),
             validated.get("phone"),
             validated.get("address"),
@@ -62,7 +62,6 @@ def add_customer():
         )
 
     except IntegrityError as ie:
-        # Duplicate entry handling
         msg = str(ie)
         details = {}
 
@@ -77,7 +76,6 @@ def add_customer():
             return error_response(
                 message="Duplicate entry", details=details, status=409
             )
-        # fallback for other IntegrityErrors
         return error_response(
             message="Integrity error", details={"error": [msg]}, status=400
         )
