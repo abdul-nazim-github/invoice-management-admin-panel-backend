@@ -6,26 +6,28 @@ from app.database.base import get_db_connection
 
 
 def create_user(
-    username,
-    email,
-    password_hash,
-    name=None,
-    role="admin",
-    twofa_secret=None,
-    bill_address=None,
-    bill_city=None,
-    bill_state=None,
-    bill_pin=None,
-    bill_gst=None,
-):
+    username: str,
+    email: str,
+    password_hash: str,
+    full_name: str = '',
+    role: str = "user",
+    twofa_secret: str = '',
+    billing_address: str = '',
+    billing_city: str = '',
+    billing_state: str = '',
+    billing_pin: str = '',
+    billing_gst: str = '',
+) -> str:
+    conn = get_db_connection()
     try:
-        conn = get_db_connection()
         user_id = str(uuid7())
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (id, username, email, password_hash, name, role, twofa_secret,
-                                   bill_address, bill_city, bill_state, bill_pin, bill_gst)
+                INSERT INTO users (
+                    id, username, email, password_hash, full_name, role, twofa_secret,
+                    billing_address, billing_city, billing_state, billing_pin, billing_gst
+                )
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (
@@ -33,14 +35,14 @@ def create_user(
                     username,
                     email,
                     password_hash,
-                    name,
+                    full_name,
                     role,
                     twofa_secret,
-                    bill_address,
-                    bill_city,
-                    bill_state,
-                    bill_pin,
-                    bill_gst,
+                    billing_address,
+                    billing_city,
+                    billing_state,
+                    billing_pin,
+                    billing_gst,
                 ),
             )
         conn.commit()
@@ -49,17 +51,17 @@ def create_user(
         conn.close()
 
 
-def find_user_by_email(email):
+def find_user_by_email(email: str):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM users WHERE email=%s", (email))
+            cur.execute("SELECT * FROM users WHERE email=%s", (email,))
             return cur.fetchone()
     finally:
         conn.close()
 
 
-def find_user_by_id(user_id):
+def find_user_by_id(user_id: str):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -69,13 +71,18 @@ def find_user_by_id(user_id):
         conn.close()
 
 
-def update_user_profile(user_id, name=None, email=None):
+def update_user_profile(user_id: str, full_name: str = '', email: str = '') -> bool:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE users SET name=COALESCE(%s,name), email=COALESCE(%s,email) WHERE id=%s",
-                (name, email, user_id),
+                """
+                UPDATE users 
+                SET full_name=COALESCE(%s, full_name), 
+                    email=COALESCE(%s, email) 
+                WHERE id=%s
+                """,
+                (full_name, email, user_id),
             )
         conn.commit()
         return True
@@ -83,12 +90,13 @@ def update_user_profile(user_id, name=None, email=None):
         conn.close()
 
 
-def update_user_password(user_id, new_hash):
+def update_user_password(user_id: str, new_hash: str) -> bool:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE users SET password_hash=%s WHERE id=%s", (new_hash, user_id)
+                "UPDATE users SET password_hash=%s WHERE id=%s",
+                (new_hash, user_id),
             )
         conn.commit()
         return True
@@ -96,12 +104,13 @@ def update_user_password(user_id, new_hash):
         conn.close()
 
 
-def update_user_2fa(user_id, secret):
+def update_user_2fa(user_id: str, secret: str) -> bool:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE users SET twofa_secret=%s WHERE id=%s", (secret, user_id)
+                "UPDATE users SET twofa_secret=%s WHERE id=%s",
+                (secret, user_id),
             )
         conn.commit()
         return True
@@ -109,15 +118,28 @@ def update_user_2fa(user_id, secret):
         conn.close()
 
 
-def update_user_billing(user_id, addr=None, city=None, state=None, pin=None, gst=None):
+def update_user_billing(
+    user_id: str,
+    address: str = '',
+    city: str = '',
+    state: str = '',
+    pin: str = '',
+    gst: str = '',
+) -> bool:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """UPDATE users 
-                   SET bill_address=%s, bill_city=%s, bill_state=%s, bill_pin=%s, bill_gst=%s
-                   WHERE id=%s""",
-                (addr, city, state, pin, gst, user_id),
+                """
+                UPDATE users 
+                SET billing_address=COALESCE(%s, billing_address), 
+                    billing_city=COALESCE(%s, billing_city), 
+                    billing_state=COALESCE(%s, billing_state), 
+                    billing_pin=COALESCE(%s, billing_pin), 
+                    billing_gst=COALESCE(%s, billing_gst)
+                WHERE id=%s
+                """,
+                (address, city, state, pin, gst, user_id),
             )
         conn.commit()
         return True

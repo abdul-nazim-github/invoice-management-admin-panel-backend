@@ -30,7 +30,7 @@ from app.database.models.invoice_item_model import (
     get_items_by_invoice,
 )
 from app.database.models.product_model import get_product
-from app.database.models.payment_model import create_payment, sum_payments_for_invoice
+from app.database.models.payment_model import create_payment, get_payments_by_invoice
 
 
 invoices_bp = Blueprint("invoices", __name__)
@@ -67,7 +67,7 @@ def add_invoice():
             conn,
             validated["invoice_number"],
             validated["customer_id"],
-            validated.get("due_date"),
+            validated["due_date"],
             tax_percent,
             discount,
             total,
@@ -116,15 +116,15 @@ def list_():
 
         page, limit, offset = get_pagination()
         rows, total = list_invoices(
-            q=validated.get("q"),
-            status=validated.get("status"),
+            q=validated["q"],
+            status=validated["status"],
             offset=offset,
             limit=limit,
         )
 
         # enrich with paid/due
         for inv in rows:
-            paid = sum_payments_for_invoice(inv["id"])
+            paid = get_payments_by_invoice(inv["id"])
             inv["paid_amount"] = paid
             inv["due_amount"] = float(inv["total_amount"]) - paid
 
@@ -146,7 +146,7 @@ def detail(invoice_id):
         return error_response(message="Invoice not found", status=404)
 
     items = get_items_by_invoice(invoice_id)
-    paid = sum_payments_for_invoice(invoice_id)
+    paid = get_payments_by_invoice(invoice_id)
     due = float(inv["total_amount"]) - paid
 
     return success_response(

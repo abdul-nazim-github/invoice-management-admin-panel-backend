@@ -5,16 +5,16 @@ from uuid6 import uuid7
 from app.database.base import get_db_connection
 
 
-def create_product(product_code, name, description, price, stock, status="active"):
+def create_product(sku, name, description, unit_price, stock_quantity, status="active"):
     conn = get_db_connection()
+    pid = str(uuid7())
     with conn.cursor() as cur:
-        pid = str(uuid7())
         cur.execute(
             """
-            INSERT INTO products (id, product_code, name, description, price, stock, status)
+            INSERT INTO products (id, sku, name, description, unit_price, stock_quantity, status)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             """,
-            (pid, product_code, name, description, price, stock, status),
+            (pid, sku, name, description, unit_price, stock_quantity, status),
         )
     conn.commit()
     conn.close()
@@ -26,7 +26,7 @@ def list_products(q=None, status=None, offset=0, limit=20):
     where, params = [], []
     if q:
         like = f"%{q}%"
-        where.append("(name LIKE %s OR product_code LIKE %s)")
+        where.append("(name LIKE %s OR sku LIKE %s)")
         params += [like, like]
     if status:
         where.append("status=%s")
@@ -35,12 +35,19 @@ def list_products(q=None, status=None, offset=0, limit=20):
 
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT SQL_CALC_FOUND_ROWS * FROM products{where_sql} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            f"""
+            SELECT SQL_CALC_FOUND_ROWS * 
+            FROM products{where_sql} 
+            ORDER BY created_at DESC 
+            LIMIT %s OFFSET %s
+            """,
             (*params, limit, offset),
         )
         rows = cur.fetchall()
+
         cur.execute("SELECT FOUND_ROWS() AS total")
         total = cur.fetchone()["total"]
+
     conn.close()
     return rows, total
 
@@ -63,7 +70,9 @@ def update_product(product_id, **fields):
         keys.append(f"{k}=%s")
         params.append(v)
     params.append(product_id)
+
     sql = f"UPDATE products SET {', '.join(keys)} WHERE id=%s"
+
     conn = get_db_connection()
     with conn.cursor() as cur:
         cur.execute(sql, tuple(params))
@@ -71,7 +80,7 @@ def update_product(product_id, **fields):
     conn.close()
 
 
-def bulk_delete_products(ids: list[int]):
+def bulk_delete_products(ids: list[str]):
     if not ids:
         return 0
     conn = get_db_connection()
