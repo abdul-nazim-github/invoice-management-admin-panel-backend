@@ -9,13 +9,15 @@ def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
     """
     Add an invoice item and deduct stock.
     Must be called inside a transaction (conn passed in).
-    Does NOT commit/rollback/close — caller controls that.
+    Raises ValidationError if stock is insufficient.
     """
+    from marshmallow import ValidationError
+
     total_amount = float(unit_price) * int(quantity)
     invoice_item_id = str(uuid7())
 
     with conn.cursor() as cur:
-        # 1️⃣ Deduct stock first (atomic check)
+        # Deduct stock atomically
         cur.execute(
             """
             UPDATE products 
@@ -25,29 +27,22 @@ def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
             (quantity, product_id, quantity),
         )
 
-        # 2️⃣ If no rows updated → not enough stock
         if cur.rowcount == 0:
-            raise ValueError(f"Product {product_id} is out of stock.")
+            raise ValidationError(
+                {"product_id": [f"Product {product_id} is out of stock"]}
+            )
 
-        # 3️⃣ Insert invoice item only after stock deduction success
+        # Insert invoice item
         cur.execute(
             """
             INSERT INTO invoice_items 
             (id, invoice_id, product_id, quantity, unit_price, total_amount) 
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (
-                invoice_item_id,
-                invoice_id,
-                product_id,
-                quantity,
-                unit_price,
-                total_amount,
-            ),
+            (invoice_item_id, invoice_id, product_id, quantity, unit_price, total_amount),
         )
 
     return invoice_item_id
-
 
 def get_items_by_invoice(invoice_id):
     conn = get_db_connection()

@@ -45,60 +45,98 @@ def add_invoice():
     try:
         data = request.json or {}
         validated: Dict[str, str] = create_schema.load(data)
-        items = data.get("items", [])
+        items: list[Dict[str, str]] = validated.get("items", [])
 
-        # Calculate subtotal
+        # ---------- Calculate subtotal ----------
         subtotal = 0.0
         for it in items:
-            prod = get_product(it["product_id"]) or {}
-            subtotal += float(prod.get("unit_price", 0)) * int(it.get("quantity", 1))   # ✅ fixed
+            prod = get_product(it["product_id"])
+            if not prod:
+                conn.rollback()
+                return error_response(
+                    message="Invalid product",
+                    details={
+                        "product_id": [f"Product {it['product_id']} does not exist"]
+                    },
+                    status=400,
+                )
+            subtotal += float(prod["unit_price"]) * int(it.get("quantity", 1))
 
         tax_percent = float(validated.get("tax_percent", 0))
-        discount_amount = float(validated.get("discount_amount", 0))   # ✅ fixed
+        discount_amount = float(validated.get("discount_amount", 0))
         tax_amount = subtotal * (tax_percent / 100)
         total = subtotal + tax_amount - discount_amount
 
-        # Create invoice (inside TX)
-        invoice_id = create_invoice(
-            conn,
-            validated["invoice_number"],
-            validated["customer_id"],
-            validated["due_date"],
-            tax_percent,
-            discount_amount,   # ✅ fixed
-            total,
-            validated.get("status", "pending"),
-        )
-
-        # Add all items
-        for it in items:
-            prod: Dict[str] = get_product(it["product_id"])
-            add_invoice_item(
+        # ---------- Create invoice ----------
+        try:
+            invoice_id = create_invoice(
                 conn,
-                invoice_id,
-                it["product_id"],
-                it["quantity"],
-                prod["unit_price"],   # ✅ fixed
+                validated["invoice_number"],
+                validated["customer_id"],
+                validated["due_date"],
+                tax_percent,
+                discount_amount,
+                total,
+                validated.get("status", "pending"),
+            )
+        except IntegrityError as ie:
+            msg = str(ie)
+            if "FOREIGN KEY (`customer_id`) REFERENCES `customers`" in msg:
+                return error_response(
+                    message="Invalid customer",
+                    details={"customer_id": ["Customer does not exist"]},
+                    status=400,
+                )
+            if "Duplicate entry" in msg:
+                return error_response(
+                    message="Duplicate invoice number",
+                    details={"invoice_number": ["Invoice number already exists"]},
+                    status=409,
+                )
+            return error_response(
+                message="Integrity Error",
+                details={"error": [msg]},
+                status=400,
             )
 
-        # ✅ Everything succeeded → commit once
-        conn.commit()
+        # ---------- Add invoice items ----------
+        for it in items:
+            prod = get_product(it["product_id"])
+            try:
+                add_invoice_item(
+                    conn,
+                    invoice_id,
+                    it["product_id"],
+                    it["quantity"],
+                    prod["unit_price"],
+                )
+            except ValidationError as ve:
+                conn.rollback()
+                return error_response(
+                    message="Stock error",
+                    details=ve.messages,
+                    status=400,
+                )
 
+        conn.commit()
         return success_response(
-            result={"id": invoice_id, "total_amount": total},   # ✅ name match
+            result={"id": invoice_id},
             message="Invoice created successfully",
             status=201,
         )
 
     except ValidationError as ve:
         conn.rollback()
-        return error_response(message="Validation Error", details=ve.messages, status=400)
-    except IntegrityError as ie:
-        conn.rollback()
-        return error_response(message="Integrity Error", details={"error": [str(ie)]}, status=400)
+        return error_response(
+            message="Validation Error", details=ve.messages, status=400
+        )
     except Exception as e:
         conn.rollback()
-        return error_response(message="Something went wrong", details={"exception": [str(e)]}, status=500)
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
     finally:
         conn.close()
 
