@@ -136,8 +136,8 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
     """
     Update invoice fields dynamically.
     - Recalculates totals if tax/discount/items are changed
-    - Replaces items if provided
-    - Returns the updated invoice dict (same as detail)
+    - Updates items (no delete) and adds new ones if provided
+    - Returns the updated invoice dict (same as get_invoice_detail)
     """
     conn = get_db_connection()
     try:
@@ -153,11 +153,6 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
         subtotal = 0.0
 
         if items is not None:
-            # delete old items
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM invoice_items WHERE invoice_id=%s", (invoice_id,))
-
-            # add new items
             for it in items:
                 prod = get_product(it["product_id"])
                 if not prod:
@@ -165,14 +160,40 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                     raise ValidationError(
                         {"product_id": [f"Product {it['product_id']} does not exist"]}
                     )
-                subtotal += float(prod["unit_price"]) * int(it.get("quantity", 1))
-                add_invoice_item(
-                    conn,
-                    invoice_id,
-                    it["product_id"],
-                    it["quantity"],
-                    prod["unit_price"],
-                )
+
+                quantity = int(it.get("quantity", 1))
+                unit_price = float(prod["unit_price"])
+                total_amount = quantity * unit_price
+
+                # check if item exists
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id FROM invoice_items WHERE invoice_id=%s AND product_id=%s",
+                        (invoice_id, it["product_id"]),
+                    )
+                    existing_item = cur.fetchone()
+
+                    if existing_item:
+                        # update existing item
+                        cur.execute(
+                            """
+                            UPDATE invoice_items
+                            SET quantity=%s, unit_price=%s, total_amount=%s, updated_at=%s
+                            WHERE id=%s
+                            """,
+                            (quantity, unit_price, total_amount, datetime.now(), existing_item["id"]),
+                        )
+                    else:
+                        # insert new item
+                        add_invoice_item(
+                            conn,
+                            invoice_id,
+                            it["product_id"],
+                            quantity,
+                            unit_price,
+                        )
+
+                subtotal += total_amount
         else:
             # recalc subtotal from existing items
             db_items = get_items_by_invoice(invoice_id)
@@ -208,7 +229,7 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
 
     finally:
         conn.close()
-           
+     
 def bulk_delete_invoices(ids: list[str]):
     if not ids:
         return 0
