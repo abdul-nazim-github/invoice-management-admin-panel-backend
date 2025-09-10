@@ -37,6 +37,7 @@ class InvoiceUpdateSchema(Schema):
     status = fields.Str(validate=validate.OneOf(["pending", "paid", "partial"]))
     tax_percent = fields.Decimal(as_string=True)
     discount_amount = fields.Decimal(as_string=True)   # ✅ fixed name
+    items = fields.List(fields.Nested(InvoiceItemSchema), required=False)
 
 
 # ------------------------

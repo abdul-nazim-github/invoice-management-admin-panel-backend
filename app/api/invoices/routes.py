@@ -1,6 +1,5 @@
 from datetime import date
-import re
-from typing import Dict
+from typing import Any, Dict
 from flask import Blueprint, request
 from marshmallow import ValidationError
 from pymysql.err import IntegrityError
@@ -224,46 +223,26 @@ def detail(invoice_id):
 def update(invoice_id):
     try:
         data = request.json or {}
-        validated: Dict[str, str] = update_schema.load(data)
+        validated: Dict[str, Any] = update_schema.load(data)
 
-        # Call your update function and get the updated invoice
         updated_invoice = update_invoice(invoice_id, **validated)
+
+        if not updated_invoice:
+            return error_response(
+                message="Validation Error",
+                details=["Invoice does not exist"],
+                status=400,
+            )
 
         return success_response(
             message="Invoice updated successfully",
-            result={"invoice": updated_invoice},
+            result=updated_invoice,   # already formatted like detail()
         )
 
     except ValidationError as ve:
         return error_response(
             message="Validation Error",
             details=ve.messages,
-            status=400,
-        )
-
-    except IntegrityError as ie:
-        msg = str(ie)
-        details = {}
-
-        # Handle duplicate entry errors
-        if "Duplicate entry" in msg:
-            match = re.search(r"Duplicate entry '(.+)' for key '.*\.(.+)'", msg)
-            if match:
-                value, field = match.groups()
-                details[field] = [f"Duplicate entry '{value}'"]
-            else:
-                details["error"] = [msg]
-
-            return error_response(
-                message="Duplicate entry",
-                details=details,
-                status=409,
-            )
-
-        # Default IntegrityError
-        return error_response(
-            message="Integrity error",
-            details={"error": [msg]},
             status=400,
         )
 
