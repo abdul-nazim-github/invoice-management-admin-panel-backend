@@ -4,6 +4,7 @@ from flask import Blueprint, request
 from marshmallow import ValidationError
 from pymysql.err import IntegrityError
 
+from app.api.invoices.payment_schemas import PaymentCreateSchema
 from app.api.invoices.schemas import (
     InvoiceCreateSchema,
     InvoiceUpdateSchema,
@@ -36,6 +37,7 @@ create_schema = InvoiceCreateSchema()
 update_schema = InvoiceUpdateSchema()
 bulk_delete_schema = InvoiceBulkDeleteSchema()
 filter_schema = InvoiceFilterSchema()
+payment_schema = PaymentCreateSchema()
 
 
 @invoices_bp.post("/")
@@ -258,33 +260,43 @@ def update(invoice_id):
 @require_auth
 def pay(invoice_id):
     try:
-        data = request.json or {}
-        amount = data.get("amount")
-        if not amount:
+        # ---------- Validate payload ----------
+        try:
+            data: Dict[str, Any] = payment_schema.load(request.json or {})
+        except ValidationError as ve:
             return error_response(
                 message="Validation Error",
-                details={"amount": ["Amount is required"]},
+                details=ve.messages,
                 status=400,
             )
 
+        # ---------- Create payment ----------
         create_payment(
-            invoice_id,
-            amount,
-            data.get("payment_date", str(date.today())),
-            data.get("method", "upi"),
-            data.get("reference_no"),
+            invoice_id=invoice_id,
+            amount=data["amount"],
+            payment_date=data.get("payment_date", str(date.today())),
+            method=data.get("method", "upi"),
+            reference_number=data["reference_no"],
         )
+
+        # ---------- Success ----------
         return success_response(
             message="Payment recorded successfully",
-            result={"invoice_id": invoice_id, "amount": amount},
+            result={
+                "invoice_id": invoice_id,
+                "amount": data["amount"],
+                "method": data.get("method", "upi"),
+                "payment_date": str(data.get("payment_date", date.today())),
+                "reference_no": data.get("reference_no"),
+            },
         )
+
     except Exception as e:
         return error_response(
             message="Something went wrong",
             details={"exception": [str(e)]},
             status=500,
         )
-
 
 @invoices_bp.post("/bulk-delete")
 @require_auth
