@@ -1,6 +1,7 @@
 # =============================
 # app/database/models/user_model.py
 # =============================
+from typing import Any, Dict
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 
@@ -71,7 +72,7 @@ def find_user_by_id(user_id: str):
         conn.close()
 
 
-def update_user_profile(user_id: str, full_name: str = '', email: str = '') -> bool:
+def update_user_profile(user_id: str, full_name: str = '', email: str = '') -> Dict[str, Any] | None:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -85,7 +86,7 @@ def update_user_profile(user_id: str, full_name: str = '', email: str = '') -> b
                 (full_name, email, user_id),
             )
         conn.commit()
-        return True
+        return find_user_by_id(user_id)
     finally:
         conn.close()
 
@@ -104,7 +105,7 @@ def update_user_password(user_id: str, new_hash: str) -> bool:
         conn.close()
 
 
-def update_user_2fa(user_id: str, secret: str) -> bool:
+def update_user_2fa(user_id: str, secret: str) -> Dict[str, Any] | None:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -113,7 +114,7 @@ def update_user_2fa(user_id: str, secret: str) -> bool:
                 (secret, user_id),
             )
         conn.commit()
-        return True
+        return find_user_by_id(user_id)
     finally:
         conn.close()
 
@@ -125,7 +126,7 @@ def update_user_billing(
     state: str = '',
     pin: str = '',
     gst: str = '',
-) -> bool:
+) -> Dict[str, Any] | None:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -142,6 +143,6 @@ def update_user_billing(
                 (address, city, state, pin, gst, user_id),
             )
         conn.commit()
-        return True
+        return find_user_by_id(user_id)
     finally:
         conn.close()

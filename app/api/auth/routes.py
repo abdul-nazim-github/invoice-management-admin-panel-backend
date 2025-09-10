@@ -9,11 +9,10 @@ from typing import Dict
 from pymysql.err import IntegrityError
 from marshmallow import ValidationError
 from app.api.auth.schemas import Enable2FASchema, LoginSchema, RegisterSchema
-from app.utils.auth import create_token, require_auth
+from app.utils.auth import create_token
 from app.utils.response import success_response, error_response
 from app.database.models.user_model import (
     find_user_by_email,
-    update_user_2fa,
     create_user,
 )
 
@@ -139,20 +138,3 @@ def login():
         return error_response(
             message="Sign-in failed", details={"error": [str(e)]}, status=500
         )
-
-
-@auth_bp.post("/enable-2fa")
-@require_auth
-def enable_2fa():
-    try:
-        secret = pyotp.random_base32()
-        update_user_2fa(request.user["sub"], secret)
-        uri = pyotp.TOTP(secret).provisioning_uri(
-            name=str(request.user["email"]), issuer_name="CodeOrbit Billing"
-        )
-        return success_response(
-            result={"secret": secret, "otpauth_uri": uri},
-            message="2FA enabled successfully",
-        )
-    except Exception as e:
-        return error_response(message="Failed to enable 2FA", details=str(e))
