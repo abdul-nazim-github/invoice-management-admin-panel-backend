@@ -27,23 +27,23 @@ def create_payment(invoice_id: str, amount: float, method: str = "cash", referen
         conn.close()
 
 
-def get_payments_by_invoice(invoice_id: str):
+def get_payments_by_invoice(invoice_id: str) -> float:
     """
-    Get all payments for a given invoice.
+    Get the total paid amount for a given invoice.
     """
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, invoice_id, amount, method, reference_number, paid_at
+                SELECT SUM(amount) AS total_paid
                 FROM payments
                 WHERE invoice_id = %s
-                ORDER BY paid_at DESC
                 """,
                 (invoice_id,),
             )
-            payments = cursor.fetchall()
-        return payments
+            result = cursor.fetchone()
+            total_paid = float(result["total_paid"]) if result and result["total_paid"] else 0.0
+        return total_paid
     finally:
         conn.close()

@@ -1,4 +1,5 @@
 from datetime import date
+import re
 from typing import Dict
 from flask import Blueprint, request
 from marshmallow import ValidationError
@@ -108,7 +109,7 @@ def add_invoice():
                     invoice_id,
                     it["product_id"],
                     it["quantity"],
-                    prod["unit_price"],
+                    prod["unit_price"], # type: ignore
                 )
             except ValidationError as ve:
                 conn.rollback()
@@ -150,13 +151,13 @@ def list_():
 
         page, limit, offset = get_pagination()
         rows, total = list_invoices(
-            q=validated["q"],
-            status=validated["status"],
+            q=validated.get("q"),
+            status=validated.get("status"),
             offset=offset,
             limit=limit,
         )
 
-        # enrich with paid/due
+        # enrich each invoice with paid and due amounts
         for inv in rows:
             paid = get_payments_by_invoice(inv["id"])
             inv["paid_amount"] = paid
@@ -171,14 +172,21 @@ def list_():
         return error_response(
             message="Validation Error", details=ve.messages, status=400
         )
-
+    except Exception as e:
+        return error_response(
+            message="Something went wrong", details={"exception": [str(e)]}, status=500
+        )
 
 @invoices_bp.get("/<invoice_id>")
 @require_auth
 def detail(invoice_id):
     inv = get_invoice(invoice_id)
     if not inv:
-        return error_response(message="Invoice not found", status=404)
+        return error_response(
+                message="Validation Error",
+                details=["Invoice does not exist."],
+                status=400,
+            )
 
     items = get_items_by_invoice(invoice_id)
     paid = get_payments_by_invoice(invoice_id)
@@ -200,7 +208,7 @@ def detail(invoice_id):
             },
             "customer": {
                 "id": inv["customer_id"],
-                "name": inv["customer_name"],
+                "full_ame": inv["customer_full_name"],
                 "email": inv["customer_email"],
                 "phone": inv["customer_phone"],
                 "address": inv["customer_address"],
@@ -218,14 +226,52 @@ def update(invoice_id):
         data = request.json or {}
         validated: Dict[str, str] = update_schema.load(data)
 
-        update_invoice(invoice_id, **validated)
+        # Call your update function and get the updated invoice
+        updated_invoice = update_invoice(invoice_id, **validated)
+
         return success_response(
             message="Invoice updated successfully",
-            result={"id": invoice_id},
+            result={"invoice": updated_invoice},
         )
+
     except ValidationError as ve:
         return error_response(
-            message="Validation Error", details=ve.messages, status=400
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
+
+    except IntegrityError as ie:
+        msg = str(ie)
+        details = {}
+
+        # Handle duplicate entry errors
+        if "Duplicate entry" in msg:
+            match = re.search(r"Duplicate entry '(.+)' for key '.*\.(.+)'", msg)
+            if match:
+                value, field = match.groups()
+                details[field] = [f"Duplicate entry '{value}'"]
+            else:
+                details["error"] = [msg]
+
+            return error_response(
+                message="Duplicate entry",
+                details=details,
+                status=409,
+            )
+
+        # Default IntegrityError
+        return error_response(
+            message="Integrity error",
+            details={"error": [msg]},
+            status=400,
+        )
+
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )
 
 
@@ -274,5 +320,13 @@ def bulk_delete():
         )
     except ValidationError as ve:
         return error_response(
-            message="Validation Error", details=ve.messages, status=400
+            message="Validation Error",
+            details=ve.messages,
+            status=400,
+        )
+    except Exception as e:
+        return error_response(
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )

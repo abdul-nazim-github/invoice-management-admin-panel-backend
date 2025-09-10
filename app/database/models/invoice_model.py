@@ -1,6 +1,7 @@
 # =============================
 # app/database/models/invoice_model.py
 # =============================
+from datetime import datetime
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 
@@ -78,7 +79,7 @@ def get_invoice(invoice_id: str):
         conn.close()
 
 
-def list_invoices(q: str = '', status: str = '', offset: int = 0, limit: int = 20):
+def list_invoices(q=None, status=None, offset=0, limit=20):
     """
     Paginated list of invoices with optional search & status filter.
     """
@@ -147,10 +148,7 @@ def update_invoice(invoice_id: str, **fields) -> bool:
         conn.close()
 
 
-def bulk_delete_invoices(ids: list[str]) -> int:
-    """
-    Delete multiple invoices by IDs.
-    """
+def bulk_delete_invoices(ids: list[str]):
     if not ids:
         return 0
 
@@ -158,8 +156,16 @@ def bulk_delete_invoices(ids: list[str]) -> int:
     try:
         with conn.cursor() as cur:
             placeholders = ",".join(["%s"] * len(ids))
-            cur.execute(f"DELETE FROM invoices WHERE id IN ({placeholders})", ids)
+            sql = f"""
+                UPDATE invoices
+                SET deleted_at = %s
+                WHERE id IN ({placeholders})
+            """
+            # First parameter is current timestamp, followed by ids
+            params = [datetime.now()] + ids
+            cur.execute(sql, params)
             affected = cur.rowcount
+
         conn.commit()
         return affected
     finally:
