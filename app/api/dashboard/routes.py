@@ -1,31 +1,16 @@
-# =============================
-# app/api/dashboard/routes.py (metrics)
-# =============================
-from flask import Blueprint, jsonify
+# app/api/dashboard/routes.py
+from flask import Blueprint
 from app.utils.auth import require_auth
-from app.database.base import get_db_connection
-
+from app.database.models.dashboard_model import get_dashboard_stats
+from app.utils.response import success_response
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
-
-@dashboard_bp.get("/")
+@dashboard_bp.get("/stats")
 @require_auth
-def metrics():
-    conn = get_db_connection()
-    with conn.cursor() as cur:
-        cur.execute("SELECT COALESCE(SUM(total_amount),0) AS revenue FROM invoices WHERE status IN ('paid','unpaid')")
-        revenue = float(cur.fetchone()["revenue"])  # all revenue billed
-        cur.execute("SELECT COUNT(*) AS c FROM products WHERE status='active'")
-        active_products = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM customers")
-        customers = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM invoices WHERE status='unpaid'")
-        pending_invoices = cur.fetchone()["c"]
-    conn.close()
-    return jsonify({
-        "total_revenue": revenue,
-        "active_products": active_products,
-        "customers": customers,
-        "pending_invoices": pending_invoices,
-    })
+def dashboard_stats():
+    stats = get_dashboard_stats()
+    return success_response(
+            message="Dashboard fetch successfully",
+            result={"stats": stats},
+        )
