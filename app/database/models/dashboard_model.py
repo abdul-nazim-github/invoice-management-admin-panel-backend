@@ -34,3 +34,21 @@ def get_dashboard_stats() -> Dict[str, Any]:
             }
     finally:
         conn.close()
+
+def get_sales_performance() -> list[Dict[str, Any]]:
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    DATE_FORMAT(created_at, '%%Y-%%m') AS month,
+                    COALESCE(SUM(total_amount), 0) AS revenue
+                FROM invoices
+                WHERE status = 'paid'
+                GROUP BY DATE_FORMAT(created_at, '%%Y-%%m')
+                ORDER BY month ASC
+            """)
+            rows = cur.fetchall()
+            return [{"month": row["month"], "revenue": float(row["revenue"])} for row in rows]
+    finally:
+        conn.close()
