@@ -41,7 +41,7 @@ def add_customer():
         data = request.json or {}
         validated: Dict[str, str] = create_schema.load(data)
 
-        cid = create_customer(
+        customer = create_customer(
             validated["full_name"],   # ✅ fixed
             validated.get("email"),
             validated.get("phone"),
@@ -50,7 +50,7 @@ def add_customer():
             validated.get("status", "active"),
         )
         return success_response(
-            result={"id": cid},
+            result=customer,
             message="Customer created successfully",
         )
 

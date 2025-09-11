@@ -37,13 +37,6 @@ class CustomerCreateSchema(Schema):
         allow_none=True,
         validate=validate_gst,  # ✅ custom GST validation
     )
-    status = fields.Str(
-        required=False,
-        validate=validate.OneOf(
-            ["active", "inactive"], error="Status must be active or inactive"
-        ),
-        load_default="active",
-    )
 
 
 # ------------------------
@@ -60,7 +53,6 @@ class CustomerUpdateSchema(Schema):
     )
     address = fields.Str(required=False, allow_none=True)
     gst_number = fields.Str(required=False, allow_none=True)
-    status = fields.Str(validate=validate.OneOf(["active", "inactive"]))
 
 
 # ------------------------
@@ -81,7 +73,7 @@ class CustomerBulkDeleteSchema(Schema):
 class CustomerFilterSchema(Schema):
     q = fields.Str(required=False, allow_none=True)
     status = fields.Str(
-        validate=validate.OneOf(["active", "inactive"]),
+        validate=validate.OneOf(["New", "Pending", "Paid", "Overdue"]),
         required=False,
     )
     page = fields.Int(load_default=1)

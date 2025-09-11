@@ -22,7 +22,7 @@ def create_customer(
         )
     conn.commit()
     conn.close()
-    return customer_id
+    return get_customer(customer_id)
 
 
 def get_customer(customer_id):
@@ -37,28 +37,48 @@ def get_customer(customer_id):
 def list_customers(q=None, status=None, offset=0, limit=20):
     conn = get_db_connection()
     where, params = [], []
+
+    # Search filter
     if q:
-        where.append("(full_name LIKE %s OR email LIKE %s OR phone LIKE %s)")
+        where.append("(c.full_name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
         like = f"%{q}%"
         params += [like, like, like]
-    if status:
-        where.append("status=%s")
-        params.append(status)
+
+    # Build dynamic query with computed status
+    query = f"""
+        SELECT 
+            c.id, 
+            c.full_name, 
+            c.email, 
+            c.phone, 
+            -- Compute customer status from invoices
+            CASE
+                WHEN COUNT(i.id) = 0 THEN 'New'
+                WHEN SUM(CASE WHEN i.status = 'pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                WHEN SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                WHEN SUM(CASE WHEN i.status = 'paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                ELSE 'New'
+            END AS status
+        FROM customers c
+        LEFT JOIN invoices i ON c.id = i.customer_id
+    """
+
     where_sql = " WHERE " + " AND ".join(where) if where else ""
+    query += where_sql + " GROUP BY c.id ORDER BY c.created_at DESC LIMIT %s OFFSET %s"
 
     with conn.cursor() as cur:
-        cur.execute(
-            f"""
-            SELECT SQL_CALC_FOUND_ROWS * 
-            FROM customers{where_sql} 
-            ORDER BY created_at DESC 
-            LIMIT %s OFFSET %s
-            """,
-            (*params, limit, offset),
-        )
+        cur.execute(query, (*params, limit, offset))
         rows = cur.fetchall()
 
-        cur.execute("SELECT FOUND_ROWS() AS total")
+        # For total count (without LIMIT/OFFSET)
+        count_query = f"""
+            SELECT COUNT(*) as total
+            FROM customers c
+            LEFT JOIN invoices i ON c.id = i.customer_id
+            {where_sql}
+            GROUP BY c.id
+        """
+        cur.execute(f"SELECT COUNT(*) as total FROM ({count_query}) as sub", tuple(params))
         result = cur.fetchone()
         total = result["total"] if result else 0
 

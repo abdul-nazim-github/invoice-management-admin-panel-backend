@@ -38,7 +38,6 @@ def init_db():
             phone VARCHAR(20),
             address TEXT,
             gst_number VARCHAR(50),
-            status ENUM('active','inactive') DEFAULT 'active',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NULL,
             deleted_at TIMESTAMP NULL
