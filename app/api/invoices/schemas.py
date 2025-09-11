@@ -63,3 +63,6 @@ class InvoiceFilterSchema(Schema):
     )
     page = fields.Int(load_default=1)
     limit = fields.Int(load_default=10)
+    # Cursor-based filters
+    before = fields.DateTime(required=False, allow_none=True)  # fetch invoices before this datetime
+    after = fields.DateTime(required=False, allow_none=True)   # fetch invoices after this datetime

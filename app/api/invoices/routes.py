@@ -150,12 +150,18 @@ def list_():
         args = request.args or {}
         validated: Dict[str, str] = filter_schema.load(args)
 
+        # Get query params
         page, limit, offset = get_pagination()
+        before = args.get("before")
+        after = args.get("after")
+
         rows, total = list_invoices(
             q=validated.get("q"),
             status=validated.get("status"),
             offset=offset,
             limit=limit,
+            before=before,
+            after=after,
         )
 
         # enrich each invoice with paid and due amounts
@@ -164,10 +170,17 @@ def list_():
             inv["paid_amount"] = paid
             inv["due_amount"] = float(inv["total_amount"]) - paid
 
+        meta = {"page": page, "limit": limit, "total": total}
+        if before or after:
+            meta["cursor_mode"] = True
+            if rows:
+                meta["first_created_at"] = rows[0]["created_at"].isoformat()
+                meta["last_created_at"] = rows[-1]["created_at"].isoformat()
+
         return success_response(
             result=rows,
             message="Invoices fetched successfully",
-            meta={"page": page, "limit": limit, "total": total},
+            meta=meta,
         )
     except ValidationError as ve:
         return error_response(

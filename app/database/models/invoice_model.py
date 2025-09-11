@@ -84,9 +84,10 @@ def get_invoice(invoice_id: str):
         conn.close()
 
 
-def list_invoices(q=None, status=None, offset=0, limit=20):
+def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=None):
     """
-    Paginated list of invoices with optional search & status filter.
+    Paginated list of invoices with optional search, status filter,
+    and cursor-based pagination using before/after created_at.
     """
     conn = get_db_connection()
     where, params = [], []
@@ -99,6 +100,14 @@ def list_invoices(q=None, status=None, offset=0, limit=20):
     if status:
         where.append("i.status = %s")
         params.append(status)
+
+    if before:
+        where.append("i.created_at < %s")
+        params.append(before)
+
+    if after:
+        where.append("i.created_at > %s")
+        params.append(after)
 
     where_sql = f" WHERE {' AND '.join(where)}" if where else ""
 
