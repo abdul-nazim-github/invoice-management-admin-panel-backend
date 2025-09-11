@@ -110,7 +110,7 @@ def add_invoice():
                     invoice_id,
                     it["product_id"],
                     it["quantity"],
-                    prod["unit_price"], # type: ignore
+                    prod["unit_price"],  # type: ignore
                 )
             except ValidationError as ve:
                 conn.rollback()
@@ -178,16 +178,17 @@ def list_():
             message="Something went wrong", details={"exception": [str(e)]}, status=500
         )
 
+
 @invoices_bp.get("/<invoice_id>")
 @require_auth
 def detail(invoice_id):
     inv = get_invoice(invoice_id)
     if not inv:
         return error_response(
-                message="Validation Error",
-                details=["Invoice does not exist."],
-                status=400,
-            )
+            message="Validation Error",
+            details=["Invoice does not exist."],
+            status=400,
+        )
 
     items = get_items_by_invoice(invoice_id)
     paid = get_payments_by_invoice(invoice_id)
@@ -202,7 +203,7 @@ def detail(invoice_id):
                 "due_date": inv["due_date"],
                 "status": inv["status"],
                 "tax_percent": inv["tax_percent"],
-                "discount_amount": inv["discount_amount"],   # ✅ fixed
+                "discount_amount": inv["discount_amount"],  # ✅ fixed
                 "total_amount": inv["total_amount"],
                 "paid_amount": paid,
                 "due_amount": due,
@@ -238,7 +239,7 @@ def update(invoice_id):
 
         return success_response(
             message="Invoice updated successfully",
-            result=updated_invoice,   # already formatted like detail()
+            result=updated_invoice,  # already formatted like detail()
         )
 
     except ValidationError as ve:
@@ -297,6 +298,7 @@ def pay(invoice_id):
             details={"exception": [str(e)]},
             status=500,
         )
+
 
 @invoices_bp.post("/bulk-delete")
 @require_auth
