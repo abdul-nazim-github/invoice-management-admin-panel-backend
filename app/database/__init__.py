@@ -120,5 +120,18 @@ def init_db():
         """
     )
 
+    # TOKEN_BLACKLIST table
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS token_blacklist (
+            id CHAR(36) PRIMARY KEY,
+            user_id CHAR(36) NOT NULL,
+            token VARCHAR(500) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        """
+    )
+
     conn.commit()
     conn.close()

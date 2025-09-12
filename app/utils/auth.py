@@ -7,6 +7,7 @@ import jwt
 from flask import current_app, request
 from functools import wraps
 
+from app.database.models.auth_model import is_token_blacklisted
 from app.utils.response import error_response
 
 
@@ -98,26 +99,6 @@ def decode_token(token: str):
 
 
 def require_auth(fn):
-    """
-    Decorator to protect Flask routes with JWT authentication.
-
-    Usage:
-        @app.route("/protected")
-        @require_auth
-        def protected():
-            return jsonify({"message": "You are authenticated!"})
-
-    Behavior:
-        - Expects `Authorization: Bearer <token>` header.
-        - Decodes token and attaches decoded payload to `request.user`.
-        - If invalid/missing token, returns 401 Unauthorized response.
-
-    Args:
-        fn (callable): The route function to wrap.
-
-    Returns:
-        callable: The wrapped route function.
-    """
     @wraps(fn)
     def wrapper(*args, **kwargs):
         auth = request.headers.get("Authorization", "")
@@ -129,14 +110,19 @@ def require_auth(fn):
             )
 
         token = auth.split(" ", 1)[1]
-        data = decode_token(token)
 
-        # If decode_token already returned an error_response → just return it
+        # Check if blacklisted
+        if is_token_blacklisted(token):
+            return error_response(
+                message="Unauthorized",
+                details="Token has been revoked. Please login again.",
+                status=401
+            )
+
+        data = decode_token(token)
         if isinstance(data, tuple):
             return data
 
-        # Attach decoded token payload to request object
-        request.user = data  
+        request.user = data
         return fn(*args, **kwargs)
-
     return wrapper
