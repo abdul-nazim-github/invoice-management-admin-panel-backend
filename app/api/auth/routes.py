@@ -4,7 +4,7 @@ from passlib.hash import bcrypt
 import pyotp
 from marshmallow import ValidationError
 from app.api.auth.schemas import LoginSchema
-from app.database.models.user_model import find_user_by_email
+from app.database.models.user_model import find_user
 from app.utils.auth import create_token, require_auth
 from app.database.models.auth_model import blacklist_token, remove_expired_tokens
 from app.utils.response import success_response, error_response
@@ -18,16 +18,17 @@ def login():
     try:
         data = request.json or {}
         validated: Dict[str, str] = login_schema.load(data)
-        email: str = validated.get("email")
+
+        identifier: str = validated.get("identifier")  # email OR username
         password: str = validated.get("password")
         otp: str = validated.get("otp")
 
-        if not email or not password:
-            return error_response("Email and password required", status=400)
+        if not identifier or not password:
+            return error_response("Email/Username and password required", status=400)
 
-        user = find_user_by_email(email)
+        user = find_user(identifier)
         if not user or not bcrypt.verify(password, user["password_hash"]):
-            return error_response("Invalid email or password", status=401)
+            return error_response("Invalid credentials", status=401)
 
         if user.get("twofa_secret"):
             if not otp:
@@ -45,16 +46,18 @@ def login():
 
         resp = make_response(success_response(
             message="Login successful",
-            result={"access_token": token, "user_info": {
-                "id": user["id"],
-                "email": user["email"],
-                "username": user["username"],
-                "full_name": user["full_name"],
-                "role": user["role"]
-            }}
+            result={
+                "access_token": token,
+                "user_info": {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "username": user["username"],
+                    "full_name": user["full_name"],
+                    "role": user["role"]
+                }
+            }
         ))
 
-        # Optionally store in cookie
         resp.set_cookie(
             "access_token",
             token,
@@ -64,6 +67,7 @@ def login():
             max_age=current_app.config["JWT_EXPIRES_MIN"] * 60
         )
         return resp
+
     except ValidationError as ve:
         return error_response("Validation error", details=ve.messages, status=400)
     except Exception as e:

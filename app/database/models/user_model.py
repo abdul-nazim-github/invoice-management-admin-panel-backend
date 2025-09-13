@@ -52,15 +52,17 @@ def create_user(
         conn.close()
 
 
-def find_user_by_email(email: str):
+def find_user(identifier: str):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+            cur.execute(
+                "SELECT * FROM users WHERE email=%s OR username=%s LIMIT 1",
+                (identifier, identifier)
+            )
             return cur.fetchone()
     finally:
         conn.close()
-
 
 def find_user_by_id(user_id: str):
     conn = get_db_connection()
