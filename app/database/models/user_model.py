@@ -11,7 +11,7 @@ def create_user(
     email: str,
     password_hash: str,
     full_name: str = '',
-    role: str = "user",
+    role: str = "admin",
     twofa_secret: str = '',
     billing_address: str = '',
     billing_city: str = '',
