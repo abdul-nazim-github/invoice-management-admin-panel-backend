@@ -8,17 +8,17 @@ from datetime import datetime
 
 
 def create_customer(
-    full_name, email=None, phone=None, address=None, gst_number=None, status="active"
+    full_name, email=None, phone=None, address=None, gst_number=None,
 ):
     conn = get_db_connection()
     customer_id = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO customers (id, full_name, email, phone, address, gst_number, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO customers (id, full_name, email, phone, address, gst_number)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (customer_id, full_name, email, phone, address, gst_number, status),
+            (customer_id, full_name, email, phone, address, gst_number),
         )
     conn.commit()
     conn.close()

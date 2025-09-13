@@ -42,12 +42,11 @@ def add_customer():
         validated: Dict[str, str] = create_schema.load(data)
 
         customer = create_customer(
-            validated["full_name"],   # ✅ fixed
+            validated["full_name"],
             validated.get("email"),
             validated.get("phone"),
             validated.get("address"),
             validated.get("gst_number"),
-            validated.get("status", "active"),
         )
         return success_response(
             result=customer,
