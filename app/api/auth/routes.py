@@ -1,5 +1,5 @@
 from typing import Dict
-from flask import Blueprint, request, make_response, current_app
+from flask import Blueprint, request
 from passlib.hash import bcrypt
 import pyotp
 from marshmallow import ValidationError
@@ -13,65 +13,46 @@ auth_bp = Blueprint("auth", __name__)
 
 login_schema = LoginSchema()
 
-@auth_bp.post("/login")
-def login():
+@auth_bp.post("/sign-in")
+def sign_in():
     try:
         data = request.json or {}
         validated: Dict[str, str] = login_schema.load(data)
+        user = find_user(validated["identifier"])
 
-        identifier: str = validated.get("identifier")  # email OR username
-        password: str = validated.get("password")
-        otp: str = validated.get("otp")
-
-        if not identifier or not password:
-            return error_response("Email/Username and password required", status=400)
-
-        user = find_user(identifier)
-        if not user or not bcrypt.verify(password, user["password_hash"]):
-            return error_response("Invalid credentials", status=401)
+        if not user or not bcrypt.verify(validated["password"], user["password_hash"]):
+            return error_response(
+                "Invalid credentials",
+                "Your email/username or password is incorrect.",
+                401
+            )
 
         if user.get("twofa_secret"):
-            if not otp:
-                return error_response("OTP required", status=401)
-            totp = pyotp.TOTP(user["twofa_secret"])
-            if not totp.verify(str(otp)):
-                return error_response("Invalid OTP", status=401)
+            otp = validated.get("otp")
+            if not otp or not pyotp.TOTP(user["twofa_secret"]).verify(str(otp)):
+                return error_response("Invalid OTP", "Please enter a valid OTP.", 401)
 
-        # Clean expired tokens
         remove_expired_tokens()
-
         token = create_token({"sub": user["id"], "email": user["email"], "role": user["role"]})
-        if isinstance(token, tuple):
-            return token
 
-        resp = make_response(success_response(
-            message="Login successful",
-            result={
-                "access_token": token,
-                "user_info": {
-                    "id": user["id"],
-                    "email": user["email"],
-                    "username": user["username"],
-                    "full_name": user["full_name"],
-                    "role": user["role"]
+        return success_response(
+                message="Sign-in successful",
+                result={
+                    "access_token": token,
+                    "user_info": {
+                        "id": user["id"],
+                        "email": user["email"],
+                        "username": user["username"],
+                        "full_name": user["full_name"],
+                        "role": user["role"]
+                    }
                 }
-            }
-        ))
-
-        resp.set_cookie(
-            "access_token",
-            token,
-            httponly=True,
-            secure=True,
-            samesite="Strict",
-            max_age=current_app.config["JWT_EXPIRES_MIN"] * 60
-        )
-        return resp
+            )
 
     except ValidationError as ve:
-        return error_response("Validation error", details=ve.messages, status=400)
+        return error_response("Validation error", ve.messages, 400)
     except Exception as e:
-        return error_response("Login failed", details={"error": [str(e)]}, status=500)
+        return error_response("Sign-in failed", str(e), 500)
 
 
 @auth_bp.post("/logout")
