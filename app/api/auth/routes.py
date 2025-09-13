@@ -55,9 +55,9 @@ def sign_in():
         return error_response("Sign-in failed", str(e), 500)
 
 
-@auth_bp.post("/logout")
+@auth_bp.post("/sign-out")
 @require_auth
-def logout():
+def sign_out():
     try:
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
@@ -68,4 +68,4 @@ def logout():
 
         return success_response(message="Logged out successfully")
     except Exception as e:
-        return error_response("Logout failed", details=str(e), status=500)
+        return error_response("Sign-out failed", details=str(e), status=500)
