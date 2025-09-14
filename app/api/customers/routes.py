@@ -210,7 +210,7 @@ def bulk_delete():
         deleted = bulk_delete_customers(validated["ids"])
         return success_response(
             message="Customers deleted successfully",
-            result={"deleted": deleted},
+            result={"deleted_count": deleted},
         )
 
     except ValidationError as ve:
