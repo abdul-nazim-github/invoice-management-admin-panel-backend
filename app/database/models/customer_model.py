@@ -34,7 +34,9 @@ def get_customer(customer_id):
                 c.id, 
                 c.full_name, 
                 c.email, 
-                c.phone, 
+                c.phone,
+                c.address,
+                c.gst_number, 
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
                     WHEN SUM(CASE WHEN i.status = 'pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'

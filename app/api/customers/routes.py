@@ -163,8 +163,7 @@ def update(customer_id):
 
         updated_customer = update_customer(customer_id, **validated)
         return success_response(
-            message="Customer updated successfully",
-            result={"customer": updated_customer},
+            result=updated_customer, message="Customer updated successfully"
         )
 
     except ValidationError as ve:
