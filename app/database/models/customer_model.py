@@ -28,11 +28,30 @@ def create_customer(
 def get_customer(customer_id):
     conn = get_db_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM customers WHERE id=%s", (customer_id,))
+        cur.execute(
+            """
+            SELECT 
+                c.id, 
+                c.full_name, 
+                c.email, 
+                c.phone, 
+                CASE
+                    WHEN COUNT(i.id) = 0 THEN 'New'
+                    WHEN SUM(CASE WHEN i.status = 'pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                    WHEN SUM(CASE WHEN i.status = 'paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    ELSE 'New'
+                END AS status
+            FROM customers c
+            LEFT JOIN invoices i ON c.id = i.customer_id
+            WHERE c.id = %s
+            GROUP BY c.id
+            """,
+            (customer_id,)
+        )
         c = cur.fetchone()
     conn.close()
     return c
-
 
 def list_customers(q=None, status=None, offset=0, limit=20):
     conn = get_db_connection()

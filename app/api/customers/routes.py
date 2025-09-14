@@ -55,6 +55,7 @@ def add_customer():
 
     except ValidationError as ve:
         return error_response(
+            type="validation_error",
             message="Validation Error",
             details=ve.messages,
             status=400,
@@ -73,14 +74,22 @@ def add_customer():
                 details["error"] = [msg]
 
             return error_response(
-                message="Duplicate entry", details=details, status=409
+                type="duplicate_entry",
+                message="Duplicate entry",
+                details=details,
+                status=409,
             )
+
         return error_response(
-            message="Integrity error", details={"error": [msg]}, status=400
+            type="integrity_error",
+            message="Integrity error",
+            details={"error": [msg]},
+            status=400,
         )
 
     except Exception as e:
         return error_response(
+            type="server_error",
             message="Something went wrong",
             details={"exception": [str(e)]},
             status=500,
@@ -144,6 +153,7 @@ def detail(customer_id):
             status=500,
         )
 
+
 @customers_bp.put("/<customer_id>")
 @require_auth
 def update(customer_id):
@@ -189,7 +199,6 @@ def update(customer_id):
             details={"exception": [str(e)]},
             status=500,
         )
-
 
 
 @customers_bp.post("/bulk-delete")
