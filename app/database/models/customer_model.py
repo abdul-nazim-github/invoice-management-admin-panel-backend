@@ -69,7 +69,9 @@ def list_customers(q=None, status=None, offset=0, limit=20):
             c.id, 
             c.full_name, 
             c.email, 
-            c.phone, 
+            c.phone,
+            c.address,
+            c.gst_number, 
             -- Compute customer status from invoices
             CASE
                 WHEN COUNT(i.id) = 0 THEN 'New'
