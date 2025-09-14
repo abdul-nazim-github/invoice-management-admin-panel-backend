@@ -143,7 +143,7 @@ def detail(customer_id):
             )
         agg = customer_aggregates(customer_id)
         return success_response(
-            result={"customer": customer, **agg},
+            result={**customer, "aggregates": agg},
             message="Customer details fetched successfully",
         )
     except Exception as e:
