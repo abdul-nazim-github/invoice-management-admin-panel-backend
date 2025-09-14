@@ -75,37 +75,53 @@ def sign_in():
 
         if not user or not bcrypt.verify(validated["password"], user["password_hash"]):
             return error_response(
-                "Invalid credentials",
-                "Your email/username or password is incorrect.",
-                401
+                type="invalid_credentials",
+                message="Invalid credentials",
+                details="Your email/username or password is incorrect.",
+                status=401
             )
 
         if user.get("twofa_secret"):
             otp = validated.get("otp")
             if not otp or not pyotp.TOTP(user["twofa_secret"]).verify(str(otp)):
-                return error_response("Invalid OTP", "Please enter a valid OTP.", 401)
+                return error_response(
+                    type="invalid_otp",
+                    message="Invalid OTP",
+                    details="Please enter a valid OTP.",
+                    status=401
+                )
 
         remove_expired_tokens()
         token = create_token({"sub": user["id"], "email": user["email"], "role": user["role"]})
 
         return success_response(
-                message="Sign-in successful",
-                result={
-                    "access_token": token,
-                    "user_info": {
-                        "id": user["id"],
-                        "email": user["email"],
-                        "username": user["username"],
-                        "full_name": user["full_name"],
-                        "role": user["role"]
-                    }
+            message="Sign-in successful",
+            result={
+                "access_token": token,
+                "user_info": {
+                    "id": user["id"],
+                    "email": user["email"],
+                    "username": user["username"],
+                    "full_name": user["full_name"],
+                    "role": user["role"]
                 }
-            )
+            }
+        )
 
     except ValidationError as ve:
-        return error_response("Validation error", ve.messages, 400)
+        return error_response(
+            type="validation_error",
+            message="Invalid Credentials",
+            details=ve.messages,
+            status=400
+        )
     except Exception as e:
-        return error_response("Sign-in failed", str(e), 500)
+        return error_response(
+            type="server_error",
+            message="Sign-in failed",
+            details=str(e),
+            status=500
+        )
 
 
 @auth_bp.post("/sign-out")

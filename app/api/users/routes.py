@@ -86,7 +86,7 @@ def me():
     }
     return success_response(
             message="User details successfully",
-            result={"user": public},
+            result={"user_info": public},
         )
 
 

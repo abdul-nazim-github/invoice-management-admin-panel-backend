@@ -27,8 +27,13 @@ def success_response(result=None, message="Success", meta=None, status=200):
     )
 
 
-def error_response(message="Error", details=None, status=400):
+def error_response(type="server_error", message="Error", details=None, status=400):
     return (
-        jsonify({"success": False, "message": message, "error": {"details": details}}),
+        jsonify({
+            "success": False,
+            "type": type,         # e.g., validation_error, invalid_credentials, invalid_otp, server_error
+            "message": message,   # high-level error message for UI toast title
+            "error": { "details": details },  # detailed info (for form errors, etc.)
+        }),
         status,
     )
