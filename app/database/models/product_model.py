@@ -5,34 +5,37 @@ from datetime import datetime
 from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
+from app.utils.is_deleted_filter import is_deleted_filter
 
-
-def create_product(sku, name, description, unit_price, stock_quantity, status="active"):
+def create_product(sku, name, description, unit_price, stock_quantity):
     conn = get_db_connection()
     pid = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO products (id, sku, name, description, unit_price, stock_quantity, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO products (id, sku, name, description, unit_price, stock_quantity)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (pid, sku, name, description, unit_price, stock_quantity, status),
+            (pid, sku, name, description, unit_price, stock_quantity),
         )
     conn.commit()
     conn.close()
     return pid
 
 
-def list_products(q=None, status=None, offset=0, limit=20):
+def list_products(q=None, offset=0, limit=20):
     conn = get_db_connection()
     where, params = [], []
+
     if q:
         like = f"%{q}%"
         where.append("(name LIKE %s OR sku LIKE %s)")
         params += [like, like]
-    if status:
-        where.append("status=%s")
-        params.append(status)
+
+    # add soft-delete filter
+    deleted_sql, _ = is_deleted_filter()
+    where.append(deleted_sql)
+
     where_sql = " WHERE " + " AND ".join(where) if where else ""
 
     with conn.cursor() as cur:
@@ -56,11 +59,16 @@ def list_products(q=None, status=None, offset=0, limit=20):
 
 def get_product(product_id):
     conn = get_db_connection()
+    deleted_sql, _ = is_deleted_filter()
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM products WHERE id=%s", (product_id,))
+        cur.execute(
+            f"SELECT * FROM products WHERE id=%s AND {deleted_sql}",
+            (product_id,)
+        )
         prod = cur.fetchone()
     conn.close()
     return prod
+
 
 def update_product(product_id, **fields):
     if not fields:
@@ -71,21 +79,25 @@ def update_product(product_id, **fields):
     for k, v in fields.items():
         keys.append(f"{k}=%s")
         params.append(v)
+
     keys.append("updated_at=%s")
-    params.append(datetime.now())  # current timestamp
+    params.append(datetime.now())
+
+    deleted_sql, _ = is_deleted_filter()
+    sql = f"UPDATE products SET {', '.join(keys)} WHERE id=%s AND {deleted_sql}"
     params.append(product_id)
-    sql = f"UPDATE products SET {', '.join(keys)} WHERE id=%s"
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(sql, tuple(params))
             if cur.rowcount == 0:
-                raise ValidationError(f"Product does not exist.")
+                raise ValidationError(f"Product does not exist or is deleted.")
         conn.commit()
     finally:
         conn.close()
     return get_product(product_id)
+
 
 def bulk_delete_products(ids: list[str]):
     if not ids:
@@ -100,7 +112,6 @@ def bulk_delete_products(ids: list[str]):
                 SET deleted_at = %s
                 WHERE id IN ({placeholders})
             """
-            # First parameter is current timestamp, followed by ids
             params = [datetime.now()] + ids
             cur.execute(sql, params)
             affected = cur.rowcount
