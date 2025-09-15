@@ -22,7 +22,7 @@ def init_db():
             billing_gst VARCHAR(50),
             twofa_secret VARCHAR(32) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL
         );
         """
@@ -39,7 +39,7 @@ def init_db():
             address TEXT,
             gst_number VARCHAR(50),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL
         );
         """
@@ -55,9 +55,8 @@ def init_db():
             description TEXT,
             unit_price DECIMAL(10,2) NOT NULL,
             stock_quantity INT DEFAULT 0,
-            status ENUM('active','inactive') DEFAULT 'active',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL
         );
         """
@@ -76,7 +75,7 @@ def init_db():
             status ENUM('Pending','Paid','Overdue') DEFAULT 'Pending',
             due_date DATE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL,
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
         );
@@ -94,7 +93,7 @@ def init_db():
             unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
             total_amount DECIMAL(10,2) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL,
             FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
@@ -113,7 +112,7 @@ def init_db():
             reference_number VARCHAR(100),
             paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NULL,
+            updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP NULL,
             FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
         );

@@ -125,8 +125,6 @@ def update_customer(customer_id, **fields):
 
     keys = [f"{k}=%s" for k in fields]
     params = list(fields.values())
-    keys.append("updated_at=%s")
-    params.append(datetime.now())
     params.append(customer_id)
 
     # No alias for UPDATE
