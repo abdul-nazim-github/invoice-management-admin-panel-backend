@@ -79,7 +79,7 @@ def add_invoice():
                 tax_percent,
                 discount_amount,
                 total,
-                validated.get("status", "pending"),
+                validated.get("status", "Pending"),
             )
         except IntegrityError as ie:
             msg = str(ie)

@@ -73,7 +73,7 @@ def init_db():
             tax_percent DECIMAL(5,2) DEFAULT 0,
             discount_amount DECIMAL(10,2) DEFAULT 0,
             total_amount DECIMAL(10,2) NOT NULL,
-            status ENUM('pending','paid','partial') DEFAULT 'pending',
+            status ENUM('Pending','Paid','Overdue') DEFAULT 'Pending',
             due_date DATE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NULL,

@@ -7,7 +7,7 @@ def get_dashboard_stats() -> Dict[str, Any]:
     try:
         with conn.cursor() as cur:
             # Total revenue
-            cur.execute("SELECT COALESCE(SUM(total_amount), 0) AS total_revenue FROM invoices WHERE status='paid'")
+            cur.execute("SELECT COALESCE(SUM(total_amount), 0) AS total_revenue FROM invoices WHERE status='Paid'")
             row = cur.fetchone()
             total_revenue = float(row["total_revenue"]) if row and row["total_revenue"] is not None else 0.0
 
@@ -17,7 +17,7 @@ def get_dashboard_stats() -> Dict[str, Any]:
             total_customers = row["total_customers"] if row else 0
 
             # Pending invoices
-            cur.execute("SELECT COUNT(*) AS pending_invoices FROM invoices WHERE status='pending'")
+            cur.execute("SELECT COUNT(*) AS pending_invoices FROM invoices WHERE status='Pending'")
             row = cur.fetchone()
             pending_invoices = row["pending_invoices"] if row else 0
 
@@ -44,7 +44,7 @@ def get_sales_performance() -> list[Dict[str, Any]]:
                     DATE_FORMAT(created_at, '%%Y-%%m') AS month,
                     COALESCE(SUM(total_amount), 0) AS revenue
                 FROM invoices
-                WHERE status = 'paid'
+                WHERE status = 'Paid'
                 GROUP BY DATE_FORMAT(created_at, '%%Y-%%m')
                 ORDER BY month ASC
             """)

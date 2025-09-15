@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   invoice_date DATE NOT NULL,
   due_date DATE,
   total_amount DECIMAL(10,2) NOT NULL,
-  status ENUM('paid','unpaid','partial','cancelled') DEFAULT 'unpaid',
+  status ENUM('Paid','Pending','Overdue') DEFAULT 'Pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,

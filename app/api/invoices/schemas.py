@@ -17,8 +17,8 @@ class InvoiceCreateSchema(Schema):
     customer_id = fields.UUID(required=True)
     due_date = fields.Date(required=False, allow_none=True)
     status = fields.Str(
-        validate=validate.OneOf(["pending", "paid", "partial"]),
-        load_default="pending",
+        validate=validate.OneOf(["Pending", "Paid", "Overdue"]),
+        load_default="Pending",
     )
     tax_percent = fields.Decimal(as_string=True, load_default="0")
     discount_amount = fields.Decimal(   # ✅ fixed name
@@ -34,7 +34,7 @@ class InvoiceUpdateSchema(Schema):
     invoice_number = fields.Str()
     customer_id = fields.UUID()
     due_date = fields.Date(required=False, allow_none=True)
-    status = fields.Str(validate=validate.OneOf(["pending", "paid", "partial"]))
+    status = fields.Str(validate=validate.OneOf(["Pending", "Paid", "Overdue"]))
     tax_percent = fields.Decimal(as_string=True)
     discount_amount = fields.Decimal(as_string=True)   # ✅ fixed name
     items = fields.List(fields.Nested(InvoiceItemSchema), required=False)
@@ -58,7 +58,7 @@ class InvoiceBulkDeleteSchema(Schema):
 class InvoiceFilterSchema(Schema):
     q = fields.Str(required=False, allow_none=True)  # search by invoice_number
     status = fields.Str(
-        validate=validate.OneOf(["pending", "paid", "partial"]),
+        validate=validate.OneOf(["Pending", "Paid", "Overdue"]),
         required=False,
     )
     page = fields.Int(load_default=1)
