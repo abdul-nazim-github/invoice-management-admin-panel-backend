@@ -69,8 +69,10 @@ def list_customers(q=None, status=None, offset=0, limit=20):
         like = f"%{q}%"
         params += [like, like, like]
 
-    # Compute status
-    query = f"""
+    where_sql = " WHERE " + " AND ".join(where) if where else ""
+
+    # Inner query: compute derived status
+    base_query = f"""
         SELECT 
             c.id AS id,
             c.full_name, 
@@ -87,24 +89,30 @@ def list_customers(q=None, status=None, offset=0, limit=20):
             END AS status
         FROM customers c
         LEFT JOIN invoices i ON c.id = i.customer_id
+        {where_sql}
+        GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number
     """
 
-    where_sql = " WHERE " + " AND ".join(where) if where else ""
-    query += where_sql + f" GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number ORDER BY c.created_at DESC LIMIT %s OFFSET %s"
+    # Outer query: filter by status if needed
+    outer_where = ""
+    if status:
+        outer_where = " WHERE sub.status = %s"
+        params.append(status)
+
+    final_query = f"""
+        SELECT * FROM ({base_query}) AS sub
+        {outer_where}
+        ORDER BY sub.id DESC
+        LIMIT %s OFFSET %s
+    """
 
     with conn.cursor() as cur:
-        cur.execute(query, (*params, limit, offset))
+        cur.execute(final_query, (*params, limit, offset))
         rows = cur.fetchall() or []
 
         # total count
-        count_query = f"""
-            SELECT COUNT(*) AS total
-            FROM customers c
-            LEFT JOIN invoices i ON c.id = i.customer_id
-            {where_sql}
-            GROUP BY c.id
-        """
-        cur.execute(f"SELECT COUNT(*) AS total FROM ({count_query}) AS sub", tuple(params))
+        count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub {outer_where}"
+        cur.execute(count_query, tuple(params))
         result = cur.fetchone()
         total = result["total"] if result else 0
 
