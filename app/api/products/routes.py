@@ -46,7 +46,6 @@ def add_product():
             validated.get("description"),
             validated["unit_price"],                 
             validated.get("stock_quantity", 0),      
-            validated.get("status", "active"),
         )
         return success_response(
             result={"id": pid},
@@ -98,7 +97,6 @@ def list_():
         page, limit, offset = get_pagination()
         rows, total = list_products(
             q=validated.get("q"),
-            status=validated.get("status"),
             offset=offset,
             limit=limit,
         )
@@ -174,6 +172,7 @@ def update(product_id):
             details={"exception": [str(e)]},
             status=500,
         )
+
 
 @products_bp.post("/bulk-delete")
 @require_auth

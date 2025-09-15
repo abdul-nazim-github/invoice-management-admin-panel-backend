@@ -1,6 +1,5 @@
 from marshmallow import Schema, fields, validate
 
-
 # ------------------------
 # Schema for creating a product
 # ------------------------
@@ -17,22 +16,16 @@ class ProductCreateSchema(Schema):
     )
     description = fields.Str(required=False, allow_none=True)
 
-    unit_price = fields.Decimal(                       # ✅ fixed
+    unit_price = fields.Decimal(
         required=True,
         as_string=True,
         places=2,
         error_messages={"required": "Unit price is required"},
     )
-    stock_quantity = fields.Int(                       # ✅ fixed
+    stock_quantity = fields.Int(
         required=False,
         load_default=0,
         validate=validate.Range(min=0, error="Stock cannot be negative"),
-    )
-
-    status = fields.Str(
-        required=False,
-        validate=validate.OneOf(["active", "inactive"]),
-        load_default="active",
     )
 
 
@@ -40,14 +33,14 @@ class ProductCreateSchema(Schema):
 # Schema for updating a product
 # ------------------------
 class ProductUpdateSchema(Schema):
-    sku = fields.Str(required=False, validate=validate.Length(max=50))   # ✅ fixed
+    sku = fields.Str(required=False, validate=validate.Length(max=50))
     name = fields.Str(required=False, validate=validate.Length(min=1, max=255))
     description = fields.Str(required=False, allow_none=True)
-    unit_price = fields.Decimal(required=False, as_string=True, places=2)   # ✅ fixed
-    stock_quantity = fields.Int(                                           # ✅ fixed
-        required=False, validate=validate.Range(min=0, error="Stock cannot be negative")
+    unit_price = fields.Decimal(required=False, as_string=True, places=2)
+    stock_quantity = fields.Int(
+        required=False,
+        validate=validate.Range(min=0, error="Stock cannot be negative")
     )
-    status = fields.Str(validate=validate.OneOf(["active", "inactive"]))
 
 
 # ------------------------
@@ -67,6 +60,5 @@ class ProductBulkDeleteSchema(Schema):
 # ------------------------
 class ProductFilterSchema(Schema):
     q = fields.Str(required=False, allow_none=True)
-    status = fields.Str(validate=validate.OneOf(["active", "inactive"]), required=False)
     page = fields.Int(load_default=1)
     limit = fields.Int(load_default=10)

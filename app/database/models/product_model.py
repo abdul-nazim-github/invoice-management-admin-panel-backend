@@ -2,6 +2,7 @@
 # app/database/models/product_model.py
 # =============================
 from datetime import datetime
+from decimal import Decimal
 from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
@@ -50,12 +51,17 @@ def list_products(q=None, offset=0, limit=20):
         )
         rows = cur.fetchall()
 
+        # Convert unit_price from Decimal to float
+        for row in rows:
+            if "unit_price" in row and isinstance(row["unit_price"], Decimal):
+                row["unit_price"] = float(row["unit_price"])
+
         cur.execute("SELECT FOUND_ROWS() AS total")
-        total = cur.fetchone()["total"]
+        total_row = cur.fetchone()
+        total = total_row["total"] if total_row else 0  # fallback to 0 if no row found
 
     conn.close()
     return rows, total
-
 
 def get_product(product_id):
     conn = get_db_connection()
