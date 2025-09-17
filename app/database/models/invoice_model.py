@@ -62,6 +62,7 @@ def get_invoice(invoice_id: str):
                     i.id,
                     i.invoice_number,
                     i.created_at,
+                    i.updated_at,
                     i.due_date,
                     i.tax_percent,
                     i.discount_amount,
@@ -120,6 +121,7 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
                     i.invoice_number,
                     c.full_name AS customer_full_name,
                     i.created_at,
+                    i.updated_at,
                     i.total_amount,
                     i.status
                 FROM invoices i
@@ -287,6 +289,7 @@ def get_invoice_detail(invoice_id: str):
             "id": inv["id"],
             "invoice_number": inv["invoice_number"],
             "created_at": inv["created_at"],
+            "updated_at": inv["updated_at"],
             "due_date": inv["due_date"],
             "status": inv["status"],
             "tax_percent": inv["tax_percent"],
