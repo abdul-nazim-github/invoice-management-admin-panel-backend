@@ -166,8 +166,8 @@ def update(product_id):
 
         updated_product = update_product(product_id, **validated)
         return success_response(
+            result=updated_product,
             message="Product updated successfully",
-            result={"product": updated_product},
         )
 
     except ValidationError as ve:
