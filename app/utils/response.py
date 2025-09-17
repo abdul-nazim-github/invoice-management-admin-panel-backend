@@ -1,3 +1,5 @@
+from decimal import Decimal
+from typing import Any, Dict, List, Tuple, Union
 from flask import jsonify
 
 from flask import jsonify
@@ -37,3 +39,15 @@ def error_response(type="server_error", message="Error", details=None, status=40
         }),
         status,
     )
+
+def normalize_value(value: Any) -> Any:
+    """Normalize a single DB value (e.g., Decimal → float)."""
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
+
+def normalize_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()}
+
+def normalize_rows(rows: Union[List[Dict[str, Any]], Tuple[Dict[str, Any], ...]]) -> List[Dict[str, Any]]:
+    return [normalize_row(r) for r in rows]

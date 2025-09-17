@@ -7,6 +7,7 @@ from app.database.base import get_db_connection
 from datetime import datetime
 
 from app.utils.is_deleted_filter import is_deleted_filter
+from app.utils.response import normalize_row, normalize_rows, normalize_value
 
 
 def create_customer(full_name, email=None, phone=None, address=None, gst_number=None):
@@ -53,7 +54,7 @@ def get_customer(customer_id):
         )
         customer = cur.fetchone()
     conn.close()
-    return customer or {}
+    return normalize_row(customer) if customer else None
 
 def list_customers(q=None, status=None, offset=0, limit=20):
     conn = get_db_connection()
@@ -108,7 +109,7 @@ def list_customers(q=None, status=None, offset=0, limit=20):
 
     with conn.cursor() as cur:
         cur.execute(final_query, (*params, limit, offset))
-        rows = cur.fetchall() or []
+        rows = normalize_rows(list(cur.fetchall() or []))
 
         # total count
         count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub {outer_where}"
@@ -216,17 +217,13 @@ def customer_aggregates(customer_id):
             """,
             (customer_id,),
         )
-        history = cur.fetchall() or []
-
-        # Convert amounts to float
-        for row in history:
-            row["total_amount"] = float(row["total_amount"])
-            row["due_amount"] = float(row["due_amount"])
+        history = normalize_rows(list(cur.fetchall() or []))
 
     conn.close()
+
     return {
-        "total_billed": float(billed),
-        "total_paid": float(paid),
-        "total_due": float(billed - paid),
+        "total_billed": normalize_value(billed),
+        "total_paid": normalize_value(paid),
+        "total_due": normalize_value(billed) - normalize_value(paid),
         "invoices": history,
     }

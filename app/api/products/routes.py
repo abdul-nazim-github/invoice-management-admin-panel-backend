@@ -40,20 +40,22 @@ def add_product():
         data = request.json or {}
         validated: Dict[str, str] = create_schema.load(data)
 
-        pid = create_product(
-            validated["sku"],                       
-            validated["name"],                       
+        product = create_product(
+            validated["sku"],
+            validated["name"],
             validated.get("description"),
-            validated["unit_price"],                 
-            validated.get("stock_quantity", 0),      
+            validated["unit_price"],
+            validated.get("stock_quantity", 0),
         )
         return success_response(
-            result={"id": pid},
+            result=product,
             message="Product created successfully",
         )
+    
 
     except ValidationError as ve:
         return error_response(
+            type="validation_error",
             message="Validation Error",
             details=ve.messages,
             status=400,
@@ -72,15 +74,22 @@ def add_product():
                 details["error"] = [msg]
 
             return error_response(
-                message="Duplicate entry", details=details, status=409
+                type="duplicate_entry",
+                message="Duplicate entry",
+                details=details,
+                status=409,
             )
 
         return error_response(
-            message="Integrity error", details={"error": [msg]}, status=400
+            type="integrity_error",
+            message="Integrity error",
+            details={"error": [msg]},
+            status=400,
         )
 
     except Exception as e:
         return error_response(
+            type="server_error",
             message="Something went wrong",
             details={"exception": [str(e)]},
             status=500,
@@ -108,23 +117,44 @@ def list_():
 
     except ValidationError as ve:
         return error_response(
+            type="validation_error",
             message="Validation Error",
             details=ve.messages,
             status=400,
+        )
+
+    except Exception as e:
+        return error_response(
+            type="server_error",
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )
 
 
 @products_bp.get("/<product_id>")
 @require_auth
 def detail(product_id):
-    product = get_product(product_id)
-    if not product:
-        return error_response(message="Product not found", status=404)
+    try:
+        product = get_product(product_id)
+        if not product:
+            return error_response(
+                type="not_found",
+                message="Product not found",
+                status=404,
+            )
 
-    return success_response(
-        result=product,
-        message="Product details fetched successfully",
-    )
+        return success_response(
+            result=product,
+            message="Product details fetched successfully",
+        )
+    except Exception as e:
+        return error_response(
+            type="server_error",
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
+        )
 
 
 @products_bp.put("/<product_id>")
@@ -142,6 +172,7 @@ def update(product_id):
 
     except ValidationError as ve:
         return error_response(
+            type="validation_error",
             message="Validation Error",
             details=ve.messages,
             status=400,
@@ -160,14 +191,22 @@ def update(product_id):
                 details["error"] = [msg]
 
             return error_response(
-                message="Duplicate entry", details=details, status=409
+                type="duplicate_entry",
+                message="Duplicate entry",
+                details=details,
+                status=409,
             )
+
         return error_response(
-            message="Integrity error", details={"error": [msg]}, status=400
+            type="integrity_error",
+            message="Integrity error",
+            details={"error": [msg]},
+            status=400,
         )
 
     except Exception as e:
         return error_response(
+            type="server_error",
             message="Something went wrong",
             details={"exception": [str(e)]},
             status=500,
@@ -189,7 +228,15 @@ def bulk_delete():
 
     except ValidationError as ve:
         return error_response(
+            type="validation_error",
             message="Validation Error",
             details=ve.messages,
             status=400,
+        )
+    except Exception as e:
+        return error_response(
+            type="server_error",
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )

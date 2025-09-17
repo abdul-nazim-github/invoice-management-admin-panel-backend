@@ -10,18 +10,18 @@ from app.utils.is_deleted_filter import is_deleted_filter
 
 def create_product(sku, name, description, unit_price, stock_quantity):
     conn = get_db_connection()
-    pid = str(uuid7())
+    product_id = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO products (id, sku, name, description, unit_price, stock_quantity)
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (pid, sku, name, description, unit_price, stock_quantity),
+            (product_id, sku, name, description, unit_price, stock_quantity),
         )
     conn.commit()
     conn.close()
-    return pid
+    return get_product(product_id)
 
 
 def list_products(q=None, offset=0, limit=20):
@@ -73,6 +73,8 @@ def get_product(product_id):
         )
         prod = cur.fetchone()
     conn.close()
+    if prod and "unit_price" in prod and isinstance(prod["unit_price"], Decimal):
+        prod["unit_price"] = float(prod["unit_price"])
     return prod
 
 
