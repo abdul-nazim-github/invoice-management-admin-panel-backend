@@ -42,7 +42,9 @@ def get_customer(customer_id):
                     c.email, 
                     c.phone,
                     c.address,
-                    c.gst_number, 
+                    c.gst_number,
+                    c.created_at, 
+                    c.updated_at, 
                     CASE
                         WHEN COUNT(i.id) = 0 THEN 'New'
                         WHEN SUM(CASE WHEN i.status = 'Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
@@ -89,7 +91,9 @@ def list_customers(q=None, status=None, offset=0, limit=20):
                 c.email, 
                 c.phone,
                 c.address,
-                c.gst_number, 
+                c.gst_number,
+                c.created_at, 
+                c.updated_at,  
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
                     WHEN SUM(CASE WHEN i.status='Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
