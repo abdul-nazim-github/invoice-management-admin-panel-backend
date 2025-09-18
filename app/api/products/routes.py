@@ -141,7 +141,7 @@ def detail(product_id):
             return error_response(
                 type="not_found",
                 message="Product not found",
-                status=404,
+                status=400,
             )
 
         return success_response(

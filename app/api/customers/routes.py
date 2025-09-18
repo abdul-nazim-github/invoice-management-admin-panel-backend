@@ -137,6 +137,7 @@ def detail(customer_id):
         customer = get_customer(customer_id)
         if not customer:
             return error_response(
+                type='not_found',
                 message="Validation Error",
                 details=["Customer does not exist."],
                 status=400,

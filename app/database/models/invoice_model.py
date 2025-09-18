@@ -9,8 +9,9 @@ from app.database.base import get_db_connection
 from app.database.models.invoice_item_model import add_invoice_item, get_items_by_invoice
 from app.database.models.payment_model import get_payments_by_invoice
 from app.database.models.product_model import get_product
+from app.utils.response import normalize_row, normalize_rows, normalize_value
 
-
+# ---------------- Invoice Functions ----------------
 def create_invoice(
     conn,
     invoice_number: str,
@@ -21,9 +22,6 @@ def create_invoice(
     total_amount: float,
     status: str,
 ) -> str:
-    """
-    Create a new invoice. Uses the existing connection (transaction safe).
-    """
     invoice_id = str(uuid7())
     with conn.cursor() as cur:
         cur.execute(
@@ -48,11 +46,7 @@ def create_invoice(
         )
     return invoice_id
 
-
-def get_invoice(invoice_id: str):
-    """
-    Get invoice details with joined customer info.
-    """
+def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -80,16 +74,12 @@ def get_invoice(invoice_id: str):
                 """,
                 (invoice_id,),
             )
-            return cur.fetchone()
+            row = cur.fetchone()
+            return normalize_row(row) if row else None
     finally:
         conn.close()
 
-
 def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=None):
-    """
-    Paginated list of invoices with optional search, status filter,
-    and cursor-based pagination using before/after created_at.
-    """
     conn = get_db_connection()
     where, params = [], []
 
@@ -132,34 +122,25 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
                 """,
                 (*params, limit, offset),
             )
-            rows = cur.fetchall()
+            rows = normalize_rows(cur.fetchall())
 
             cur.execute("SELECT FOUND_ROWS() AS total")
             result = cur.fetchone()
-            total = result["total"] if result else 0
+            total = normalize_value(result["total"]) if result else 0
 
         return rows, total
     finally:
         conn.close()
 
-
 def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
-    """
-    Update invoice fields dynamically.
-    - Recalculates totals if tax/discount/items are changed
-    - Updates items (no delete) and adds new ones if provided
-    - Returns the updated invoice dict (same as get_invoice_detail)
-    """
     conn = get_db_connection()
     try:
-        # ---------------- Fetch existing invoice ----------------
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
             existing = cur.fetchone()
             if not existing:
                 return None
 
-        # ---------------- Handle items ----------------
         items = fields.pop("items", None)
         subtotal = 0.0
 
@@ -176,7 +157,6 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                 unit_price = float(prod["unit_price"])
                 total_amount = quantity * unit_price
 
-                # check if item exists
                 with conn.cursor() as cur:
                     cur.execute(
                         "SELECT id FROM invoice_items WHERE invoice_id=%s AND product_id=%s",
@@ -185,7 +165,6 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                     existing_item = cur.fetchone()
 
                     if existing_item:
-                        # update existing item
                         cur.execute(
                             """
                             UPDATE invoice_items
@@ -195,22 +174,13 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                             (quantity, unit_price, total_amount, datetime.now(), existing_item["id"]),
                         )
                     else:
-                        # insert new item
-                        add_invoice_item(
-                            conn,
-                            invoice_id,
-                            it["product_id"],
-                            quantity,
-                            unit_price,
-                        )
+                        add_invoice_item(conn, invoice_id, it["product_id"], quantity, unit_price)
 
                 subtotal += total_amount
         else:
-            # recalc subtotal from existing items
             db_items = get_items_by_invoice(invoice_id)
             subtotal = sum(float(it["unit_price"]) * int(it["quantity"]) for it in db_items)
 
-        # ---------------- Recalculate totals ----------------
         tax_percent = float(fields.get("tax_percent", existing.get("tax_percent") or 0))
         discount_amount = float(fields.get("discount_amount", existing.get("discount_amount") or 0))
         tax_amount = subtotal * (tax_percent / 100)
@@ -224,7 +194,6 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
             "updated_at": datetime.now(),
         }
 
-        # ---------------- Update invoice ----------------
         if update_fields:
             keys = [f"{k}=%s" for k in update_fields.keys()]
             sql = f"UPDATE invoices SET {', '.join(keys)} WHERE id=%s"
@@ -234,13 +203,11 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                 cur.execute(sql, params)
 
         conn.commit()
-
-        # ---------------- Return updated details ----------------
         return get_invoice_detail(invoice_id)
 
     finally:
         conn.close()
-     
+
 def bulk_delete_invoices(ids: list[str]):
     if not ids:
         return 0
@@ -254,7 +221,6 @@ def bulk_delete_invoices(ids: list[str]):
                 SET deleted_at = %s
                 WHERE id IN ({placeholders})
             """
-            # First parameter is current timestamp, followed by ids
             params = [datetime.now()] + ids
             cur.execute(sql, params)
             affected = cur.rowcount
@@ -265,10 +231,6 @@ def bulk_delete_invoices(ids: list[str]):
         conn.close()
 
 def get_invoice_detail(invoice_id: str):
-    """
-    Return full invoice detail including customer, items, and payments.
-    Same structure used in detail route.
-    """
     inv = get_invoice(invoice_id)
     if not inv:
         return None
@@ -280,7 +242,7 @@ def get_invoice_detail(invoice_id: str):
     return {
         "customer": {
             "id": inv["customer_id"],
-            "full_ame": inv["customer_full_name"],
+            "full_name": inv["customer_full_name"],
             "email": inv["customer_email"],
             "phone": inv["customer_phone"],
             "address": inv["customer_address"],
@@ -298,5 +260,5 @@ def get_invoice_detail(invoice_id: str):
             "paid_amount": paid,
             "due_amount": due,
         },
-        "items": items,
+        "items": normalize_rows(items),
     }
