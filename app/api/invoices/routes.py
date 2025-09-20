@@ -2,7 +2,8 @@
 # app/api/invoices/routes.py
 # =============================
 from datetime import date
-from typing import Any, Dict
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Dict, List
 from flask import Blueprint, request
 from marshmallow import ValidationError
 from pymysql.err import IntegrityError
@@ -46,14 +47,15 @@ payment_schema = PaymentCreateSchema()
 @invoices_bp.post("/")
 @require_auth
 def add_invoice():
+    conn = None
     try:
         conn = get_db_connection()
         data = request.json or {}
         validated: Dict[str, Any] = create_schema.load(data)
-        items: list[Dict[str, Any]] = validated.get("items", [])
+        items: List[Dict[str, Any]] = validated.get("items", [])
 
         # ---------- Calculate subtotal ----------
-        subtotal = 0.0
+        subtotal_amount = Decimal("0.00")
         for it in items:
             prod = get_product(it["product_id"])
             if not prod:
@@ -63,22 +65,38 @@ def add_invoice():
                     details={"product_id": [f"Product {it['product_id']} does not exist"]},
                     status=400,
                 )
-            subtotal += float(prod["unit_price"]) * int(it.get("quantity", 1))
+            subtotal_amount += (
+                Decimal(str(prod["unit_price"])) * Decimal(it.get("quantity", 1))
+            )
 
-        tax_percent = float(validated.get("tax_percent", 0))
-        discount_amount = float(validated.get("discount_amount", 0))
-        tax_amount = subtotal * (tax_percent / 100)
-        total = subtotal + tax_amount - discount_amount
+        # ---------- Convert and calculate totals ----------
+        tax_percent = Decimal(str(validated.get("tax_percent", "0")))
+        discount_amount = Decimal(str(validated.get("discount_amount", "0")))
+        amount_paid = Decimal(str(validated.get("amount_paid", "0")))
+
+        tax_amount = (subtotal_amount * tax_percent / Decimal("100")).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        total_amount = (subtotal_amount + tax_amount - discount_amount).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+        # ---------- Validate amount_paid ----------
+        if amount_paid > total_amount:
+            raise ValidationError("Amount paid cannot be greater than the total invoice amount")
+
         # ---------- Create invoice ----------
         try:
             invoice_id = create_invoice(
                 conn,
-                validated["customer_id"],
-                validated["due_date"],
-                tax_percent,
-                discount_amount,
-                total,
-                validated["amount_paid"],
+                customer_id=str(validated["customer_id"]),
+                due_date=validated["due_date"],
+                tax_percent=tax_percent,
+                tax_amount=tax_amount,
+                discount_amount=discount_amount,
+                subtotal_amount=subtotal_amount,
+                total_amount=total_amount,
+                amount_paid=amount_paid,
             )
         except IntegrityError as ie:
             msg = str(ie)
@@ -110,8 +128,8 @@ def add_invoice():
                 conn,
                 invoice_id,
                 it["product_id"],
-                it.get("quantity", 1),
-                prod["unit_price"],  # type: ignore
+                int(it.get("quantity", 1)),
+                Decimal(str(prod["unit_price"])),
             )
 
         conn.commit()
@@ -138,8 +156,8 @@ def add_invoice():
         )
 
     finally:
-        conn.close()
-
+        if conn:
+            conn.close()
 
 @invoices_bp.get("/")
 @require_auth

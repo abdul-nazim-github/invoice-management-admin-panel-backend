@@ -2,6 +2,7 @@
 # app/database/models/invoice_model.py
 # =============================
 from datetime import datetime
+from decimal import Decimal
 from typing import Dict, Any
 from marshmallow import ValidationError
 from uuid6 import uuid7
@@ -17,32 +18,37 @@ def create_invoice(
     conn,
     customer_id: str,
     due_date: str,
-    tax_percent: float,
-    discount_amount: float,
-    total_amount: float,
-    amount_paid: float = 0.0,
+    tax_percent: Decimal,
+    tax_amount: Decimal,
+    discount_amount: Decimal,
+    subtotal_amount: Decimal,
+    total_amount: Decimal,
+    amount_paid: Decimal = Decimal("0.0"),
 ) -> str:
     invoice_id = str(uuid7())
     invoice_number = generate_invoice_number(conn, customer_id)
     status = "Paid" if amount_paid >= total_amount else "Pending"
+
     with conn.cursor() as cur:
         # ---------- Insert Invoice ----------
         cur.execute(
             """
             INSERT INTO invoices (
                 id, invoice_number, customer_id,
-                tax_percent, discount_amount, total_amount,
-                status, due_date
+                tax_percent, tax_amount, discount_amount, subtotal_amount, 
+                total_amount, status, due_date
             )
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
             """,
             (
                 invoice_id,
                 invoice_number,
                 customer_id,
                 tax_percent,
+                tax_amount,
                 discount_amount,
-                total_amount,
+                subtotal_amount, 
+                total_amount, 
                 status,
                 due_date,
             ),
