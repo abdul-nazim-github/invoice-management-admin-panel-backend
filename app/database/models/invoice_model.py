@@ -88,14 +88,15 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
                     i.due_date,
                     i.tax_percent,
                     i.discount_amount,
+                    i.subtotal_amount,
                     i.total_amount,
                     i.status,
                     c.id AS customer_id,
-                    c.full_name AS customer_full_name,
-                    c.email AS customer_email,
-                    c.phone AS customer_phone,
-                    c.address AS customer_address,
-                    c.gst_number AS customer_gst
+                    c.full_name AS ull_name,
+                    c.email AS email,
+                    c.phone AS phone,
+                    c.address AS address,
+                    c.gst_number AS gst_number
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
                 WHERE i.id = %s
@@ -104,9 +105,10 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
             )
             row = cur.fetchone()
             if row:
-                # Convert amounts to Decimal
-                row["total_amount"] = Decimal(str(row["total_amount"]))
-                row["discount_amount"] = Decimal(str(row["discount_amount"]))
+                # Convert Decimal fields to float for JSON response
+                for field in ["tax_percent", "discount_amount", "subtotal_amount", "total_amount"]:
+                    if row[field] is not None:
+                        row[field] = float(row[field])
             return normalize_row(row) if row else None
     finally:
         conn.close()

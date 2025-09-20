@@ -1,30 +1,32 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Tuple, Union
-from flask import jsonify
+from flask import current_app, jsonify
+import json
 
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, Decimal):
+            # Format with two decimal places
+            return "{:.2f}".format(o)
+        return super().default(o)
+    
 def success_response(result=None, message="Success", meta=None, status=200):
-    """
-    Standard success response
-    - result: actual payload (dict, list, etc.)
-    - message: user-friendly message
-    - meta: extra info (pagination, filters, etc.)
-    - status: HTTP status code
-    """
     return (
-        jsonify(
-            {
-                "success": True,
-                "message": message,
-                "data": {
-                    "results": result if result is not None else [],
-                    "meta": meta if meta else {},
+        current_app.response_class(
+            response=json.dumps(
+                {
+                    "success": True,
+                    "message": message,
+                    "data": {"results": result or [], "meta": meta or {}},
                 },
-            }
+                cls=DecimalEncoder,
+            ),
+            status=status,
+            mimetype="application/json",
         ),
         status,
     )
-
 
 def error_response(type="server_error", message="Error", details=None, status=400):
     return (
