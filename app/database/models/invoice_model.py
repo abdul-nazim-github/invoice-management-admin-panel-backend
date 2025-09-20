@@ -21,11 +21,10 @@ def create_invoice(
     discount_amount: float,
     total_amount: float,
     amount_paid: float = 0.0,
-    status: str = "Pending",
 ) -> str:
     invoice_id = str(uuid7())
     invoice_number = generate_invoice_number(conn, customer_id)
-    print('invoice_number==============')
+    status = "Paid" if amount_paid >= total_amount else "Pending"
     with conn.cursor() as cur:
         # ---------- Insert Invoice ----------
         cur.execute(

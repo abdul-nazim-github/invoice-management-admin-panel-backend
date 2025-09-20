@@ -79,7 +79,6 @@ def add_invoice():
                 discount_amount,
                 total,
                 validated["amount_paid"],
-                validated.get("status", "Pending"),
             )
         except IntegrityError as ie:
             msg = str(ie)

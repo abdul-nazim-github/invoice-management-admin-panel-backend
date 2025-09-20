@@ -15,10 +15,6 @@ class InvoiceItemSchema(Schema):
 class InvoiceCreateSchema(Schema):
     customer_id = fields.UUID(required=True)
     due_date = fields.Date(required=False, allow_none=True)
-    status = fields.Str(
-        validate=validate.OneOf(["Pending", "Paid", "Overdue"]),
-        load_default="Pending",
-    )
     tax_percent = fields.Decimal(as_string=True, load_default="0")
     amount_paid = fields.Decimal(as_string=True, load_default="0")
     discount_amount = fields.Decimal(   # ✅ fixed name

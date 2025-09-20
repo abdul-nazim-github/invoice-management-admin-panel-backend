@@ -9,38 +9,23 @@ def short_customer_code(customer_id: str, length: int = 4) -> str:
     hash_val = hashlib.md5(customer_id_str.encode()).hexdigest()
     return hash_val[:length].upper()
 
+
 def generate_invoice_number(conn, customer_id: str) -> str:
-    """Generate a unique invoice number like INV-YYYYMM-CUST-SEQ"""
-    # Year + month
     ym = datetime.now().strftime("%Y%m")
-    
-    # Short customer code
     cust_code = short_customer_code(customer_id)
-    # Default sequence
-    seq = 1
+
     with conn.cursor() as cur:
-        # Use tuple access safely
+        # Get the maximum sequence globally
         cur.execute(
             """
-            SELECT invoice_number FROM invoices
-            WHERE invoice_number LIKE %s
-            ORDER BY invoice_number DESC
-            LIMIT 1
-            """,
-            (f"INV-{ym}-{cust_code}-%",)
+            SELECT MAX(CAST(SUBSTRING_INDEX(invoice_number, '-', -1) AS UNSIGNED)) AS max_seq
+            FROM invoices
+            WHERE invoice_number REGEXP 'INV-[0-9]{6}-[A-Z0-9]+-[0-9]{3}'
+            """
         )
-        last = cur.fetchone()
-        if last:
-            # If using tuple, get first element
-            last_invoice = last[0]  # or last['invoice_number'] if dict cursor
-            try:
-                last_seq = int(last_invoice.split("-")[-1])
-                seq = last_seq + 1
-            except Exception:
-                seq = 1  # fallback
+        result = cur.fetchone()
+        max_seq = result["max_seq"] or 0  # 0 if no invoices found
+        seq = max_seq + 1
 
-    # Format sequence as 3 digits
     seq_str = str(seq).zfill(3)
-
-    invoice_number = f"INV-{ym}-{cust_code}-{seq_str}"
-    return invoice_number
+    return f"INV-{ym}-{cust_code}-{seq_str}"
