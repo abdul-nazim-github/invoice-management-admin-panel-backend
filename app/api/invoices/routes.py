@@ -69,17 +69,16 @@ def add_invoice():
         discount_amount = float(validated.get("discount_amount", 0))
         tax_amount = subtotal * (tax_percent / 100)
         total = subtotal + tax_amount - discount_amount
-
         # ---------- Create invoice ----------
         try:
             invoice_id = create_invoice(
                 conn,
-                validated["invoice_number"],
                 validated["customer_id"],
                 validated["due_date"],
                 tax_percent,
                 discount_amount,
                 total,
+                validated["amount_paid"],
                 validated.get("status", "Pending"),
             )
         except IntegrityError as ie:

@@ -13,7 +13,6 @@ class InvoiceItemSchema(Schema):
 # Schema for creating an invoice
 # ------------------------
 class InvoiceCreateSchema(Schema):
-    invoice_number = fields.Str(required=True)
     customer_id = fields.UUID(required=True)
     due_date = fields.Date(required=False, allow_none=True)
     status = fields.Str(
@@ -21,6 +20,7 @@ class InvoiceCreateSchema(Schema):
         load_default="Pending",
     )
     tax_percent = fields.Decimal(as_string=True, load_default="0")
+    amount_paid = fields.Decimal(as_string=True, load_default="0")
     discount_amount = fields.Decimal(   # ✅ fixed name
         as_string=True, load_default="0"
     )

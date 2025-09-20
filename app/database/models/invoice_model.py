@@ -10,20 +10,24 @@ from app.database.models.invoice_item_model import add_invoice_item, get_items_b
 from app.database.models.payment_model import get_payments_by_invoice
 from app.database.models.product_model import get_product
 from app.utils.response import normalize_row, normalize_rows, normalize_value
+from app.utils.utils import generate_invoice_number
 
 # ---------------- Invoice Functions ----------------
 def create_invoice(
     conn,
-    invoice_number: str,
     customer_id: str,
     due_date: str,
     tax_percent: float,
     discount_amount: float,
     total_amount: float,
-    status: str,
+    amount_paid: float = 0.0,
+    status: str = "Pending",
 ) -> str:
     invoice_id = str(uuid7())
+    invoice_number = generate_invoice_number(conn, customer_id)
+    print('invoice_number==============')
     with conn.cursor() as cur:
+        # ---------- Insert Invoice ----------
         cur.execute(
             """
             INSERT INTO invoices (
@@ -44,6 +48,25 @@ def create_invoice(
                 due_date,
             ),
         )
+
+        # ---------- Insert Payment if amount_paid > 0 ----------
+        if amount_paid > 0:
+            payment_id = str(uuid7())
+            cur.execute(
+                """
+                INSERT INTO payments (
+                    id, invoice_id, amount, method
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    payment_id,
+                    invoice_id,
+                    amount_paid,
+                    "cash",
+                ),
+            )
+
     return invoice_id
 
 def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
