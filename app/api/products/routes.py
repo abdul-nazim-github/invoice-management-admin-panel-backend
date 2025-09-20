@@ -2,7 +2,8 @@
 # app/api/products/routes.py
 # =============================
 import re
-from typing import Dict
+from decimal import Decimal
+from typing import Any, Dict
 from flask import Blueprint, request
 from marshmallow import ValidationError
 from pymysql.err import IntegrityError
@@ -41,17 +42,16 @@ def add_product():
         validated: Dict[str, str] = create_schema.load(data)
 
         product = create_product(
-            validated["sku"],
-            validated["name"],
-            validated.get("description"),
-            validated["unit_price"],
-            validated.get("stock_quantity", 0),
+            sku=validated["sku"],
+            name=validated["name"],
+            description=validated.get("description"),
+            unit_price=Decimal(str(validated["unit_price"])),  # ensure Decimal
+            stock_quantity=int(validated.get("stock_quantity", 0)),  # ensure int
         )
         return success_response(
             result=product,
             message="Product created successfully",
         )
-    
 
     except ValidationError as ve:
         return error_response(
@@ -109,6 +109,12 @@ def list_():
             offset=offset,
             limit=limit,
         )
+
+        # Convert unit_price to Decimal
+        for row in rows:
+            if "unit_price" in row and row["unit_price"] is not None:
+                row["unit_price"] = Decimal(str(row["unit_price"]))
+
         return success_response(
             result=rows,
             message="Products fetched successfully",
@@ -144,6 +150,9 @@ def detail(product_id):
                 status=400,
             )
 
+        if "unit_price" in product and product["unit_price"] is not None:
+            product["unit_price"] = Decimal(str(product["unit_price"]))
+
         return success_response(
             result=product,
             message="Product details fetched successfully",
@@ -162,7 +171,13 @@ def detail(product_id):
 def update(product_id):
     try:
         data = request.json or {}
-        validated: Dict[str, str] = update_schema.load(data)
+        validated: Dict[str, Any] = update_schema.load(data)
+
+        # Ensure proper types
+        if "unit_price" in validated:
+            validated["unit_price"] = Decimal(str(validated["unit_price"]))
+        if "stock_quantity" in validated:
+            validated["stock_quantity"] = int(validated["stock_quantity"])
 
         updated_product = update_product(product_id, **validated)
         return success_response(

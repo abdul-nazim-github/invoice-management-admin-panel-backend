@@ -33,10 +33,9 @@ from app.database.models.invoice_item_model import (
 from app.database.models.product_model import get_product
 from app.database.models.payment_model import create_payment, get_payments_by_invoice
 
-
 invoices_bp = Blueprint("invoices", __name__)
 
-# schemas
+# Schemas
 create_schema = InvoiceCreateSchema()
 update_schema = InvoiceUpdateSchema()
 bulk_delete_schema = InvoiceBulkDeleteSchema()
@@ -44,6 +43,9 @@ filter_schema = InvoiceFilterSchema()
 payment_schema = PaymentCreateSchema()
 
 
+# ------------------------------
+# Add Invoice
+# ------------------------------
 @invoices_bp.post("/")
 @require_auth
 def add_invoice():
@@ -65,9 +67,7 @@ def add_invoice():
                     details={"product_id": [f"Product {it['product_id']} does not exist"]},
                     status=400,
                 )
-            subtotal_amount += (
-                Decimal(str(prod["unit_price"])) * Decimal(it.get("quantity", 1))
-            )
+            subtotal_amount += Decimal(str(prod["unit_price"])) * Decimal(it.get("quantity", 1))
 
         # ---------- Convert and calculate totals ----------
         tax_percent = Decimal(str(validated.get("tax_percent", "0")))
@@ -159,6 +159,10 @@ def add_invoice():
         if conn:
             conn.close()
 
+
+# ------------------------------
+# List Invoices
+# ------------------------------
 @invoices_bp.get("/")
 @require_auth
 def list_invoices_route():
@@ -181,9 +185,11 @@ def list_invoices_route():
 
         # enrich each invoice with paid and due amounts
         for inv in rows:
-            paid = get_payments_by_invoice(inv["id"])
+            paid = Decimal(str(get_payments_by_invoice(inv["id"])))
             inv["paid_amount"] = paid
-            inv["due_amount"] = float(inv["total_amount"]) - paid
+            inv["due_amount"] = (Decimal(str(inv["total_amount"])) - paid).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
 
         meta = {"page": page, "limit": limit, "total": total}
         if before or after:
@@ -215,6 +221,9 @@ def list_invoices_route():
         )
 
 
+# ------------------------------
+# Invoice Detail
+# ------------------------------
 @invoices_bp.get("/<invoice_id>")
 @require_auth
 def detail(invoice_id):
@@ -229,8 +238,10 @@ def detail(invoice_id):
             )
 
         items = get_items_by_invoice(invoice_id)
-        paid = get_payments_by_invoice(invoice_id)
-        due = float(inv["total_amount"]) - paid
+        paid = Decimal(str(get_payments_by_invoice(invoice_id)))
+        due = (Decimal(str(inv["total_amount"])) - paid).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
         return success_response(
             result={
@@ -240,9 +251,9 @@ def detail(invoice_id):
                     "created_at": inv["created_at"],
                     "due_date": inv["due_date"],
                     "status": inv["status"],
-                    "tax_percent": inv["tax_percent"],
-                    "discount_amount": inv["discount_amount"],
-                    "total_amount": inv["total_amount"],
+                    "tax_percent": Decimal(str(inv["tax_percent"])),
+                    "discount_amount": Decimal(str(inv["discount_amount"])),
+                    "total_amount": Decimal(str(inv["total_amount"])),
                     "paid_amount": paid,
                     "due_amount": due,
                 },
@@ -267,6 +278,9 @@ def detail(invoice_id):
         )
 
 
+# ------------------------------
+# Update Invoice
+# ------------------------------
 @invoices_bp.put("/<invoice_id>")
 @require_auth
 def update(invoice_id):
@@ -305,6 +319,9 @@ def update(invoice_id):
         )
 
 
+# ------------------------------
+# Record Payment
+# ------------------------------
 @invoices_bp.post("/<invoice_id>/pay")
 @require_auth
 def pay(invoice_id):
@@ -312,7 +329,7 @@ def pay(invoice_id):
         data: Dict[str, Any] = payment_schema.load(request.json or {})
         create_payment(
             invoice_id=invoice_id,
-            amount=data["amount"],
+            amount=Decimal(str(data["amount"])),
             payment_date=data.get("payment_date", str(date.today())),
             method=data.get("method", "upi"),
             reference_number=data["reference_no"],
@@ -322,7 +339,7 @@ def pay(invoice_id):
             message="Payment recorded successfully",
             result={
                 "invoice_id": invoice_id,
-                "amount": data["amount"],
+                "amount": Decimal(str(data["amount"])),
                 "method": data.get("method", "upi"),
                 "payment_date": str(data.get("payment_date", date.today())),
                 "reference_no": data.get("reference_no"),
@@ -345,6 +362,9 @@ def pay(invoice_id):
         )
 
 
+# ------------------------------
+# Bulk Delete
+# ------------------------------
 @invoices_bp.post("/bulk-delete")
 @require_auth
 def bulk_delete():

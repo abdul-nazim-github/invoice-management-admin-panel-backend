@@ -2,7 +2,9 @@
 # app/database/models/invoice_item_model.py
 # =============================
 from uuid6 import uuid7
+from decimal import Decimal
 from app.database.base import get_db_connection
+from marshmallow import ValidationError
 
 
 def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
@@ -11,9 +13,10 @@ def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
     Must be called inside a transaction (conn passed in).
     Raises ValidationError if stock is insufficient.
     """
-    from marshmallow import ValidationError
+    quantity = int(quantity)
+    unit_price = Decimal(str(unit_price))
+    total_amount = (unit_price * quantity).quantize(Decimal("0.01"))
 
-    total_amount = float(unit_price) * int(quantity)
     invoice_item_id = str(uuid7())
 
     with conn.cursor() as cur:
@@ -44,6 +47,7 @@ def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
 
     return invoice_item_id
 
+
 def get_items_by_invoice(invoice_id):
     conn = get_db_connection()
     try:
@@ -53,12 +57,12 @@ def get_items_by_invoice(invoice_id):
                 SELECT 
                     ii.id,
                     ii.quantity,
-                    ii.unit_price,
-                    ii.total_amount,
+                    CAST(ii.unit_price AS DECIMAL(10,2)) AS unit_price,
+                    CAST(ii.total_amount AS DECIMAL(10,2)) AS total_amount,
                     p.id AS product_id,
                     p.name AS product_name,
                     p.sku AS product_sku,
-                    p.unit_price AS product_unit_price
+                    CAST(p.unit_price AS DECIMAL(10,2)) AS product_unit_price
                 FROM invoice_items ii
                 JOIN products p ON p.id = ii.product_id
                 WHERE ii.invoice_id = %s
@@ -66,6 +70,13 @@ def get_items_by_invoice(invoice_id):
                 (invoice_id,),
             )
             items = cur.fetchall()
+
+            # Convert numeric fields to Decimal
+            for it in items:
+                it["unit_price"] = Decimal(str(it["unit_price"]))
+                it["total_amount"] = Decimal(str(it["total_amount"]))
+                it["product_unit_price"] = Decimal(str(it["product_unit_price"]))
+
         return items
     finally:
         conn.close()

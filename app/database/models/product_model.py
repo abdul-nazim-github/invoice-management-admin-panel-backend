@@ -2,13 +2,14 @@
 # app/database/models/product_model.py
 # =============================
 from datetime import datetime
+from decimal import Decimal
 from marshmallow import ValidationError
 from uuid6 import uuid7
+from typing import List
 from app.database.base import get_db_connection
 from app.utils.is_deleted_filter import is_deleted_filter
-from typing import List
-
 from app.utils.response import normalize_rows, normalize_value
+
 # -------------------------
 # Product CRUD
 # -------------------------
@@ -23,7 +24,14 @@ def create_product(sku, name, description, unit_price, stock_quantity):
                 INSERT INTO products (id, sku, name, description, unit_price, stock_quantity)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (product_id, sku, name, description, unit_price, stock_quantity),
+                (
+                    product_id,
+                    sku,
+                    name,
+                    description,
+                    Decimal(str(unit_price)),  # Ensure Decimal
+                    int(stock_quantity)
+                ),
             )
         conn.commit()
     finally:
@@ -56,7 +64,7 @@ def list_products(q=None, offset=0, limit=20):
                 """,
                 (*params, limit, offset),
             )
-            rows = normalize_rows(cur.fetchall() or [])
+            rows = cur.fetchall() or []
 
             # Total count
             cur.execute("SELECT FOUND_ROWS() AS total")
@@ -66,7 +74,12 @@ def list_products(q=None, offset=0, limit=20):
     finally:
         conn.close()
 
-    return rows, total
+    # Convert unit_price to Decimal
+    for row in rows:
+        if "unit_price" in row and row["unit_price"] is not None:
+            row["unit_price"] = Decimal(str(row["unit_price"]))
+
+    return normalize_rows(rows), total
 
 
 def get_product(product_id):
@@ -82,6 +95,10 @@ def get_product(product_id):
             prod = normalize_rows([prod])[0] if prod else None
     finally:
         conn.close()
+
+    if prod and "unit_price" in prod and prod["unit_price"] is not None:
+        prod["unit_price"] = Decimal(str(prod["unit_price"]))
+
     return prod
 
 
@@ -91,6 +108,10 @@ def update_product(product_id, **fields):
 
     keys, params = [], []
     for k, v in fields.items():
+        if k == "unit_price":
+            v = Decimal(str(v))
+        elif k == "stock_quantity":
+            v = int(v)
         keys.append(f"{k}=%s")
         params.append(v)
 

@@ -55,7 +55,7 @@ def create_invoice(
         )
 
         # ---------- Insert Payment if amount_paid > 0 ----------
-        if amount_paid > 0:
+        if amount_paid > Decimal("0.0"):
             payment_id = str(uuid7())
             cur.execute(
                 """
@@ -103,6 +103,10 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
                 (invoice_id,),
             )
             row = cur.fetchone()
+            if row:
+                # Convert amounts to Decimal
+                row["total_amount"] = Decimal(str(row["total_amount"]))
+                row["discount_amount"] = Decimal(str(row["discount_amount"]))
             return normalize_row(row) if row else None
     finally:
         conn.close()
@@ -152,6 +156,10 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
             )
             rows = normalize_rows(cur.fetchall())
 
+            # Convert total_amount to Decimal
+            for r in rows:
+                r["total_amount"] = Decimal(str(r["total_amount"]))
+
             cur.execute("SELECT FOUND_ROWS() AS total")
             result = cur.fetchone()
             total = normalize_value(result["total"]) if result else 0
@@ -170,7 +178,7 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                 return None
 
         items = fields.pop("items", None)
-        subtotal = 0.0
+        subtotal = Decimal("0.0")
 
         if items is not None:
             for it in items:
@@ -181,9 +189,9 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                         {"product_id": [f"Product {it['product_id']} does not exist"]}
                     )
 
-                quantity = int(it.get("quantity", 1))
-                unit_price = float(prod["unit_price"])
-                total_amount = quantity * unit_price
+                quantity = Decimal(it.get("quantity", 1))
+                unit_price = Decimal(str(prod["unit_price"]))
+                line_total = (quantity * unit_price).quantize(Decimal("0.01"))
 
                 with conn.cursor() as cur:
                     cur.execute(
@@ -199,20 +207,23 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
                             SET quantity=%s, unit_price=%s, total_amount=%s, updated_at=%s
                             WHERE id=%s
                             """,
-                            (quantity, unit_price, total_amount, datetime.now(), existing_item["id"]),
+                            (quantity, unit_price, line_total, datetime.now(), existing_item["id"]),
                         )
                     else:
                         add_invoice_item(conn, invoice_id, it["product_id"], quantity, unit_price)
 
-                subtotal += total_amount
+                subtotal += line_total
         else:
             db_items = get_items_by_invoice(invoice_id)
-            subtotal = sum(float(it["unit_price"]) * int(it["quantity"]) for it in db_items)
+            subtotal = sum(
+                Decimal(str(it["unit_price"])) * Decimal(str(it["quantity"]))
+                for it in db_items
+            ).quantize(Decimal("0.01"))
 
-        tax_percent = float(fields.get("tax_percent", existing.get("tax_percent") or 0))
-        discount_amount = float(fields.get("discount_amount", existing.get("discount_amount") or 0))
-        tax_amount = subtotal * (tax_percent / 100)
-        total = subtotal + tax_amount - discount_amount
+        tax_percent = Decimal(str(fields.get("tax_percent", existing.get("tax_percent") or 0)))
+        discount_amount = Decimal(str(fields.get("discount_amount", existing.get("discount_amount") or 0)))
+        tax_amount = (subtotal * tax_percent / Decimal("100")).quantize(Decimal("0.01"))
+        total = (subtotal + tax_amount - discount_amount).quantize(Decimal("0.01"))
 
         update_fields = {
             **fields,
@@ -265,7 +276,7 @@ def get_invoice_detail(invoice_id: str):
 
     items = get_items_by_invoice(invoice_id)
     paid = get_payments_by_invoice(invoice_id)
-    due = float(inv["total_amount"]) - paid
+    due = (Decimal(str(inv["total_amount"])) - Decimal(str(paid))).quantize(Decimal("0.01"))
 
     return {
         "customer": {
