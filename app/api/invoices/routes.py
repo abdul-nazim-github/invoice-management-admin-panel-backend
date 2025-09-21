@@ -294,7 +294,6 @@ def update(invoice_id):
     try:
         data = request.json or {}
         validated: Dict[str, Any] = update_schema.load(data)
-        print('validated.get("is_mark_as_paid"): ', validated.get("is_mark_as_paid"))
         if validated.get("is_mark_as_paid"):  # If true, call payment-only update
             updated_invoice = mark_invoice_as_paid(invoice_id, validated["amount_paid"])
         else:  # Normal update flow

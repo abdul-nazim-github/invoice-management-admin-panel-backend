@@ -233,7 +233,7 @@ def update_invoice(invoice_id: str, **fields):
 
         # Determine status based on payments
         amount_paid = Decimal(str(fields.pop("amount_paid", "0.0")))
-        if amount_paid > Decimal("0.0"):
+        if amount_paid >= Decimal("0.0"):
             with conn.cursor() as cur:
                 # Check if there are existing payments for this invoice
                 cur.execute("SELECT id, amount FROM payments WHERE invoice_id=%s", (invoice_id,))
