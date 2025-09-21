@@ -27,12 +27,13 @@ class InvoiceCreateSchema(Schema):
 # Schema for updating an invoice
 # ------------------------
 class InvoiceUpdateSchema(Schema):
-    invoice_number = fields.Str()
-    customer_id = fields.UUID()
+    customer_id = fields.UUID(required=False)
     due_date = fields.Date(required=False, allow_none=True)
-    status = fields.Str(validate=validate.OneOf(["Pending", "Paid", "Overdue"]))
-    tax_percent = fields.Decimal(as_string=True)
-    discount_amount = fields.Decimal(as_string=True)   # ✅ fixed name
+    tax_percent = fields.Decimal(as_string=True, load_default="0")
+    amount_paid = fields.Decimal(as_string=True, load_default="0")
+    discount_amount = fields.Decimal(
+        as_string=True, load_default="0"
+    )
     items = fields.List(fields.Nested(InvoiceItemSchema), required=False)
 
 
