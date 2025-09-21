@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Tuple, Union
 from flask import current_app, jsonify
@@ -40,20 +40,14 @@ def error_response(type="server_error", message="Error", details=None, status=40
     )
 
 
-def normalize_value(value: Any) -> Any:
-    """
-    Normalize a single DB value for JSON response:
-    - Decimal → string (preserves precision)
-    - datetime → ISO string
-    - other types → unchanged
-    """
+def normalize_value(value):
+    """Normalize values for JSON serialization."""
     if isinstance(value, Decimal):
-        return str(value)  # keep precision
-    if isinstance(value, datetime):
+        # Return string to preserve formatting (e.g., "33333.00")
+        return "{:.2f}".format(value)
+    if isinstance(value, (datetime, date)):
         return value.isoformat()
     return value
-
-
 def normalize_row(row: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize all values in a DB row."""
     if not row:

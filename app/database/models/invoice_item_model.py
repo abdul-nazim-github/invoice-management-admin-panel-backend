@@ -6,6 +6,8 @@ from decimal import Decimal
 from app.database.base import get_db_connection
 from marshmallow import ValidationError
 
+from app.utils.response import normalize_rows
+
 
 def add_invoice_item(conn, invoice_id, product_id, quantity, unit_price):
     """
@@ -56,13 +58,13 @@ def get_items_by_invoice(invoice_id):
                 """
                 SELECT 
                     ii.id,
-                    ii.quantity,
+                    ii.quantity as ordered_quantity,
                     CAST(ii.unit_price AS DECIMAL(10,2)) AS unit_price,
                     CAST(ii.total_amount AS DECIMAL(10,2)) AS total_amount,
                     p.id AS product_id,
-                    p.name AS product_name,
-                    p.sku AS product_sku,
-                    CAST(p.unit_price AS DECIMAL(10,2)) AS product_unit_price
+                    p.name AS name,
+                    p.sku AS sku,
+                    p.stock_quantity as stock_quantity
                 FROM invoice_items ii
                 JOIN products p ON p.id = ii.product_id
                 WHERE ii.invoice_id = %s
@@ -75,8 +77,7 @@ def get_items_by_invoice(invoice_id):
             for it in items:
                 it["unit_price"] = Decimal(str(it["unit_price"]))
                 it["total_amount"] = Decimal(str(it["total_amount"]))
-                it["product_unit_price"] = Decimal(str(it["product_unit_price"]))
 
-        return items
+        return normalize_rows(items)
     finally:
         conn.close()

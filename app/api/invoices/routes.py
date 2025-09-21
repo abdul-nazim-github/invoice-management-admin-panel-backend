@@ -64,10 +64,14 @@ def add_invoice():
                 return error_response(
                     type="invalid_product",
                     message="Invalid product",
-                    details={"product_id": [f"Product {it['product_id']} does not exist"]},
+                    details={
+                        "product_id": [f"Product {it['product_id']} does not exist"]
+                    },
                     status=400,
                 )
-            subtotal_amount += Decimal(str(prod["unit_price"])) * Decimal(it.get("quantity", 1))
+            subtotal_amount += Decimal(str(prod["unit_price"])) * Decimal(
+                it.get("quantity", 1)
+            )
 
         # ---------- Convert and calculate totals ----------
         tax_percent = Decimal(str(validated.get("tax_percent", "0")))
@@ -83,7 +87,9 @@ def add_invoice():
 
         # ---------- Validate amount_paid ----------
         if amount_paid > total_amount:
-            raise ValidationError("Amount paid cannot be greater than the total invoice amount")
+            raise ValidationError(
+                "Amount paid cannot be greater than the total invoice amount"
+            )
 
         # ---------- Create invoice ----------
         try:
@@ -242,27 +248,27 @@ def detail(invoice_id):
         due = (Decimal(str(inv["total_amount"])) - paid).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
-
         return success_response(
             result={
-                "invoice": {
-                    "id": inv["id"],
-                    "invoice_number": inv["invoice_number"],
-                    "created_at": inv["created_at"],
-                    "due_date": inv["due_date"],
-                    "status": inv["status"],
-                    "tax_percent": Decimal(str(inv["tax_percent"])),
-                    "discount_amount": Decimal(str(inv["discount_amount"])),
-                    "total_amount": Decimal(str(inv["total_amount"])),
-                    "paid_amount": paid,
-                    "due_amount": due,
-                },
+                "id": inv["id"],
+                "invoice_number": inv["invoice_number"],
+                "created_at": inv["created_at"],
+                "due_date": inv["due_date"],
+                "status": inv["status"],
+                "tax_percent": Decimal(str(inv["tax_percent"])),
+                "tax_amount": Decimal(str(inv["tax_amount"])),
+                "discount_amount": Decimal(str(inv["discount_amount"])),
+                "subtotal_amount": Decimal(str(inv["subtotal_amount"])),
+                "total_amount": Decimal(str(inv["total_amount"])),
+                "paid_amount": paid,
+                "due_amount": due,
                 "customer": {
                     "id": inv["customer_id"],
-                    "full_name": inv["customer_full_name"],
-                    "email": inv["customer_email"],
-                    "phone": inv["customer_phone"],
-                    "address": inv["customer_address"],
+                    "full_name": inv["full_name"],
+                    "email": inv["email"],
+                    "phone": inv["phone"],
+                    "address": inv["address"],
+                    "gst_number": inv["gst_number"],
                 },
                 "items": items,
             },
