@@ -34,6 +34,7 @@ class InvoiceUpdateSchema(Schema):
         as_string=True, load_default="0"
     )
     items = fields.List(fields.Nested(InvoiceItemSchema), required=False)
+    is_mark_as_paid = fields.Boolean(required= False, load_default=False)
 
 
 # ------------------------

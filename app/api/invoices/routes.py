@@ -23,6 +23,7 @@ from app.database.models.invoice_model import (
     create_invoice,
     get_invoice,
     list_invoices,
+    mark_invoice_as_paid,
     update_invoice,
     bulk_delete_invoices,
 )
@@ -293,8 +294,12 @@ def update(invoice_id):
     try:
         data = request.json or {}
         validated: Dict[str, Any] = update_schema.load(data)
-        print('validated: ', validated)
-        updated_invoice = update_invoice(invoice_id, **validated)
+
+        if validated.get("is_mark_as_paid"):  # If true, call payment-only update
+            updated_invoice = mark_invoice_as_paid(invoice_id, validated["amount_paid"])
+        else:  # Normal update flow
+            updated_invoice = update_invoice(invoice_id, **validated)
+
         if not updated_invoice:
             return error_response(
                 type="not_found",
@@ -323,7 +328,6 @@ def update(invoice_id):
             details={"exception": [str(e)]},
             status=500,
         )
-
 
 # ------------------------------
 # Record Payment

@@ -290,6 +290,45 @@ def update_invoice(invoice_id: str, **fields):
     finally:
         conn.close()
 
+def mark_invoice_as_paid(invoice_id: str, amount_paid: Decimal):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Update invoice status to Paid
+            cur.execute(
+                "UPDATE invoices SET status=%s, updated_at=%s WHERE id=%s",
+                ("Paid", datetime.now(), invoice_id),
+            )
+
+            # Check if a payment already exists
+            cur.execute("SELECT id FROM payments WHERE invoice_id=%s", (invoice_id,))
+            payment = cur.fetchone()
+
+            if payment:
+                # Update existing payment
+                cur.execute(
+                    """
+                    UPDATE payments
+                    SET amount=%s, paid_at=%s
+                    WHERE id=%s
+                    """,
+                    (amount_paid, datetime.now(), payment["id"]),
+                )
+            else:
+                # Insert new payment
+                cur.execute(
+                    """
+                    INSERT INTO payments (id, invoice_id, amount, paid_at, method)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (str(uuid7()), invoice_id, amount_paid, datetime.now(), "cash"),
+                )
+
+        conn.commit()
+        return get_invoice(invoice_id)
+    finally:
+        conn.close()
+
 def bulk_delete_invoices(ids: list[str]):
     if not ids:
         return 0
