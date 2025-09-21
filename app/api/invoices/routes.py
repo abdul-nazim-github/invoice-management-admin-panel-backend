@@ -293,7 +293,7 @@ def update(invoice_id):
     try:
         data = request.json or {}
         validated: Dict[str, Any] = update_schema.load(data)
-
+        print('validated: ', validated)
         updated_invoice = update_invoice(invoice_id, **validated)
         if not updated_invoice:
             return error_response(

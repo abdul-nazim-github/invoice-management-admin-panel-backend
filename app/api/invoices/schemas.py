@@ -27,7 +27,6 @@ class InvoiceCreateSchema(Schema):
 # Schema for updating an invoice
 # ------------------------
 class InvoiceUpdateSchema(Schema):
-    customer_id = fields.UUID(required=False)
     due_date = fields.Date(required=False, allow_none=True)
     tax_percent = fields.Decimal(as_string=True, load_default="0")
     amount_paid = fields.Decimal(as_string=True, load_default="0")

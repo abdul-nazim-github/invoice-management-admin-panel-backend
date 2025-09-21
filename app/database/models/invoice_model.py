@@ -8,7 +8,6 @@ from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 from app.database.models.invoice_item_model import add_invoice_item, get_items_by_invoice
-from app.database.models.payment_model import get_payments_by_invoice
 from app.database.models.product_model import get_product
 from app.utils.response import normalize_row, normalize_rows, normalize_value
 from app.utils.utils import generate_invoice_number
@@ -171,29 +170,31 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
     finally:
         conn.close()
 
-def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
+def update_invoice(invoice_id: str, **fields):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            # Fetch existing invoice
             cur.execute("SELECT * FROM invoices WHERE id=%s", (invoice_id,))
             existing = cur.fetchone()
             if not existing:
                 return None
 
+        # ---------------- Handle invoice items ----------------
         items = fields.pop("items", None)
         subtotal = Decimal("0.0")
 
         if items is not None:
             for it in items:
-                prod = get_product(it["product_id"])
+                prod = get_product(it.get("product_id"))
                 if not prod:
                     conn.rollback()
                     raise ValidationError(
-                        {"product_id": [f"Product {it['product_id']} does not exist"]}
+                        {"product_id": [f"Product {it.get('product_id')} does not exist"]}
                     )
 
-                quantity = Decimal(it.get("quantity", 1))
-                unit_price = Decimal(str(prod["unit_price"]))
+                quantity = Decimal(str(it.get("quantity", 1)))
+                unit_price = Decimal(str(prod.get("unit_price", 0)))
                 line_total = (quantity * unit_price).quantize(Decimal("0.01"))
 
                 with conn.cursor() as cur:
@@ -217,22 +218,58 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
 
                 subtotal += line_total
         else:
+            # Recalculate subtotal from DB items if not provided
             db_items = get_items_by_invoice(invoice_id)
             subtotal = sum(
-                Decimal(str(it["unit_price"])) * Decimal(str(it["quantity"]))
+                Decimal(str(it.get("unit_price", 0))) * Decimal(str(it.get("quantity", 0)))
                 for it in db_items
             ).quantize(Decimal("0.01"))
 
-        tax_percent = Decimal(str(fields.get("tax_percent", existing.get("tax_percent") or 0)))
-        discount_amount = Decimal(str(fields.get("discount_amount", existing.get("discount_amount") or 0)))
+        # ---------------- Tax, discount, total ----------------
+        tax_percent = Decimal(str(fields.pop("tax_percent", existing.get("tax_percent", 0))))
+        discount_amount = Decimal(str(fields.pop("discount_amount", existing.get("discount_amount", 0))))
         tax_amount = (subtotal * tax_percent / Decimal("100")).quantize(Decimal("0.01"))
-        total = (subtotal + tax_amount - discount_amount).quantize(Decimal("0.01"))
+        total_amount = (subtotal + tax_amount - discount_amount).quantize(Decimal("0.01"))
 
+        # Determine status based on payments
+        amount_paid = Decimal(str(fields.pop("amount_paid", "0.0")))
+        if amount_paid > Decimal("0.0"):
+            with conn.cursor() as cur:
+                # Check if there are existing payments for this invoice
+                cur.execute("SELECT id, amount FROM payments WHERE invoice_id=%s", (invoice_id,))
+                existing_payments = cur.fetchone()
+
+                if existing_payments:
+                    # Update first payment (or sum payments, your logic may vary)
+                    payment_id = existing_payments["id"]
+                    cur.execute(
+                        """
+                        UPDATE payments
+                        SET amount = %s, updated_at = %s
+                        WHERE id = %s
+                        """,
+                        (amount_paid, datetime.now(), payment_id),
+                    )
+                else:
+                    # Insert a new payment if none exist
+                    payment_id = str(uuid7())
+                    cur.execute(
+                        """
+                        INSERT INTO payments (id, invoice_id, amount, method)
+                        VALUES (%s, %s, %s, %s)
+                        """,
+                        (payment_id, invoice_id, amount_paid, "cash"),
+                    )
+
+        status = "Paid" if amount_paid >= total_amount else "Pending"
+
+        # ---------------- Dynamic invoice update ----------------
         update_fields = {
-            **fields,
+            **fields,  # any other dynamic fields
             "tax_percent": tax_percent,
             "discount_amount": discount_amount,
-            "total_amount": total,
+            "total_amount": total_amount,
+            "status": status,
             "updated_at": datetime.now(),
         }
 
@@ -240,13 +277,16 @@ def update_invoice(invoice_id: str, **fields) -> Dict[str, Any] | None:
             keys = [f"{k}=%s" for k in update_fields.keys()]
             sql = f"UPDATE invoices SET {', '.join(keys)} WHERE id=%s"
             params = list(update_fields.values()) + [invoice_id]
-
             with conn.cursor() as cur:
                 cur.execute(sql, params)
 
         conn.commit()
-        return get_invoice_detail(invoice_id)
+        return get_invoice(invoice_id)
 
+    except Exception as e:
+        conn.rollback()
+        print("UPDATE_INVOICE_ERROR:", e)
+        raise
     finally:
         conn.close()
 
@@ -272,35 +312,35 @@ def bulk_delete_invoices(ids: list[str]):
     finally:
         conn.close()
 
-def get_invoice_detail(invoice_id: str):
-    inv = get_invoice(invoice_id)
-    if not inv:
-        return None
+# def get_invoice_detail(invoice_id: str):
+#     inv = get_invoice(invoice_id)
+#     if not inv:
+#         return None
 
-    items = get_items_by_invoice(invoice_id)
-    paid = get_payments_by_invoice(invoice_id)
-    due = (Decimal(str(inv["total_amount"])) - Decimal(str(paid))).quantize(Decimal("0.01"))
+#     items = get_items_by_invoice(invoice_id)
+#     paid = get_payments_by_invoice(invoice_id)
+#     due = (Decimal(str(inv["total_amount"])) - Decimal(str(paid))).quantize(Decimal("0.01"))
 
-    return {
-        "customer": {
-            "id": inv["customer_id"],
-            "full_name": inv["customer_full_name"],
-            "email": inv["customer_email"],
-            "phone": inv["customer_phone"],
-            "address": inv["customer_address"],
-        },
-        "invoice": {
-            "id": inv["id"],
-            "invoice_number": inv["invoice_number"],
-            "created_at": inv["created_at"],
-            "updated_at": inv["updated_at"],
-            "due_date": inv["due_date"],
-            "status": inv["status"],
-            "tax_percent": inv["tax_percent"],
-            "discount_amount": inv["discount_amount"],
-            "total_amount": inv["total_amount"],
-            "paid_amount": paid,
-            "due_amount": due,
-        },
-        "items": normalize_rows(items),
-    }
+#     return {
+#         "customer": {
+#             "id": inv["customer_id"],
+#             "full_name": inv["customer_full_name"],
+#             "email": inv["customer_email"],
+#             "phone": inv["customer_phone"],
+#             "address": inv["customer_address"],
+#         },
+#         "invoice": {
+#             "id": inv["id"],
+#             "invoice_number": inv["invoice_number"],
+#             "created_at": inv["created_at"],
+#             "updated_at": inv["updated_at"],
+#             "due_date": inv["due_date"],
+#             "status": inv["status"],
+#             "tax_percent": inv["tax_percent"],
+#             "discount_amount": inv["discount_amount"],
+#             "total_amount": inv["total_amount"],
+#             "paid_amount": paid,
+#             "due_amount": due,
+#         },
+#         "items": normalize_rows(items),
+#     }

@@ -57,11 +57,10 @@ def get_items_by_invoice(invoice_id):
             cur.execute(
                 """
                 SELECT 
-                    ii.id,
                     ii.quantity as ordered_quantity,
                     CAST(ii.unit_price AS DECIMAL(10,2)) AS unit_price,
                     CAST(ii.total_amount AS DECIMAL(10,2)) AS total_amount,
-                    p.id AS product_id,
+                    p.id AS id,
                     p.name AS name,
                     p.sku AS sku,
                     p.stock_quantity as stock_quantity
