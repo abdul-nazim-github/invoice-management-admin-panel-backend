@@ -1,6 +1,7 @@
 # =============================
 # app/database/models/customer_model.py
 # =============================
+from decimal import Decimal
 from marshmallow import ValidationError
 from uuid6 import uuid7
 from app.database.base import get_db_connection
@@ -29,7 +30,7 @@ def create_customer(full_name, email=None, phone=None, address=None, gst_number=
     return get_customer(customer_id)
 
 
-def get_customer(customer_id):
+def get_customer(customer_id, include_aggregates=False):
     deleted_sql, _ = is_deleted_filter("c")
     conn = get_db_connection()
     try:
@@ -51,7 +52,8 @@ def get_customer(customer_id):
                         WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
                         WHEN SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                         ELSE 'New'
-                    END AS status
+                    END AS status,
+                    COUNT(i.id) AS invoice_count
                 FROM customers c
                 LEFT JOIN invoices i ON c.id = i.customer_id
                 WHERE c.id=%s AND {deleted_sql}
@@ -63,7 +65,16 @@ def get_customer(customer_id):
     finally:
         conn.close()
 
-    return normalize_row(customer) if customer else None
+    if not customer:
+        return None
+
+    customer = normalize_row(customer)
+
+    if include_aggregates:
+        from app.database.models.customer_model import customer_aggregates
+        customer["aggregates"] = customer_aggregates(customer_id)
+
+    return customer
 
 
 def list_customers(q=None, status=None, offset=0, limit=20):
@@ -71,7 +82,6 @@ def list_customers(q=None, status=None, offset=0, limit=20):
     try:
         where, params = [], []
 
-        # Always exclude deleted
         deleted_sql, deleted_params = is_deleted_filter("c")
         where.append(deleted_sql)
         params += deleted_params
@@ -83,7 +93,6 @@ def list_customers(q=None, status=None, offset=0, limit=20):
 
         where_sql = " WHERE " + " AND ".join(where) if where else ""
 
-        # Inner query: compute status
         base_query = f"""
             SELECT 
                 c.id AS id,
@@ -100,14 +109,14 @@ def list_customers(q=None, status=None, offset=0, limit=20):
                     WHEN SUM(CASE WHEN i.status='Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
                     WHEN SUM(CASE WHEN i.status='Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                     ELSE 'New'
-                END AS status
+                END AS status,
+                COUNT(i.id) AS invoice_count
             FROM customers c
             LEFT JOIN invoices i ON c.id = i.customer_id
             {where_sql}
             GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number
         """
 
-        # Outer query: filter by status
         outer_where = ""
         if status:
             outer_where = " WHERE sub.status = %s"
@@ -128,7 +137,7 @@ def list_customers(q=None, status=None, offset=0, limit=20):
             count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub {outer_where}"
             cur.execute(count_query, tuple(params))
             result = cur.fetchone()
-            total = normalize_value(result["total"]) if result else 0
+            total = Decimal(normalize_value(result["total"])) if result else Decimal(0)
 
     finally:
         conn.close()
@@ -199,7 +208,7 @@ def customer_aggregates(customer_id):
                 """,
                 (customer_id,),
             )
-            billed = normalize_value((cur.fetchone() or {}).get("total_billed", 0))
+            billed = Decimal(normalize_value((cur.fetchone() or {}).get("total_billed", 0)))
 
             # Total paid
             cur.execute(
@@ -212,7 +221,7 @@ def customer_aggregates(customer_id):
                 """,
                 (customer_id,),
             )
-            paid = normalize_value((cur.fetchone() or {}).get("total_paid", 0))
+            paid = Decimal(normalize_value((cur.fetchone() or {}).get("total_paid", 0)))
 
             # Invoice history
             cur.execute(
@@ -223,11 +232,13 @@ def customer_aggregates(customer_id):
                     i.due_date,
                     i.total_amount,
                     i.status,
-                    COALESCE(i.total_amount - (
-                        SELECT COALESCE(SUM(p.amount), 0)
-                        FROM payments p
-                        WHERE p.invoice_id = i.id
-                    ), i.total_amount) AS due_amount
+                    COALESCE(
+                        CAST(i.total_amount AS DECIMAL(10,2)) - (
+                            SELECT COALESCE(SUM(CAST(p.amount AS DECIMAL(10,2))), 0)
+                            FROM payments p
+                            WHERE p.invoice_id = i.id
+                        ), CAST(i.total_amount AS DECIMAL(10,2))
+                    ) AS due_amount
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
                 WHERE i.customer_id=%s AND {deleted_sql}
@@ -236,7 +247,9 @@ def customer_aggregates(customer_id):
                 """,
                 (customer_id,),
             )
-            history = normalize_rows(list(cur.fetchall() or []))
+            history_rows = cur.fetchall() or []
+
+            history = [normalize_row(row) for row in history_rows]
 
     finally:
         conn.close()
