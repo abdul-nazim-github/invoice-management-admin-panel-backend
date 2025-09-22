@@ -9,6 +9,7 @@ from uuid6 import uuid7
 from app.database.base import get_db_connection
 from app.database.models.invoice_item_model import add_invoice_item, get_items_by_invoice
 from app.database.models.product_model import get_product
+from app.utils.is_deleted_filter import is_deleted_filter
 from app.utils.response import normalize_row, normalize_rows, normalize_value
 from app.utils.utils import generate_invoice_number
 
@@ -74,11 +75,12 @@ def create_invoice(
     return invoice_id
 
 def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
+    deleted_sql, _ = is_deleted_filter("i")
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT 
                     i.id,
                     i.invoice_number,
@@ -99,7 +101,7 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
                     c.gst_number AS gst_number
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
-                WHERE i.id = %s
+                WHERE i.id = %s AND {deleted_sql}
                 """,
                 (invoice_id,),
             )
@@ -114,8 +116,9 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
         conn.close()
 
 def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=None):
+    deleted_sql, _ = is_deleted_filter("i")  # SQL snippet: i.deleted_at IS NULL
     conn = get_db_connection()
-    where, params = [], []
+    where, params = [deleted_sql], []  # include deleted filter by default
 
     if q:
         like = f"%{q}%"

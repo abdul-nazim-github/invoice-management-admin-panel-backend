@@ -71,7 +71,6 @@ def get_customer(customer_id):
     customer = normalize_row(customer)
     return customer
 
-
 def list_customers(q=None, status=None, offset=0, limit=20):
     conn = get_db_connection()
     try:
@@ -199,7 +198,7 @@ def customer_aggregates(customer_id):
                 SELECT COALESCE(SUM(i.total_amount), 0) AS total_billed
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
-                WHERE i.customer_id=%s AND {deleted_sql}
+                WHERE i.customer_id=%s AND {deleted_sql} AND i.deleted_at IS null
                 """,
                 (customer_id,),
             )
@@ -212,7 +211,7 @@ def customer_aggregates(customer_id):
                 FROM payments p
                 JOIN invoices i ON i.id = p.invoice_id
                 JOIN customers c ON c.id = i.customer_id
-                WHERE i.customer_id=%s AND {deleted_sql}
+                WHERE i.customer_id=%s AND {deleted_sql} AND i.deleted_at IS null
                 """,
                 (customer_id,),
             )
@@ -237,7 +236,7 @@ def customer_aggregates(customer_id):
                     ) AS due_amount
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
-                WHERE i.customer_id=%s AND {deleted_sql}
+                WHERE i.customer_id=%s AND {deleted_sql} AND i.deleted_at IS null
                 ORDER BY i.created_at DESC
                 LIMIT 50
                 """,
