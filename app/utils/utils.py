@@ -1,5 +1,10 @@
 from datetime import datetime
 import hashlib
+import random
+import re
+import string
+
+from app.database.base import get_db_connection
 
 
 def short_customer_code(customer_id: str, length: int = 4) -> str:
@@ -29,3 +34,26 @@ def generate_invoice_number(conn, customer_id: str) -> str:
 
     seq_str = str(seq).zfill(3)
     return f"INV-{ym}-{cust_code}-{seq_str}"
+
+def generate_unique_sku(product_name):
+    conn = get_db_connection()
+    try:
+        while True:
+            # Generate SKU
+            clean_name = re.sub(r'[^A-Za-z0-9 ]', '', product_name).strip()
+            words = clean_name.split()
+            prefix = "".join(word[0].upper() for word in words[:3])
+            if len(prefix) < 3 and words:
+                prefix += (words[0][1:3-len(prefix)].upper())
+            if len(prefix) < 3:
+                prefix += "X" * (3 - len(prefix))
+            rand_num = ''.join(random.choices(string.digits, k=4))
+            sku = f"{prefix}-{rand_num}"
+
+            # Check uniqueness
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM products WHERE sku=%s", (sku,))
+                if not cur.fetchone():
+                    return sku
+    finally:
+        conn.close()

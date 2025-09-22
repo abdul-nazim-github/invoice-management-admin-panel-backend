@@ -4,11 +4,6 @@ from marshmallow import Schema, fields, validate
 # Schema for creating a product
 # ------------------------
 class ProductCreateSchema(Schema):
-    sku = fields.Str(                                 
-        required=True,
-        validate=validate.Length(min=1, max=50),
-        error_messages={"required": "SKU is required"},
-    )
     name = fields.Str(
         required=True,
         validate=validate.Length(min=1, max=255),

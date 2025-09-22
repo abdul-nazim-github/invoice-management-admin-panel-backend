@@ -42,7 +42,6 @@ def add_product():
         validated: Dict[str, str] = create_schema.load(data)
 
         product = create_product(
-            sku=validated["sku"],
             name=validated["name"],
             description=validated.get("description"),
             unit_price=Decimal(str(validated["unit_price"])),  # ensure Decimal

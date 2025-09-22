@@ -9,14 +9,16 @@ from typing import List
 from app.database.base import get_db_connection
 from app.utils.is_deleted_filter import is_deleted_filter
 from app.utils.response import normalize_rows, normalize_value
+from app.utils.utils import generate_unique_sku
 
 # -------------------------
 # Product CRUD
 # -------------------------
 
-def create_product(sku, name, description, unit_price, stock_quantity):
+def create_product(name, description, unit_price, stock_quantity):
     conn = get_db_connection()
     product_id = str(uuid7())
+    sku = generate_unique_sku(name)
     try:
         with conn.cursor() as cur:
             cur.execute(

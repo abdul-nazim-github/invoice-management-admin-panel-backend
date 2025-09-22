@@ -76,9 +76,9 @@ def list_customers(q=None, status=None, offset=0, limit=20):
     try:
         where, params = [], []
 
-        deleted_sql, deleted_params = is_deleted_filter("c")
-        where.append(deleted_sql)
-        params += deleted_params
+        deleted_sql_c, deleted_params_c = is_deleted_filter("c")
+        where.append(deleted_sql_c)
+        params += deleted_params_c
 
         if q:
             where.append("(c.full_name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
@@ -86,6 +86,9 @@ def list_customers(q=None, status=None, offset=0, limit=20):
             params += [like, like, like]
 
         where_sql = " WHERE " + " AND ".join(where) if where else ""
+
+        # Get invoice deleted filter
+        deleted_sql_i, _ = is_deleted_filter("i")
 
         base_query = f"""
             SELECT 
@@ -106,7 +109,8 @@ def list_customers(q=None, status=None, offset=0, limit=20):
                 END AS status,
                 COUNT(i.id) AS invoice_count
             FROM customers c
-            LEFT JOIN invoices i ON c.id = i.customer_id
+            LEFT JOIN invoices i 
+            ON c.id = i.customer_id AND {deleted_sql_i}  -- <--- ignore deleted invoices
             {where_sql}
             GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number
         """
