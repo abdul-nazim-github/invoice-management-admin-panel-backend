@@ -30,7 +30,7 @@ def create_customer(full_name, email=None, phone=None, address=None, gst_number=
     return get_customer(customer_id)
 
 
-def get_customer(customer_id, include_aggregates=False):
+def get_customer(customer_id):
     deleted_sql, _ = is_deleted_filter("c")
     conn = get_db_connection()
     try:
@@ -69,11 +69,6 @@ def get_customer(customer_id, include_aggregates=False):
         return None
 
     customer = normalize_row(customer)
-
-    if include_aggregates:
-        from app.database.models.customer_model import customer_aggregates
-        customer["aggregates"] = customer_aggregates(customer_id)
-
     return customer
 
 
@@ -227,10 +222,11 @@ def customer_aggregates(customer_id):
             cur.execute(
                 f"""
                 SELECT 
-                    i.id AS invoice_id,
+                    i.id,
                     i.invoice_number,
                     i.due_date,
                     i.total_amount,
+                    i.created_at,
                     i.status,
                     COALESCE(
                         CAST(i.total_amount AS DECIMAL(10,2)) - (
