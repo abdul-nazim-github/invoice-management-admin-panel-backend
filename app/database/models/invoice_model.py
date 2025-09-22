@@ -115,10 +115,11 @@ def get_invoice(invoice_id: str) -> Dict[str, Any] | None:
     finally:
         conn.close()
 
-def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=None):
+def list_invoices(q=None, status=None, offset=0, limit=20, recent=False):
     deleted_sql, _ = is_deleted_filter("i")  # SQL snippet: i.deleted_at IS NULL
     conn = get_db_connection()
     where, params = [deleted_sql], []  # include deleted filter by default
+    order_by = "ORDER BY i.created_at DESC" if recent else ""
 
     if q:
         like = f"%{q}%"
@@ -128,14 +129,6 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
     if status:
         where.append("i.status = %s")
         params.append(status)
-
-    if before:
-        where.append("i.created_at < %s")
-        params.append(before)
-
-    if after:
-        where.append("i.created_at > %s")
-        params.append(after)
 
     where_sql = f" WHERE {' AND '.join(where)}" if where else ""
 
@@ -153,6 +146,7 @@ def list_invoices(q=None, status=None, offset=0, limit=20, before=None, after=No
                     i.status
                 FROM invoices i
                 JOIN customers c ON c.id = i.customer_id
+                {order_by}
                 {where_sql}
                 ORDER BY i.created_at DESC 
                 LIMIT %s OFFSET %s

@@ -178,16 +178,15 @@ def list_invoices_route():
         validated: Dict[str, Any] = filter_schema.load(args)
 
         page, limit, offset = get_pagination()
-        before = args.get("before")
-        after = args.get("after")
+        recent_param = args.get("recent")
+        recent = str(recent_param).lower() == "true" if recent_param is not None else False
 
         rows, total = list_invoices(
             q=validated.get("q"),
             status=validated.get("status"),
             offset=offset,
             limit=limit,
-            before=before,
-            after=after,
+            recent=recent,
         )
 
         # enrich each invoice with paid and due amounts
@@ -199,12 +198,6 @@ def list_invoices_route():
             )
 
         meta = {"page": page, "limit": limit, "total": total}
-        if before or after:
-            meta["cursor_mode"] = True
-            if rows:
-                meta["first_created_at"] = rows[0]["created_at"]
-                meta["last_created_at"] = rows[-1]["created_at"]
-
         return success_response(
             result=rows,
             message="Invoices fetched successfully",
