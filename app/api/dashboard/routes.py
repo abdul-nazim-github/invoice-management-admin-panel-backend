@@ -26,8 +26,16 @@ def dashboard_stats():
 @dashboard_bp.get("/sales-performance")
 @require_auth
 def sales_performance():
-    data = get_sales_performance()
-    return success_response(
-            message="Sales performance fetch successfully",
-            result={"sales_performance": data},
+    try:
+        data = get_sales_performance()
+        return success_response(
+                message="Sales performance fetch successfully",
+                result=data,
+            )
+    except Exception as e:
+        return error_response(
+            type="server_error",
+            message="Something went wrong",
+            details={"exception": [str(e)]},
+            status=500,
         )

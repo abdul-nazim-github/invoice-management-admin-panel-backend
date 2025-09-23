@@ -265,6 +265,7 @@ def update_invoice(invoice_id: str, **fields):
             **fields,  # any other dynamic fields
             "tax_percent": tax_percent,
             "discount_amount": discount_amount,
+            "subtotal_amount": subtotal,
             "total_amount": total_amount,
             "status": status,
             "updated_at": datetime.now(),

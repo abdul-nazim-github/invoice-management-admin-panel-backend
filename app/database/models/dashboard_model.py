@@ -1,7 +1,8 @@
 # app/database/models/dashboard_model.py
-from datetime import date, timedelta
+import calendar
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any, Dict, List
 from dateutil.relativedelta import relativedelta  # ✅ Missing import
 from app.database.base import get_db_connection
 
@@ -125,25 +126,108 @@ def get_dashboard_stats() -> Dict[str, Any]:
     finally:
         conn.close()
 
-def get_sales_performance() -> list[Dict[str, Any]]:
+def get_sales_performance() -> List[Dict[str, Any]]:
+    """
+    Returns last 6 months sales performance with:
+    - month: 'Apr 2025'
+    - revenue: total revenue for the month
+    - invoice_count: number of invoices
+    Only includes invoices where deleted_at IS NULL
+    """
+    conn = get_db_connection()
+    try:
+        # Get first day of current month
+        today = date.today()
+        months = []
+        for i in range(5, -1, -1):  # Last 6 months
+            month_date = date(today.year, today.month, 1)
+            # Subtract i months
+            month_year = (month_date.year * 12 + month_date.month - i - 1)
+            y, m = divmod(month_year, 12)
+            m += 1
+            months.append({"year": y, "month": m})
+
+        # Fetch data from DB
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    YEAR(created_at) AS year,
+                    MONTH(created_at) AS month,
+                    COALESCE(SUM(total_amount), 0) AS revenue,
+                    COUNT(*) AS invoice_count
+                FROM invoices
+                WHERE deleted_at IS NULL
+                  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                GROUP BY YEAR(created_at), MONTH(created_at)
+                ORDER BY YEAR(created_at), MONTH(created_at)
+                """
+            )
+            rows = cur.fetchall()
+
+        # Map fetched data to months
+        results = []
+        for m in months:
+            # Find matching row
+            row = next(
+                (r for r in rows if r["year"] == m["year"] and r["month"] == m["month"]),
+                None
+            )
+            month_name = calendar.month_abbr[m["month"]]
+            results.append({
+                "month": f"{month_name} {m['year']}",
+                "revenue": float(row["revenue"]) if row else 0.0,
+                "invoice_count": int(row["invoice_count"]) if row else 0,
+            })
+
+        return results
+    finally:
+        conn.close()
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 SELECT 
-                    DATE_FORMAT(created_at, '%%Y-%%m') AS month,
-                    COALESCE(SUM(total_amount), 0) AS revenue
+                    DATE_FORMAT(created_at, '%%Y-%%m') AS ym,
+                    COALESCE(SUM(total_amount), 0) AS revenue,
+                    COUNT(*) AS invoice_count
                 FROM invoices
-                WHERE status = 'Paid'
-                GROUP BY DATE_FORMAT(created_at, '%%Y-%%m')
-                ORDER BY month ASC
-            """
+                WHERE LOWER(status) = 'paid'
+                  AND created_at >= DATE_SUB(CURDATE(), INTERVAL 5 MONTH)
+                GROUP BY ym
+                ORDER BY ym ASC
+                """
             )
             rows = cur.fetchall()
-            return [
-                {"month": row["month"], "revenue": float(row["revenue"])}
+
+            # Create a mapping from "YYYY-MM" -> {"revenue": float, "count": int}
+            stats_map = {
+                row["ym"]: {
+                    "revenue": float(row["revenue"]),
+                    "count": int(row["invoice_count"])
+                }
                 for row in rows
-            ]
+            }
+
+            today = datetime.today()
+            results: List[Dict[str, Any]] = []
+
+            # Generate last 6 months
+            for i in range(5, -1, -1):
+                year = today.year if today.month - i > 0 else today.year - 1
+                month = (today.month - i - 1) % 12 + 1
+                ym = f"{year}-{month:02d}"  # e.g., "2025-09"
+                label = f"{calendar.month_abbr[month]} {year}"  # e.g., "Sep 2025"
+
+                month_stats = stats_map.get(ym, {"revenue": 0.0, "count": 0})
+                results.append({
+                    "month": label,
+                    "revenue": month_stats["revenue"],
+                    "invoice_count": month_stats["count"],
+                })
+
+            return results
     finally:
         conn.close()
