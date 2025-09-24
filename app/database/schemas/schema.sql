@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS users (
   bill_gst VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_users_email (email)
+  INDEX idx_users_email (email),
+  INDEX idx_users_username (username),
+  INDEX idx_users_name (name),
+  INDEX idx_users_role (role)
 );
 
 CREATE TABLE IF NOT EXISTS customers (
@@ -29,7 +32,10 @@ CREATE TABLE IF NOT EXISTS customers (
   status ENUM('active','inactive') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_customers_name (name),
-  INDEX idx_customers_email (email)
+  INDEX idx_customers_email (email),
+  INDEX idx_customers_phone (phone),
+  INDEX idx_customers_gst_number (gst_number),
+  INDEX idx_customers_status (status)
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -41,7 +47,11 @@ CREATE TABLE IF NOT EXISTS products (
   stock INT DEFAULT 0,
   status ENUM('active','inactive') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_products_code_name (product_code, name)
+  INDEX idx_products_code_name (product_code, name),
+  INDEX idx_products_name (name),
+  INDEX idx_products_status (status),
+  INDEX idx_products_price (price),
+  INDEX idx_products_stock (stock)
 );
 
 CREATE TABLE IF NOT EXISTS invoices (
@@ -58,7 +68,9 @@ CREATE TABLE IF NOT EXISTS invoices (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
   INDEX idx_invoices_status_date (status, invoice_date),
   INDEX idx_invoices_customer_id (customer_id),
-  INDEX idx_invoices_user_id (user_id)
+  INDEX idx_invoices_user_id (user_id),
+  INDEX idx_invoices_due_date (due_date),
+  INDEX idx_invoices_total_amount (total_amount)
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -83,5 +95,9 @@ CREATE TABLE IF NOT EXISTS payments (
   reference_no VARCHAR(100),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
-  INDEX idx_payments_invoice (invoice_id)
+  INDEX idx_payments_invoice (invoice_id),
+  INDEX idx_payments_payment_date (payment_date),
+  INDEX idx_payments_method (method),
+  INDEX idx_payments_reference_no (reference_no),
+  INDEX idx_payments_amount (amount)
 );
