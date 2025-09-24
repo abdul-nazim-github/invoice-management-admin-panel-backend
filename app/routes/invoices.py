@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from app.database.models.invoice import Invoice
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.cache import cache
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
@@ -24,6 +25,7 @@ def create_invoice():
     try:
         invoice_id = Invoice.create(data)
         invoice = Invoice.get_by_id(invoice_id)
+        cache.delete_memoized(get_invoices)
         return success_response(invoice, message="Invoice created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
@@ -32,6 +34,7 @@ def create_invoice():
                               status=500)
 
 @invoices_blueprint.route('/invoices', methods=['GET'])
+@cache.cached()
 def get_invoices():
     try:
         invoices = Invoice.get_all()
@@ -43,6 +46,7 @@ def get_invoices():
                               status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['GET'])
+@cache.cached()
 def get_invoice(invoice_id):
     try:
         invoice = Invoice.get_by_id(invoice_id)
@@ -72,6 +76,8 @@ def update_invoice(invoice_id):
                                   status=404)
 
         Invoice.update(invoice_id, data)
+        cache.delete_memoized(get_invoice, invoice_id)
+        cache.delete_memoized(get_invoices)
         updated_invoice = Invoice.get_by_id(invoice_id)
         return success_response(updated_invoice, message="Invoice updated successfully")
     except Exception as e:
@@ -89,6 +95,8 @@ def delete_invoice(invoice_id):
                                   status=404)
 
         Invoice.delete(invoice_id)
+        cache.delete_memoized(get_invoice, invoice_id)
+        cache.delete_memoized(get_invoices)
         return success_response(message="Invoice deleted successfully")
     except Exception as e:
         return error_response('server_error', 

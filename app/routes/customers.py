@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from app.database.models.customer import Customer
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.cache import cache
 
 customers_blueprint = Blueprint('customers', __name__)
 
@@ -32,6 +33,7 @@ def create_customer():
                               status=500)
 
 @customers_blueprint.route('/customers', methods=['GET'])
+@cache.cached()
 def get_customers():
     try:
         customers = Customer.get_all()
@@ -43,6 +45,7 @@ def get_customers():
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['GET'])
+@cache.cached()
 def get_customer(customer_id):
     try:
         customer = Customer.get_by_id(customer_id)
@@ -72,6 +75,8 @@ def update_customer(customer_id):
                                   status=404)
 
         Customer.update(customer_id, data)
+        cache.delete_memoized(get_customer, customer_id)
+        cache.delete_memoized(get_customers)
         updated_customer = Customer.get_by_id(customer_id)
         return success_response(updated_customer, message="Customer updated successfully")
     except Exception as e:
@@ -89,6 +94,8 @@ def delete_customer(customer_id):
                                   status=404)
 
         Customer.delete(customer_id)
+        cache.delete_memoized(get_customer, customer_id)
+        cache.delete_memoized(get_customers)
         return success_response(message="Customer deleted successfully")
     except Exception as e:
         return error_response('server_error', 

@@ -1,0 +1,21 @@
+from flask import Flask
+from .utils.cache import cache
+
+def create_app():
+    app = Flask(__name__)
+
+    # Initialize the cache with the app
+    cache.init_app(app)
+
+    # Import and register your Blueprints here
+    from .routes.customers import customers_blueprint
+    from .routes.invoices import invoices_blueprint
+    from .routes.payments import payments_blueprint
+    from .routes.products import products_blueprint
+
+    app.register_blueprint(customers_blueprint, url_prefix='/api')
+    app.register_blueprint(invoices_blueprint, url_prefix='/api')
+    app.register_blueprint(payments_blueprint, url_prefix='/api')
+    app.register_blueprint(products_blueprint, url_prefix='/api')
+
+    return app

@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from app.database.models.payment import Payment
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.cache import cache
 
 payments_blueprint = Blueprint('payments', __name__)
 
@@ -24,6 +25,7 @@ def create_payment():
     try:
         payment_id = Payment.create(data)
         payment = Payment.get_by_id(payment_id)
+        cache.delete_memoized(get_payments)
         return success_response(payment, message="Payment created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
@@ -32,6 +34,7 @@ def create_payment():
                               status=500)
 
 @payments_blueprint.route('/payments', methods=['GET'])
+@cache.cached()
 def get_payments():
     try:
         payments = Payment.get_all()
@@ -43,6 +46,7 @@ def get_payments():
                               status=500)
 
 @payments_blueprint.route('/payments/<int:payment_id>', methods=['GET'])
+@cache.cached()
 def get_payment(payment_id):
     try:
         payment = Payment.get_by_id(payment_id)
@@ -72,6 +76,8 @@ def update_payment(payment_id):
                                   status=404)
 
         Payment.update(payment_id, data)
+        cache.delete_memoized(get_payment, payment_id)
+        cache.delete_memoized(get_payments)
         updated_payment = Payment.get_by_id(payment_id)
         return success_response(updated_payment, message="Payment updated successfully")
     except Exception as e:
@@ -89,6 +95,8 @@ def delete_payment(payment_id):
                                   status=404)
 
         Payment.delete(payment_id)
+        cache.delete_memoized(get_payment, payment_id)
+        cache.delete_memoized(get_payments)
         return success_response(message="Payment deleted successfully")
     except Exception as e:
         return error_response('server_error', 
