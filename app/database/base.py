@@ -1,19 +1,11 @@
-# =============================
-# app/database/base.py
-# =============================
 import pymysql
-from app.database.config import MYSQL_CONFIG
-
-
-
+import os
 
 def get_db_connection():
     return pymysql.connect(
-        host=MYSQL_CONFIG["host"],
-        user=MYSQL_CONFIG["user"],
-        password=MYSQL_CONFIG["password"],
-        database=MYSQL_CONFIG["database"],
-        port=MYSQL_CONFIG["port"],
-        cursorclass=pymysql.cursors.DictCursor,
-        autocommit=False,
+        host=os.environ.get('DB_HOST', 'localhost'),
+        user=os.environ.get('DB_USER', 'root'),
+        password=os.environ.get('DB_PASSWORD', 'password'),
+        database=os.environ.get('DB_NAME', 'invoicify'),
+        cursorclass=pymysql.cursors.DictCursor
     )
