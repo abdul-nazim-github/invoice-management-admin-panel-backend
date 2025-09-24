@@ -3,11 +3,13 @@ from flask import Blueprint
 from app.utils.auth import require_auth
 from app.database.models.dashboard_model import get_dashboard_stats, get_sales_performance
 from app.utils.response import error_response, success_response
+from app.utils.cache import cache
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
 @dashboard_bp.get("/stats")
 @require_auth
+@cache.cached()
 def dashboard_stats():
     try:
         stats = get_dashboard_stats()
@@ -25,6 +27,7 @@ def dashboard_stats():
 
 @dashboard_bp.get("/sales-performance")
 @require_auth
+@cache.cached()
 def sales_performance():
     try:
         data = get_sales_performance()

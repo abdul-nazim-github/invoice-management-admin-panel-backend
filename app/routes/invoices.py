@@ -3,6 +3,7 @@ from app.database.models.invoice import Invoice
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.cache import cache
+from app.api.dashboard.routes import dashboard_stats, sales_performance
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
@@ -26,6 +27,8 @@ def create_invoice():
         invoice_id = Invoice.create(data)
         invoice = Invoice.get_by_id(invoice_id)
         cache.delete_memoized(get_invoices)
+        cache.delete_memoized(dashboard_stats)
+        cache.delete_memoized(sales_performance)
         return success_response(invoice, message="Invoice created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
@@ -78,6 +81,8 @@ def update_invoice(invoice_id):
         Invoice.update(invoice_id, data)
         cache.delete_memoized(get_invoice, invoice_id)
         cache.delete_memoized(get_invoices)
+        cache.delete_memoized(dashboard_stats)
+        cache.delete_memoized(sales_performance)
         updated_invoice = Invoice.get_by_id(invoice_id)
         return success_response(updated_invoice, message="Invoice updated successfully")
     except Exception as e:
@@ -97,6 +102,8 @@ def delete_invoice(invoice_id):
         Invoice.delete(invoice_id)
         cache.delete_memoized(get_invoice, invoice_id)
         cache.delete_memoized(get_invoices)
+        cache.delete_memoized(dashboard_stats)
+        cache.delete_memoized(sales_performance)
         return success_response(message="Invoice deleted successfully")
     except Exception as e:
         return error_response('server_error', 
