@@ -1,3 +1,8 @@
+"""
+This module handles authentication-related database operations, including token blacklisting 
+and removal of expired tokens.
+"""
+
 from uuid6 import uuid7
 from app.database.base import get_db_connection
 import time
@@ -5,7 +10,16 @@ import jwt
 from flask import current_app
 
 def blacklist_token(user_id: str, token: str) -> bool:
-    """Add token to blacklist"""
+    """
+    Adds a user's token to the blacklist to invalidate it.
+
+    Args:
+        user_id (str): The ID of the user.
+        token (str): The JWT token to be blacklisted.
+
+    Returns:
+        bool: True if the token was successfully blacklisted, False otherwise.
+    """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -19,7 +33,15 @@ def blacklist_token(user_id: str, token: str) -> bool:
         conn.close()
 
 def is_token_blacklisted(token: str) -> bool:
-    """Check if token is blacklisted"""
+    """
+    Checks if a given token is present in the blacklist.
+
+    Args:
+        token (str): The JWT token to check.
+
+    Returns:
+        bool: True if the token is blacklisted, False otherwise.
+    """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -29,7 +51,12 @@ def is_token_blacklisted(token: str) -> bool:
         conn.close()
 
 def remove_expired_tokens():
-    """Remove expired tokens from blacklist"""
+    """
+    Removes expired tokens from the blacklist to keep it clean and efficient.
+
+    Returns:
+        int: The number of expired tokens that were removed.
+    """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
