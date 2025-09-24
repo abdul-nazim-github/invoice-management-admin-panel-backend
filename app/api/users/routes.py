@@ -1,4 +1,5 @@
 # app/api/users/routes.py
+import logging
 import re
 from typing import Any, Dict
 from flask import Blueprint, request
@@ -23,6 +24,7 @@ users_bp = Blueprint("users", __name__)
 
 register_schema = RegisterSchema()
 login_schema = LoginSchema()
+profile_schema = UserProfileSchema()
 
 
 @users_bp.post("/register")
@@ -79,14 +81,9 @@ def register():
 @require_auth
 def me():
     user = find_user_by_id(request.user["sub"]) or {}
-    public = {
-        k: user.get(k)
-        for k in ["id", "email", "username", "full_name", "role",
-                  "billing_address", "billing_city", "billing_state", "billing_pin", "billing_gst"]
-    }
     return success_response(
             message="User details successfully",
-            result={"user_info": public},
+            result=user,
         )
 
 
@@ -94,26 +91,43 @@ def me():
 @require_auth
 def update_profile():
     data = request.json or {}
-    schema = UserProfileSchema()
     try:
-        validated: Dict[str, str] = schema.load(data)
+        validated: Dict[str, str] = profile_schema.load(data)
+        updated_user = update_user_profile(
+            request.user["sub"],
+            **validated,
+        )
+        print('updated_user: ', updated_user)
+        return success_response(
+            message="Profile updated successfully",
+            result=updated_user,
+        )
+    
     except ValidationError as e:
+        # Handle schema validation errors
+        print('e.messages: ', e.messages)
         return error_response(
             message="Validation Error",
             details=e.messages,
             status=400,
         )
-
-    updated_user = update_user_profile(
-        request.user["sub"],
-        full_name=validated["full_name"],
-        email=validated["email"]
-    )
-    return success_response(
-            message="Profile updated successfully",
-            result={"user": updated_user},
+    
+    except KeyError as e:
+        # Handle missing keys
+        logging.exception("Missing required key in the request")
+        return error_response(
+            message=f"Missing required field: {str(e)}",
+            status=400,
         )
-
+    
+    except Exception as e:
+        # Catch all other unexpected errors
+        logging.exception("Unexpected error while updating profile")
+        return error_response(
+            message="An unexpected error occurred while updating profile",
+            details=str(e),
+            status=500,
+        )
 
 @users_bp.put("/password")
 @require_auth

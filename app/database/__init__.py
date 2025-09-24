@@ -14,6 +14,7 @@ def init_db():
             email VARCHAR(100) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             full_name VARCHAR(100),
+            phone VARCHAR(20),
             role ENUM('admin','user') DEFAULT 'user',
             billing_address TEXT,
             billing_city VARCHAR(100),
