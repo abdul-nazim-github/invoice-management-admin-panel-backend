@@ -16,7 +16,7 @@ from app.api.invoices.schemas import (
     InvoiceFilterSchema,
 )
 from app.database.base import get_db_connection
-from app.utils.auth import require_auth
+from app.utils.auth import require_auth, require_role, require_admin
 from app.utils.pagination import get_pagination
 from app.utils.response import error_response, success_response
 from app.database.models.invoice_model import (
@@ -49,6 +49,7 @@ payment_schema = PaymentCreateSchema()
 # ------------------------------
 @invoices_bp.post("/")
 @require_auth
+@require_role('admin', 'manager')
 def add_invoice():
     conn = None
     try:
@@ -283,6 +284,7 @@ def detail(invoice_id):
 # ------------------------------
 @invoices_bp.put("/<invoice_id>")
 @require_auth
+@require_role('admin', 'manager')
 def update(invoice_id):
     try:
         data = request.json or {}
@@ -327,6 +329,7 @@ def update(invoice_id):
 # ------------------------------
 @invoices_bp.post("/<invoice_id>/pay")
 @require_auth
+@require_role('admin', 'manager')
 def pay(invoice_id):
     try:
         data: Dict[str, Any] = payment_schema.load(request.json or {})
@@ -370,6 +373,7 @@ def pay(invoice_id):
 # ------------------------------
 @invoices_bp.post("/bulk-delete")
 @require_auth
+@require_admin
 def bulk_delete():
     try:
         data = request.json or {}

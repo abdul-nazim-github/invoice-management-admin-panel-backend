@@ -13,7 +13,7 @@ from app.api.customers.schemas import (
     CustomerFilterSchema,
     CustomerUpdateSchema,
 )
-from app.utils.auth import require_auth
+from app.utils.auth import require_auth, require_role
 from app.utils.pagination import get_pagination
 from app.database.models.customer_model import (
     create_customer,
@@ -36,6 +36,7 @@ filter_schema = CustomerFilterSchema()
 
 @customers_bp.post("/")
 @require_auth
+@require_role('admin', 'manager')
 def add_customer():
     try:
         data = request.json or {}
@@ -157,6 +158,7 @@ def detail(customer_id):
 
 @customers_bp.put("/<customer_id>")
 @require_auth
+@require_role('admin', 'manager')
 def update(customer_id):
     try:
         data = request.json or {}
@@ -203,6 +205,7 @@ def update(customer_id):
 
 @customers_bp.post("/bulk-delete")
 @require_auth
+@require_role('admin')
 def bulk_delete():
     try:
         data = request.json or {}

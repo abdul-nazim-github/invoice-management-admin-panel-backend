@@ -8,7 +8,7 @@ from marshmallow import ValidationError
 from pymysql import IntegrityError
 import pyotp
 from app.api.auth.schemas import LoginSchema, RegisterSchema
-from app.utils.auth import require_auth
+from app.utils.auth import require_auth, require_admin
 from app.database.models.user_model import (
     create_user,
     update_user_2fa,
@@ -29,6 +29,8 @@ password_schema = UserPasswordSchema()
 
 
 @users_bp.post("/register")
+@require_auth
+@require_admin
 def register():
     try:
         data = request.json or {}
@@ -103,7 +105,7 @@ def update_profile():
             message="Profile updated successfully",
             result=updated_user,
         )
-    
+
     except ValidationError as e:
         # Handle schema validation errors
         print('e.messages: ', e.messages)
@@ -112,7 +114,7 @@ def update_profile():
             details=e.messages,
             status=400,
         )
-    
+
     except KeyError as e:
         # Handle missing keys
         logging.exception("Missing required key in the request")
@@ -120,7 +122,7 @@ def update_profile():
             message=f"Missing required field: {str(e)}",
             status=400,
         )
-    
+
     except Exception as e:
         # Catch all other unexpected errors
         logging.exception("Unexpected error while updating profile")

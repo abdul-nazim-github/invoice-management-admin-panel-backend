@@ -14,7 +14,7 @@ from app.api.products.schemas import (
     ProductFilterSchema,
     ProductUpdateSchema,
 )
-from app.utils.auth import require_auth
+from app.utils.auth import require_auth, require_role
 from app.utils.pagination import get_pagination
 from app.database.models.product_model import (
     create_product,
@@ -36,6 +36,7 @@ filter_schema = ProductFilterSchema()
 
 @products_bp.post("/")
 @require_auth
+@require_role('admin', 'manager')
 def add_product():
     try:
         data = request.json or {}
@@ -167,6 +168,7 @@ def detail(product_id):
 
 @products_bp.put("/<product_id>")
 @require_auth
+@require_role('admin', 'manager')
 def update(product_id):
     try:
         data = request.json or {}
@@ -229,6 +231,7 @@ def update(product_id):
 
 @products_bp.post("/bulk-delete")
 @require_auth
+@require_role('admin')
 def bulk_delete():
     try:
         data = request.json or {}
