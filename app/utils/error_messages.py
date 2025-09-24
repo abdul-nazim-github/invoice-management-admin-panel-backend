@@ -1,0 +1,38 @@
+# A centralized dictionary for user-facing error messages.
+
+ERROR_MESSAGES = {
+    "validation": {
+        "request_body_empty": "Request body cannot be empty.",
+        "missing_fields": "Missing required fields.",
+        "invalid_input": "Invalid input provided. Please check the data types and formats.",
+    },
+    "not_found": {
+        "customer": "Customer not found.",
+        "product": "Product not found.",
+        "invoice": "Invoice not found.",
+        "payment": "Payment not found.",
+    },
+    "server_error": {
+        "create_customer": "An unexpected error occurred while creating the customer.",
+        "fetch_customer": "An unexpected error occurred while fetching customer(s).",
+        "update_customer": "An unexpected error occurred while updating the customer.",
+        "delete_customer": "An unexpected error occurred while deleting the customer.",
+        
+        "create_product": "An unexpected error occurred while creating the product.",
+        "fetch_product": "An unexpected error occurred while fetching product(s).",
+        "update_product": "An unexpected error occurred while updating the product.",
+        "delete_product": "An unexpected error occurred while deleting the product.",
+
+        "create_invoice": "An unexpected error occurred while creating the invoice.",
+        "fetch_invoice": "An unexpected error occurred while fetching invoice(s).",
+        "update_invoice": "An unexpected error occurred while updating the invoice.",
+        "delete_invoice": "An unexpected error occurred while deleting the invoice.",
+
+        "create_payment": "An unexpected error occurred while creating the payment.",
+        "fetch_payment": "An unexpected error occurred while fetching payment(s).",
+        "update_payment": "An unexpected error occurred while updating the payment.",
+        "delete_payment": "An unexpected error occurred while deleting the payment.",
+        
+        "generic": "An unexpected server error occurred. Please try again later."
+    }
+}
