@@ -9,7 +9,10 @@ class Customer:
         '''
         params = (data['name'], data['email'], data['phone'], data['address'], data['gst_number'], data['status'])
         customer_id = DBManager.execute_write_query(query, params)
-        return Customer.get_by_id(customer_id)
+        # No need to fetch again, we can construct the object from the input data
+        new_customer = data.copy()
+        new_customer['id'] = customer_id
+        return new_customer
 
     @staticmethod
     def get_all():
@@ -35,9 +38,5 @@ class Customer:
     @staticmethod
     def delete(customer_id):
         query = 'DELETE FROM customers WHERE id = %s'
-        # The execute_write_query returns the lastrowid, which is not what we want here.
-        # We can create a more specific method in DBManager for deletes if needed,
-        # but for now, we'll just return a success message.
         DBManager.execute_write_query(query, (customer_id,))
-        # The number of affected rows is not easily available with the current abstraction
         return {'message': 'Customer deleted successfully'}

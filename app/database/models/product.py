@@ -9,7 +9,9 @@ class Product:
         '''
         params = (data['product_code'], data['name'], data['description'], data['price'], data['stock'], data['status'])
         product_id = DBManager.execute_write_query(query, params)
-        return Product.get_by_id(product_id)
+        new_product = data.copy()
+        new_product['id'] = product_id
+        return new_product
 
     @staticmethod
     def get_all():

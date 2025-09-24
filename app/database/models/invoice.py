@@ -9,7 +9,9 @@ class Invoice:
         '''
         params = (data['customer_id'], data['invoice_date'], data['total_amount'], data['status'])
         invoice_id = DBManager.execute_write_query(query, params)
-        return Invoice.get_by_id(invoice_id)
+        new_invoice = data.copy()
+        new_invoice['id'] = invoice_id
+        return new_invoice
 
     @staticmethod
     def get_all():

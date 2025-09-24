@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
-  INDEX idx_invoices_status_date (status, invoice_date)
+  INDEX idx_invoices_status_date (status, invoice_date),
+  INDEX idx_invoices_customer_id (customer_id),
+  INDEX idx_invoices_user_id (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -68,7 +70,8 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   total DECIMAL(10,2) NOT NULL,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
-  INDEX idx_invoice_items_invoice (invoice_id)
+  INDEX idx_invoice_items_invoice (invoice_id),
+  INDEX idx_invoice_items_product_id (product_id)
 );
 
 CREATE TABLE IF NOT EXISTS payments (

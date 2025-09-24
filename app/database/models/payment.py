@@ -9,7 +9,9 @@ class Payment:
         '''
         params = (data['invoice_id'], data['payment_date'], data['amount'], data['payment_method'], data['status'])
         payment_id = DBManager.execute_write_query(query, params)
-        return Payment.get_by_id(payment_id)
+        new_payment = data.copy()
+        new_payment['id'] = payment_id
+        return new_payment
 
     @staticmethod
     def get_all():
