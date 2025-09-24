@@ -25,6 +25,7 @@ users_bp = Blueprint("users", __name__)
 register_schema = RegisterSchema()
 login_schema = LoginSchema()
 profile_schema = UserProfileSchema()
+password_schema = UserPasswordSchema()
 
 
 @users_bp.post("/register")
@@ -133,9 +134,8 @@ def update_profile():
 @require_auth
 def change_password():
     data = request.json or {}
-    schema = UserPasswordSchema()
     try:
-        validated: Dict[str, str] = schema.load(data)
+        validated: Dict[str, str] = password_schema.load(data)
     except ValidationError as e:
         return error_response(
             message="Validation Error",
@@ -175,11 +175,11 @@ def update_billing():
 
     updated_user = update_user_billing(
         request.user["sub"],
-        address=validated["bill_address"],
-        city=validated["bill_city"],
-        state=validated["bill_state"],
-        pin=validated["bill_pin"],
-        gst=validated["bill_gst"],
+        address=validated["billing_address"],
+        city=validated["billing_city"],
+        state=validated["billing_state"],
+        pin=validated["billing_pin"],
+        gst=validated["billing_gst"],
     )
     return success_response(
             message="Billing details updated successfully",

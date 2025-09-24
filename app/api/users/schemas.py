@@ -11,8 +11,8 @@ class UserPasswordSchema(Schema):
     new_password = fields.Str(required=True, validate=validate.Length(min=6))
 
 class UserBillingSchema(Schema):
-    bill_address = fields.Str(required=False, allow_none=True)
-    bill_city = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
-    bill_state = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
-    bill_pin = fields.Str(required=False, allow_none=True, validate=validate.Length(max=20))
-    bill_gst = fields.Str(required=False, allow_none=True, validate=validate.Length(max=50))
+    billing_address = fields.Str(required=False, allow_none=True)
+    billing_city = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
+    billing_state = fields.Str(required=False, allow_none=True, validate=validate.Length(max=100))
+    billing_pin = fields.Str(required=False, allow_none=True, validate=validate.Length(max=20))
+    billing_gst = fields.Str(required=False, allow_none=True, validate=validate.Length(max=50))
