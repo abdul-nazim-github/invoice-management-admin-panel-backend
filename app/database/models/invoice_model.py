@@ -196,12 +196,14 @@ def update_invoice(invoice_id: str, **fields):
 
                 with conn.cursor() as cur:
                     cur.execute(
-                        "SELECT id FROM invoice_items WHERE invoice_id=%s AND product_id=%s",
+                        "SELECT id, quantity FROM invoice_items WHERE invoice_id=%s AND product_id=%s",
                         (invoice_id, it["product_id"]),
                     )
                     existing_item = cur.fetchone()
 
                     if existing_item:
+                        # Calculate quantity difference for stock update
+                        qty_diff = quantity - Decimal(str(existing_item["quantity"]))
                         cur.execute(
                             """
                             UPDATE invoice_items
@@ -211,7 +213,21 @@ def update_invoice(invoice_id: str, **fields):
                             (quantity, unit_price, line_total, datetime.now(), existing_item["id"]),
                         )
                     else:
+                        # New item, subtract full quantity from stock
+                        qty_diff = quantity
                         add_invoice_item(conn, invoice_id, it["product_id"], quantity, unit_price)
+
+                    # Update product stock
+                    new_stock = Decimal(str(prod.get("stock_quantity", 0))) - qty_diff
+                    if new_stock < 0:
+                        conn.rollback()
+                        raise ValidationError(
+                            {"stock_quantity": [f"Insufficient stock for product {it.get('product_id')}"]}
+                        )
+                    cur.execute(
+                        "UPDATE products SET stock_quantity=%s WHERE id=%s",
+                        (new_stock, it["product_id"]),
+                    )
 
                 subtotal += line_total
         else:
@@ -232,12 +248,10 @@ def update_invoice(invoice_id: str, **fields):
         amount_paid = Decimal(str(fields.pop("amount_paid", "0.0")))
         if amount_paid >= Decimal("0.0"):
             with conn.cursor() as cur:
-                # Check if there are existing payments for this invoice
                 cur.execute("SELECT id, amount FROM payments WHERE invoice_id=%s", (invoice_id,))
                 existing_payments = cur.fetchone()
 
                 if existing_payments:
-                    # Update first payment (or sum payments, your logic may vary)
                     payment_id = existing_payments["id"]
                     cur.execute(
                         """
@@ -248,7 +262,6 @@ def update_invoice(invoice_id: str, **fields):
                         (amount_paid, datetime.now(), payment_id),
                     )
                 else:
-                    # Insert a new payment if none exist
                     payment_id = str(uuid7())
                     cur.execute(
                         """
@@ -262,7 +275,7 @@ def update_invoice(invoice_id: str, **fields):
 
         # ---------------- Dynamic invoice update ----------------
         update_fields = {
-            **fields,  # any other dynamic fields
+            **fields,
             "tax_percent": tax_percent,
             "discount_amount": discount_amount,
             "subtotal_amount": subtotal,
