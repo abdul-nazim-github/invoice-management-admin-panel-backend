@@ -10,7 +10,7 @@
 -- Purpose: Stores user accounts, credentials, and profile information.
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(100) UNIQUE NOT NULL, -- User's unique login name
   email VARCHAR(255) UNIQUE NOT NULL,    -- User's unique email address
   password_hash VARCHAR(255) NOT NULL,   -- Hashed password for security
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Purpose: Stores information about the customers.
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS customers (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(255) NOT NULL,              -- Customer's name
   email VARCHAR(255),                      -- Customer's email address
   phone VARCHAR(20),                       -- Customer's phone number
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS customers (
 -- Purpose: Stores details of all products or services offered.
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS products (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   product_code VARCHAR(50) UNIQUE NOT NULL,-- Unique code for product identification
   name VARCHAR(255) NOT NULL,              -- Name of the product
   description TEXT,                        -- Detailed description of the product
@@ -81,10 +81,10 @@ CREATE TABLE IF NOT EXISTS products (
 -- Purpose: Stores the main details of each invoice (header).
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS invoices (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   invoice_number VARCHAR(50) UNIQUE NOT NULL, -- Unique number for the invoice
-  customer_id INT NOT NULL,                -- Foreign key linking to the customer
-  user_id INT NOT NULL,                    -- Foreign key linking to the user who created the invoice
+  customer_id INT UNSIGNED NOT NULL,                -- Foreign key linking to the customer
+  user_id INT UNSIGNED NOT NULL,                    -- Foreign key linking to the user who created the invoice
   invoice_date DATE NOT NULL,              -- Date the invoice was issued
   due_date DATE,                           -- Date the payment is due
   total_amount DECIMAL(10,2) NOT NULL,     -- The final amount of the invoice
@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS invoices (
 -- Purpose: Stores individual line items for each invoice.
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS invoice_items (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  invoice_id INT NOT NULL,                 -- Foreign key linking to the invoice
-  product_id INT NOT NULL,                 -- Foreign key linking to the product
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  invoice_id INT UNSIGNED NOT NULL,                 -- Foreign key linking to the invoice
+  product_id INT UNSIGNED NOT NULL,                 -- Foreign key linking to the product
   quantity INT NOT NULL,                   -- Quantity of the product sold
   price DECIMAL(10,2) NOT NULL,            -- Price per unit at the time of sale
   total DECIMAL(10,2) NOT NULL,            -- Total amount for this line item (quantity * price)
@@ -129,8 +129,8 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 -- Purpose: Records all payments made against invoices.
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS payments (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  invoice_id INT NOT NULL,                 -- Foreign key linking to the invoice being paid
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  invoice_id INT UNSIGNED NOT NULL,                 -- Foreign key linking to the invoice being paid
   amount DECIMAL(10,2) NOT NULL,           -- The amount that was paid
   payment_date DATE NOT NULL,              -- The date the payment was made
   method ENUM('cash','card','upi','bank_transfer') DEFAULT 'cash', -- Method of payment
@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS payments (
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS token_blacklist (
   id VARCHAR(36) PRIMARY KEY,                -- Unique identifier for the blacklisted token
-  user_id INT NOT NULL,                      -- The user associated with the token
+  user_id INT UNSIGNED NOT NULL,                      -- The user associated with the token
   token VARCHAR(512) NOT NULL,               -- The blacklisted JWT token
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the token was blacklisted
 
