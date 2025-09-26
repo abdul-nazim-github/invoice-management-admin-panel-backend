@@ -39,7 +39,7 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
   "email": "test@example.com",
   "password": "password123",
   "name": "Test User"
-}' $BASE_URL/users/register
+}' $BASE_URL/auth/register
 
 
 echo "\n### Login as Standard User (to get User Token) ###"
