@@ -45,3 +45,8 @@ def error_response(type="server_error", message=None, details=None, status=400):
         }),
         status,
     )
+
+def normalize_row(row):
+    if row is None:
+        return None
+    return dict(row)
