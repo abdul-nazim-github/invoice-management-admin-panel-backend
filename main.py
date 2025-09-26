@@ -1,4 +1,8 @@
 from app import create_app
+from app.database.schemas.schema import create_schemas
+
+# Create the database schema before running the app
+create_schemas()
 
 app = create_app()
 

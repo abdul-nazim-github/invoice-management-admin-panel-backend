@@ -7,7 +7,6 @@ from .routes.invoices import invoices_blueprint
 from .routes.payments import payments_blueprint
 from .routes.products import products_blueprint
 from .api.dashboard.routes import dashboard_bp
-from app.database.schema import create_schema
 
 def create_app():
     app = Flask(__name__)
@@ -15,8 +14,6 @@ def create_app():
     # Initialize the cache with the app
     cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache'})
     
-    create_schema()
-
     # Import and register your Blueprints here
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
