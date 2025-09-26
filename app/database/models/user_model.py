@@ -140,3 +140,17 @@ def update_user_billing(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
         return None
     finally:
         conn.close()
+
+def update_user_2fa(user_id: int, twofa_secret: str) -> bool:
+    """Updates a user's 2FA secret."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            rows_affected = cur.execute(
+                "UPDATE users SET twofa_secret=%s WHERE id=%s",
+                (twofa_secret, user_id),
+            )
+        conn.commit()
+        return rows_affected > 0
+    finally:
+        conn.close()
