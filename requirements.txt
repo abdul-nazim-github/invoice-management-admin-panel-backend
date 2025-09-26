@@ -13,6 +13,9 @@ Flask-Caching>=2.0.0
 # --- Configuration ---
 python-dotenv>=0.20.0
 
+# --- Date/Time Utilities ---
+python-dateutil>=2.8.0
+
 # --- UUID Generation for Token Blacklisting ---
 uuid6>=2024.1.25
 

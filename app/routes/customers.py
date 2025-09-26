@@ -3,7 +3,6 @@ from app.database.models.customer import Customer
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.cache import cache
-from app.api.dashboard.routes import dashboard_stats, sales_performance
 
 customers_blueprint = Blueprint('customers', __name__)
 
@@ -27,7 +26,6 @@ def create_customer():
         customer_id = Customer.create(data)
         customer = Customer.get_by_id(customer_id)
         cache.delete_memoized(get_customers)
-        cache.delete_memoized(dashboard_stats)
         return success_response(customer, message="Customer created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
@@ -80,7 +78,6 @@ def update_customer(customer_id):
         Customer.update(customer_id, data)
         cache.delete_memoized(get_customer, customer_id)
         cache.delete_memoized(get_customers)
-        cache.delete_memoized(dashboard_stats)
         updated_customer = Customer.get_by_id(customer_id)
         return success_response(updated_customer, message="Customer updated successfully")
     except Exception as e:
@@ -100,7 +97,6 @@ def delete_customer(customer_id):
         Customer.delete(customer_id)
         cache.delete_memoized(get_customer, customer_id)
         cache.delete_memoized(get_customers)
-        cache.delete_memoized(dashboard_stats)
         return success_response(message="Customer deleted successfully")
     except Exception as e:
         return error_response('server_error', 
