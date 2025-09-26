@@ -5,6 +5,16 @@
 -- It creates all the necessary tables, columns, relationships, and indexes.
 -- ==================================================================
 
+-- Drop existing tables in reverse order of creation to handle foreign keys
+DROP TABLE IF EXISTS token_blacklist;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS invoice_items;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS customers;
+DROP TABLE IF EXISTS users;
+
+
 -- ------------------------------------------------------------------
 -- Table: users
 -- Purpose: Stores user accounts, credentials, and profile information.
