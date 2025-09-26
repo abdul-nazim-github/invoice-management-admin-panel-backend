@@ -1,152 +1,98 @@
+from flask import request
 from . import settings_bp
-from flask import jsonify, request
-import mysql.connector
-from config import Config
+from app.database.models.user_model import (
+    update_user_profile,
+    update_user_password,
+    update_user_billing,
+    find_user_by_id,
+)
+from app.utils.response import success_response, error_response
 import bcrypt
 
-def get_db_connection():
-    cnx = mysql.connector.connect(
-        host=Config.MYSQL_HOST,
-        user=Config.MYSQL_USER,
-        password=Config.MYSQL_PASSWORD,
-        database=Config.MYSQL_DB
-    )
-    return cnx
-
-@settings_bp.route('/profile/update', methods=['PUT'])
-def update_profile():
+@settings_bp.route("/profile/<user_id>", methods=["PUT"])
+def handle_update_profile(user_id):
+    """Updates user profile information (name, email)."""
     data = request.get_json()
-    user_id = data.get('user_id')
-    name = data.get('name')
-    email = data.get('email')
+    if not data:
+        return error_response("validation_error", "Invalid JSON provided.")
 
-    if not user_id:
-        return jsonify({'error': 'Missing user_id'}), 400
+    # Validate that the user exists
+    if not find_user_by_id(user_id):
+        return error_response("not_found", f"User with ID '{user_id}' not found.")
 
-    if not name and not email:
-        return jsonify({'error': 'No fields to update'}), 400
+    # Dynamically build the fields to update
+    fields_to_update = {}
+    if "name" in data:
+        fields_to_update["name"] = data["name"]
+    if "email" in data:
+        fields_to_update["email"] = data["email"]
+
+    if not fields_to_update:
+        return error_response(
+            "validation_error", "No valid fields (name, email) provided for update."
+        )
 
     try:
-        cnx = get_db_connection()
-        cursor = cnx.cursor()
+        updated_user = update_user_profile(user_id, **fields_to_update)
+        if updated_user:
+            return success_response(updated_user, "Profile updated successfully.")
+        return error_response(
+            "server_error", "An unexpected error occurred while updating the profile."
+        )
+    except Exception as e:
+        return error_response("server_error", f"Failed to update profile: {e}")
 
-        query = "UPDATE users SET "
-        params = []
-        if name:
-            query += "name = %s, "
-            params.append(name)
-        if email:
-            query += "email = %s, "
-            params.append(email)
-
-        query = query.rstrip(', ') + " WHERE id = %s"
-        params.append(user_id)
-
-        cursor.execute(query, tuple(params))
-        cnx.commit()
-
-        cursor.close()
-        cnx.close()
-        return jsonify({'message': f'User with id {user_id} updated successfully.'})
-
-    except mysql.connector.Error as err:
-        return jsonify({'error': str(err)}), 500
-
-@settings_bp.route('/profile/password', methods=['PUT'])
-def update_password():
+@settings_bp.route("/profile/password/<user_id>", methods=["PUT"])
+def handle_update_password(user_id):
+    """Updates a user's password."""
     data = request.get_json()
-    user_id = data.get('user_id')
-    password = data.get('password')
+    password = data.get("password")
 
-    if not user_id or not password:
-        return jsonify({'error': 'Missing user_id or password'}), 400
+    if not password:
+        return error_response("validation_error", "Password is required.")
+
+    if not find_user_by_id(user_id):
+        return error_response("not_found", f"User with ID '{user_id}' not found.")
 
     try:
-        cnx = get_db_connection()
-        cursor = cnx.cursor()
+        # Hash the new password before storing it
+        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        success = update_user_password(user_id, hashed_password.decode("utf-8"))
+        if success:
+            return success_response(message="Password updated successfully.")
+        return error_response("server_error", "Failed to update password.")
+    except Exception as e:
+        return error_response("server_error", f"An unexpected error occurred: {e}")
 
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-        query = "UPDATE users SET password = %s WHERE id = %s"
-        cursor.execute(query, (hashed_password, user_id))
-        cnx.commit()
-
-        cursor.close()
-        cnx.close()
-        return jsonify({'message': f'Password for user with id {user_id} updated successfully.'})
-
-    except mysql.connector.Error as err:
-        return jsonify({'error': str(err)}), 500
-
-@settings_bp.route('/billing', methods=['POST'])
-def add_billing_details():
+@settings_bp.route("/billing/<user_id>", methods=["PUT"])
+def handle_update_billing(user_id):
+    """Updates user billing details."""
     data = request.get_json()
-    user_id = data.get('user_id')
-    address = data.get('address')
-    city = data.get('city')
-    state = data.get('state')
-    zip_code = data.get('zip_code')
-    country = data.get('country')
+    if not data:
+        return error_response("validation_error", "Invalid JSON provided.")
 
-    if not all([user_id, address, city, state, zip_code, country]):
-        return jsonify({'error': 'Missing required billing information'}), 400
+    if not find_user_by_id(user_id):
+        return error_response("not_found", f"User with ID '{user_id}' not found.")
+
+    # Extract billing fields from the request
+    billing_info = {
+        "address": data.get("billing_address"),
+        "city": data.get("billing_city"),
+        "state": data.get("billing_state"),
+        "pin": data.get("billing_pin"),
+        "gst": data.get("billing_gst"),
+    }
+
+    # Filter out any fields that were not provided in the request
+    update_data = {k: v for k, v in billing_info.items() if v is not None}
+
+    if not update_data:
+        return error_response("validation_error", "No billing fields provided for update.")
 
     try:
-        cnx = get_db_connection()
-        cursor = cnx.cursor()
-        query = "INSERT INTO billing_details (user_id, address, city, state, zip_code, country) VALUES (%s, %s, %s, %s, %s, %s)"
-        cursor.execute(query, (user_id, address, city, state, zip_code, country))
-        cnx.commit()
-        billing_id = cursor.lastrowid
-        cursor.close()
-        cnx.close()
-        return jsonify({'id': billing_id}), 201
-    except mysql.connector.Error as err:
-        return jsonify({'error': str(err)}), 500
-
-@settings_bp.route('/billing/<int:user_id>', methods=['PUT'])
-def update_billing_details(user_id):
-    data = request.get_json()
-    address = data.get('address')
-    city = data.get('city')
-    state = data.get('state')
-    zip_code = data.get('zip_code')
-    country = data.get('country')
-
-    if not any([address, city, state, zip_code, country]):
-        return jsonify({'error': 'No fields to update'}), 400
-
-    try:
-        cnx = get_db_connection()
-        cursor = cnx.cursor()
-
-        query = "UPDATE billing_details SET "
-        params = []
-        if address:
-            query += "address = %s, "
-            params.append(address)
-        if city:
-            query += "city = %s, "
-            params.append(city)
-        if state:
-            query += "state = %s, "
-            params.append(state)
-        if zip_code:
-            query += "zip_code = %s, "
-            params.append(zip_code)
-        if country:
-            query += "country = %s, "
-            params.append(country)
-
-        query = query.rstrip(', ') + " WHERE user_id = %s"
-        params.append(user_id)
-
-        cursor.execute(query, tuple(params))
-        cnx.commit()
-
-        cursor.close()
-        cnx.close()
-        return jsonify({'message': f'Billing details for user with id {user_id} updated successfully.'})
-
-    except mysql.connector.Error as err:
-        return jsonify({'error': str(err)}), 500
+        updated_user = update_user_billing(user_id, **update_data)
+        if updated_user:
+            return success_response(updated_user, "Billing details updated successfully.")
+        return error_response("server_error", "Failed to update billing details.")
+    except Exception as e:
+        return error_response("server_error", f"An unexpected error occurred: {e}")

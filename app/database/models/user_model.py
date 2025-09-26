@@ -3,18 +3,14 @@
 # =============================
 import logging
 from typing import Any, Dict, Optional
-from app.utils.is_deleted_filter import is_deleted_filter
 from app.utils.response import normalize_row
-from uuid6 import uuid7
 from app.database.base import get_db_connection
-from marshmallow import ValidationError
-
 
 def create_user(
     username: str,
     email: str,
     password_hash: str,
-    full_name: str = '',
+    name: str = '',
     role: str = "admin",
     twofa_secret: str = '',
     billing_address: str = '',
@@ -22,41 +18,32 @@ def create_user(
     billing_state: str = '',
     billing_pin: str = '',
     billing_gst: str = '',
-) -> str:
+) -> Optional[Dict[str, Any]]:
+    """Creates a new user and returns their data."""
     conn = get_db_connection()
     try:
-        user_id = str(uuid7())
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO users (
-                    id, username, email, password_hash, full_name, role, twofa_secret,
+                    username, email, password_hash, name, role, twofa_secret,
                     billing_address, billing_city, billing_state, billing_pin, billing_gst
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
-                    user_id,
-                    username,
-                    email,
-                    password_hash,
-                    full_name,
-                    role,
-                    twofa_secret,
-                    billing_address,
-                    billing_city,
-                    billing_state,
-                    billing_pin,
-                    billing_gst,
+                    username, email, password_hash, name, role, twofa_secret,
+                    billing_address, billing_city, billing_state, billing_pin, billing_gst,
                 ),
             )
+            new_user_id = cur.lastrowid
         conn.commit()
-        return find_user_by_id(user_id)
+        return find_user_by_id(new_user_id)
     finally:
         conn.close()
 
-
-def find_user(identifier: str):
+def find_user(identifier: str) -> Optional[Dict[str, Any]]:
+    """Finds a user by their email or username."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -68,7 +55,8 @@ def find_user(identifier: str):
     finally:
         conn.close()
 
-def find_user_by_id(user_id: str):
+def find_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+    """Finds a user by their ID."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -77,94 +65,78 @@ def find_user_by_id(user_id: str):
     finally:
         conn.close()
 
-
-
-def update_user_profile(user_id: str, **fields) -> Optional[Dict[str, Any]]:
-    """
-    Dynamically update user profile fields.
-    Allows updating only if deleted_at IS NULL (active user).
-    Returns updated user data.
-    """
+def update_user_profile(user_id: int, **fields) -> Optional[Dict[str, Any]]:
+    """Dynamically updates a user's profile fields."""
     if not fields:
         return find_user_by_id(user_id)
 
     # Build dynamic SET clause
-    keys = [f"{k} = %s" for k in fields]
+    set_clause = ", ".join([f"{key} = %s" for key in fields])
     params = list(fields.values())
     params.append(user_id)
 
-    # Only update if user is active (not deleted)
-    where_clause = "id = %s AND deleted_at IS NULL"
-
-    sql = f"UPDATE users SET {', '.join(keys)} WHERE {where_clause}"
+    sql = f"UPDATE users SET {set_clause} WHERE id = %s"
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, tuple(params))
+            rows_affected = cur.execute(sql, tuple(params))
         conn.commit()
-        return find_user_by_id(user_id)
-
-    except ValidationError:
-        raise
+        if rows_affected > 0:
+            return find_user_by_id(user_id)
+        return None # User not found or not updated
     except Exception as e:
-        logging.exception("Unexpected error while updating user profile")
-        raise ValidationError("Failed to update user profile") from e
+        logging.error(f"Error updating user profile: {e}")
+        return None
     finally:
         conn.close()
 
-def update_user_password(user_id: str, new_hash: str) -> bool:
+def update_user_password(user_id: int, new_hash: str) -> bool:
+    """Updates a user's password hash."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
+            rows_affected = cur.execute(
                 "UPDATE users SET password_hash=%s WHERE id=%s",
                 (new_hash, user_id),
             )
         conn.commit()
-        return True
+        return rows_affected > 0
     finally:
         conn.close()
 
+def update_user_billing(user_id: int, **kwargs) -> Optional[Dict[str, Any]]:
+    """
+    Updates user billing details using COALESCE to only update provided fields.
+    Maps Python-style kwargs to database column names.
+    """
+    # Map kwargs to DB columns
+    db_mapping = {
+        "address": "billing_address",
+        "city": "billing_city",
+        "state": "billing_state",
+        "pin": "billing_pin",
+        "gst": "billing_gst",
+    }
+    
+    update_fields = {db_mapping[k]: v for k, v in kwargs.items() if k in db_mapping}
 
-def update_user_2fa(user_id: str, secret: str) -> Dict[str, Any] | None:
+    if not update_fields:
+        return find_user_by_id(user_id)
+
+    set_clause = ", ".join([f"{col} = %s" for col in update_fields])
+    params = list(update_fields.values())
+    params.append(user_id)
+
+    sql = f"UPDATE users SET {set_clause} WHERE id = %s"
+
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE users SET twofa_secret=%s WHERE id=%s",
-                (secret, user_id),
-            )
+            rows_affected = cur.execute(sql, tuple(params))
         conn.commit()
-        return find_user_by_id(user_id)
-    finally:
-        conn.close()
-
-
-def update_user_billing(
-    user_id: str,
-    address: str = '',
-    city: str = '',
-    state: str = '',
-    pin: str = '',
-    gst: str = '',
-) -> Dict[str, Any] | None:
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE users 
-                SET billing_address=COALESCE(%s, billing_address), 
-                    billing_city=COALESCE(%s, billing_city), 
-                    billing_state=COALESCE(%s, billing_state), 
-                    billing_pin=COALESCE(%s, billing_pin), 
-                    billing_gst=COALESCE(%s, billing_gst)
-                WHERE id=%s
-                """,
-                (address, city, state, pin, gst, user_id),
-            )
-        conn.commit()
-        return find_user_by_id(user_id)
+        if rows_affected > 0:
+            return find_user_by_id(user_id)
+        return None
     finally:
         conn.close()

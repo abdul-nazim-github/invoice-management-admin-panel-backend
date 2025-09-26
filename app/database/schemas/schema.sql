@@ -17,19 +17,19 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255),                     -- User's full name
   role ENUM('admin','staff','manager') DEFAULT 'staff', -- User's role for access control
   twofa_secret VARCHAR(64),              -- Secret key for two-factor authentication
-  bill_address TEXT,                     -- Billing address details
-  bill_city VARCHAR(120),
-  bill_state VARCHAR(120),
-  bill_pin VARCHAR(20),
-  bill_gst VARCHAR(50),                  -- User's GST number for billing
+  billing_address TEXT,                     -- Billing address details
+  billing_city VARCHAR(120),
+  billing_state VARCHAR(120),
+  billing_pin VARCHAR(20),
+  billing_gst VARCHAR(50),                  -- User's GST number for billing
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of user creation
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Timestamp of last update
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   -- Indexes for faster queries
-  INDEX idx_users_email (email),         -- For quick lookup by email
-  INDEX idx_users_username (username),   -- For quick lookup by username
-  INDEX idx_users_name (name),           -- For searching/sorting by name
-  INDEX idx_users_role (role)            -- For filtering users by role
+  INDEX idx_users_email (email),
+  INDEX idx_users_username (username),
+  INDEX idx_users_name (name),
+  INDEX idx_users_role (role)
 );
 
 -- ------------------------------------------------------------------
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS customers (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,              -- Customer's name
+  full_name VARCHAR(255) NOT NULL,              -- Customer's name
   email VARCHAR(255),                      -- Customer's email address
   phone VARCHAR(20),                       -- Customer's phone number
   address TEXT,                            -- Customer's physical address
@@ -47,11 +47,11 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of customer creation
 
   -- Indexes for faster queries
-  INDEX idx_customers_name (name),           -- For searching/sorting by name
-  INDEX idx_customers_email (email),         -- For quick lookup by email
-  INDEX idx_customers_phone (phone),         -- For quick lookup by phone
-  INDEX idx_customers_gst_number (gst_number),-- For searching by GST number
-  INDEX idx_customers_status (status)        -- For filtering customers by status
+  INDEX idx_customers_full_name (full_name),
+  INDEX idx_customers_email (email),
+  INDEX idx_customers_phone (phone),
+  INDEX idx_customers_gst_number (gst_number),
+  INDEX idx_customers_status (status)
 );
 
 -- ------------------------------------------------------------------
@@ -69,11 +69,11 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of product creation
 
   -- Indexes for faster queries
-  INDEX idx_products_code_name (product_code, name), -- Composite index for searching by code and name
-  INDEX idx_products_name (name),           -- For searching/sorting by name
-  INDEX idx_products_status (status),        -- For filtering products by status
-  INDEX idx_products_price (price),          -- For sorting or filtering by price
-  INDEX idx_products_stock (stock)           -- For querying stock levels
+  INDEX idx_products_code_name (product_code, name),
+  INDEX idx_products_name (name),
+  INDEX idx_products_status (status),
+  INDEX idx_products_price (price),
+  INDEX idx_products_stock (stock)
 );
 
 -- ------------------------------------------------------------------
@@ -92,15 +92,15 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of invoice creation
 
   -- Foreign key constraints
-  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT, -- Prevents deleting a customer with invoices
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,         -- Prevents deleting a user with invoices
+  FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
 
   -- Indexes for faster queries
-  INDEX idx_invoices_status_date (status, invoice_date), -- For filtering by status and sorting by date
-  INDEX idx_invoices_customer_id (customer_id), -- For finding all invoices of a customer
-  INDEX idx_invoices_user_id (user_id),           -- For finding all invoices created by a user
-  INDEX idx_invoices_due_date (due_date),       -- For finding overdue invoices
-  INDEX idx_invoices_total_amount (total_amount) -- For sorting or filtering by total amount
+  INDEX idx_invoices_status_date (status, invoice_date),
+  INDEX idx_invoices_customer_id (customer_id),
+  INDEX idx_invoices_user_id (user_id),
+  INDEX idx_invoices_due_date (due_date),
+  INDEX idx_invoices_total_amount (total_amount)
 );
 
 -- ------------------------------------------------------------------
@@ -116,12 +116,12 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   total DECIMAL(10,2) NOT NULL,            -- Total amount for this line item (quantity * price)
 
   -- Foreign key constraints
-  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE, -- Deletes items if the parent invoice is deleted
-  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT, -- Prevents deleting a product that is in an invoice
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
 
   -- Indexes for faster queries
-  INDEX idx_invoice_items_invoice (invoice_id), -- For quickly retrieving all items of an invoice
-  INDEX idx_invoice_items_product_id (product_id) -- For finding all invoices a product is on
+  INDEX idx_invoice_items_invoice (invoice_id),
+  INDEX idx_invoice_items_product_id (product_id)
 );
 
 -- ------------------------------------------------------------------
@@ -138,13 +138,13 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of payment record creation
 
   -- Foreign key constraints
-  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE, -- Deletes payments if the parent invoice is deleted
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
 
   -- Indexes for faster queries
-  INDEX idx_payments_invoice (invoice_id),        -- For quickly finding payments for an invoice
-  INDEX idx_payments_payment_date (payment_date), -- For reporting based on payment date
-  INDEX idx_payments_method (method),           -- For analyzing payment methods
-  INDEX idx_payments_reference_no (reference_no)  -- For looking up a payment by its reference number
+  INDEX idx_payments_invoice (invoice_id),
+  INDEX idx_payments_payment_date (payment_date),
+  INDEX idx_payments_method (method),
+  INDEX idx_payments_reference_no (reference_no)
 );
 
 -- ------------------------------------------------------------------
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the token was blacklisted
 
   -- Foreign key constraint
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, -- Deletes the token if the user is deleted
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 
   -- Indexes for faster queries
   INDEX idx_token_blacklist_token (token)
