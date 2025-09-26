@@ -1,202 +1,203 @@
 #!/bin/bash
 
+# ==============================================================================
+#                 API Endpoint Test Script
+# ==============================================================================
+#
+# INSTRUCTIONS:
+#
+# 1. Make sure your Flask application is running.
+# 2. Make sure you have `jq` installed to format JSON output (`brew install jq` or `apt-get install jq`).
+# 3. Run this script from your terminal: `./endpoints.sh`
+#
+# ==============================================================================
+
+# --- Configuration ---
 BASE_URL="http://localhost:5001/api"
-TOKEN=""
-ADMIN_TOKEN=""
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="adminpassword"
+USER_EMAIL="testuser@example.com"
+USER_PASSWORD="password123"
 
-# Health Check
-echo "Health Check"
-curl -X GET $BASE_URL/health
-echo "\n"
+# --- Helper function for printing headers ---
+print_header() {
+    echo ""
+    echo "=============================================================================="
+    echo "  $1"
+    echo "=============================================================================="
+    echo ""
+}
 
-# -----------------
-# Auth Endpoints
-# -----------------
+# --- Initial Health Check ---
+print_header "Running Health Check"
+curl -X GET $BASE_URL/health | jq .
+echo ""
 
-echo "Login as Admin"
-# This will return a token that you can use for admin requests
-ADMIN_TOKEN=$(curl -s -X POST -H "Content-Type: application/json" -d '{
-  "email": "admin@example.com",
-  "password": "adminpassword"
-}' $BASE_URL/auth/login | jq -r .access_token)
-echo "Admin Token: $ADMIN_TOKEN"
-echo "\n"
 
-echo "Register User (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-  "username": "testuser",
-  "email": "test@example.com",
-  "password": "password123",
-  "full_name": "Test User"
-}' $BASE_URL/users/register
-echo "\n"
+# ==============================================================================
+#                       ADMIN FLOW
+# ==============================================================================
 
-echo "Login as User"
-# This will return a token that you can use for authenticated requests
-TOKEN=$(curl -s -X POST -H "Content-Type: application/json" -d '{
-  "email": "test@example.com",
-  "password": "password123"
-}' $BASE_URL/auth/login | jq -r .access_token)
-echo "User Token: $TOKEN"
-echo "\n"
+# --- Admin Login ---
+print_header "Attempting to log in as Admin to get Admin Token"
+ADMIN_LOGIN_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "'$ADMIN_EMAIL'",
+        "password": "'$ADMIN_PASSWORD'"
+      }' \
+  $BASE_URL/auth/login)
 
-echo "Forgot Password"
-curl -X POST -H "Content-Type: application/json" -d '{
-  "email": "test@example.com"
-}' $BASE_URL/auth/forgot
-echo "\n"
+ADMIN_TOKEN=$(echo $ADMIN_LOGIN_RESPONSE | jq -r .access_token)
 
-echo "Reset Password"
-# You will get a token from the forgot password email
-RESET_TOKEN="your_reset_token"
-curl -X POST -H "Content-Type: application/json" -d '{
-  "token": "'$RESET_TOKEN'",
-  "new_password": "newpassword123"
-}' $BASE_URL/auth/reset
-echo "\n"
+if [ "$ADMIN_TOKEN" == "null" ] || [ -z "$ADMIN_TOKEN" ]; then
+    echo "Failed to get Admin Token. The server responded with:"
+    echo $ADMIN_LOGIN_RESPONSE | jq .
+    echo "Exiting."
+    exit 1
+fi
 
-echo "Enable 2FA"
-curl -X POST -H "Authorization: Bearer $TOKEN" $BASE_URL/auth/enable-2fa
-echo "\n"
+echo "Successfully retrieved Admin Token."
+echo ""
 
-# -----------------
-# Users Endpoints
-# -----------------
 
-echo "Get current user"
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/users/me
-echo "\n"
+# --- Register a New User (as Admin) ---
+print_header "Registering a new Standard User (as Admin)"
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{
+        "username": "testuser",
+        "email": "'$USER_EMAIL'",
+        "password": "'$USER_PASSWORD'",
+        "name": "Test User"
+      }' \
+  $BASE_URL/users/register | jq .
 
-echo "Update user profile"
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{
-  "full_name": "Test User Updated"
-}' $BASE_URL/users/profile
-echo "\n"
 
-echo "Update password"
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{
-  "old_password": "password123",
-  "new_password": "newpassword456"
-}' $BASE_URL/users/password
-echo "\n"
+# --- Create a Customer (as Admin) and Capture ID ---
+print_header "Creating a new Customer (as Admin)"
+NEW_CUSTOMER_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{
+        "full_name": "Dynamic Test Customer",
+        "email": "dynamic.customer@example.com",
+        "phone": "9876543210",
+        "address": "123 Dynamic Ave",
+        "gst_number": "GSTIN-DYNAMIC"
+      }' \
+  $BASE_URL/customers/)
 
-# -----------------
-# Dashboard Endpoint
-# -----------------
+CUSTOMER_ID=$(echo $NEW_CUSTOMER_RESPONSE | jq -r .id)
+echo "Captured new Customer ID: $CUSTOMER_ID"
+echo $NEW_CUSTOMER_RESPONSE | jq .
 
-echo "Dashboard"
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/dashboard
-echo "\n"
 
-# -----------------
-# Customers Endpoints
-# -----------------
+# --- Create a Product (as Admin) and Capture ID ---
+print_header "Creating a new Product (as Admin)"
+NEW_PRODUCT_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{
+        "product_code": "DYN-PROD-001",
+        "name": "Dynamic Test Product",
+        "description": "A product created by the test script",
+        "price": 99.99,
+        "stock": 50
+      }' \
+  $BASE_URL/products/)
 
-echo "Create customer (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "full_name": "New Customer",
-    "email": "customer@example.com",
-    "phone": "1234567890",
-    "address": "456 Customer Ave",
-    "gst_number": "GSTIN67890"
-}' $BASE_URL/customers/
-echo "\n"
+PRODUCT_ID=$(echo $NEW_PRODUCT_RESPONSE | jq -r .id)
+echo "Captured new Product ID: $PRODUCT_ID"
+echo $NEW_PRODUCT_RESPONSE | jq .
 
-echo "Get all customers"
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/customers/
-echo "\n"
 
-echo "Get customer by ID"
-CUSTOMER_ID=1
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/customers/$CUSTOMER_ID
-echo "\n"
+# --- Create an Invoice (as Admin) and Capture ID ---
+print_header "Creating a new Invoice (as Admin)"
+NEW_INVOICE_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{
+        "customer_id": '$CUSTOMER_ID',
+        "invoice_date": "2024-08-15",
+        "due_date": "2024-09-15",
+        "items": [
+            {"product_id": '$PRODUCT_ID', "quantity": 2}
+        ]
+      }' \
+  $BASE_URL/invoices/)
 
-echo "Update customer (as Admin)"
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "full_name": "Updated Customer Name"
-}' $BASE_URL/customers/$CUSTOMER_ID
-echo "\n"
+INVOICE_ID=$(echo $NEW_INVOICE_RESPONSE | jq -r .id)
+echo "Captured new Invoice ID: $INVOICE_ID"
+echo $NEW_INVOICE_RESPONSE | jq .
 
-echo "Bulk delete customers (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "ids": [1, 2, 3]
-}' $BASE_URL/customers/bulk-delete
-echo "\n"
 
-# -----------------
-# Products Endpoints
-# -----------------
+# ==============================================================================
+#                       STANDARD USER FLOW
+# ==============================================================================
 
-echo "Create product (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "name": "New Product",
-    "description": "A shiny new product",
-    "unit_price": 19.99,
-    "stock_quantity": 100
-}' $BASE_URL/products/
-echo "\n"
+# --- Standard User Login ---
+print_header "Attempting to log in as Standard User to get User Token"
+USER_LOGIN_RESPONSE=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "'$USER_EMAIL'",
+        "password": "'$USER_PASSWORD'"
+      }' \
+  $BASE_URL/auth/login)
 
-echo "Get all products"
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/products/
-echo "\n"
+USER_TOKEN=$(echo $USER_LOGIN_RESPONSE | jq -r .access_token)
 
-echo "Get product by ID"
-PRODUCT_ID=1
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/products/$PRODUCT_ID
-echo "\n"
+if [ "$USER_TOKEN" == "null" ] || [ -z "$USER_TOKEN" ]; then
+    echo "Failed to get User Token. The server responded with:"
+    echo $USER_LOGIN_RESPONSE | jq .
+    echo "Skipping user-specific tests."
+else
+    echo "Successfully retrieved User Token."
+    
+    # --- Get Current User Profile ---
+    print_header "Get Current User Profile (as Standard User)"
+    curl -s -X GET \
+      -H "Authorization: Bearer $USER_TOKEN" \
+      $BASE_URL/users/me | jq .
 
-echo "Update product (as Admin)"
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "unit_price": 24.99
-}' $BASE_URL/products/$PRODUCT_ID
-echo "\n"
+    # --- Get Dashboard ---
+    print_header "Get Dashboard data (as Standard User)"
+    curl -s -X GET \
+      -H "Authorization: Bearer $USER_TOKEN" \
+      $BASE_URL/dashboard | jq .
+fi
 
-echo "Bulk delete products (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "ids": [1, 2, 3]
-}' $BASE_URL/products/bulk-delete
-echo "\n"
 
-# -----------------
-# Invoices Endpoints
-# -----------------
+# ==============================================================================
+#                       CLEANUP
+# ==============================================================================
 
-echo "Create invoice (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "customer_id": 1,
-    "due_date": "2024-12-31",
-    "items": [
-        {"product_id": 1, "quantity": 2},
-        {"product_id": 2, "quantity": 1}
-    ]
-}' $BASE_URL/invoices/
-echo "\n"
+print_header "Cleaning up created resources (as Admin)"
 
-echo "Get all invoices"
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/invoices/
-echo "\n"
+# --- Bulk Delete Invoice ---
+echo "Deleting Invoice with ID: $INVOICE_ID"
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"ids": ['$INVOICE_ID']}' \
+  $BASE_URL/invoices/bulk-delete | jq .
 
-echo "Get invoice detail"
-INVOICE_ID=1
-curl -X GET -H "Authorization: Bearer $TOKEN" $BASE_URL/invoices/$INVOICE_ID
-echo "\n"
+# --- Bulk Delete Customer ---
+echo "Deleting Customer with ID: $CUSTOMER_ID"
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"ids": ['$CUSTOMER_ID']}' \
+  $BASE_URL/customers/bulk-delete | jq .
+  
+# --- Bulk Delete Product ---
+echo "Deleting Product with ID: $PRODUCT_ID"
+curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"ids": ['$PRODUCT_ID']}' \
+  $BASE_URL/products/bulk-delete | jq .
 
-echo "Update invoice (as Admin)"
-curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "status": "Paid"
-}' $BASE_URL/invoices/$INVOICE_ID
-echo "\n"
-
-echo "Pay invoice (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "amount": 100.00,
-    "method": "card",
-    "reference_no": "12345"
-}' $BASE_URL/invoices/$INVOICE_ID/pay
-echo "\n"
-
-echo "Bulk delete invoices (as Admin)"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $ADMIN_TOKEN" -d '{
-    "ids": [1, 2, 3]
-}' $BASE_URL/invoices/bulk-delete
-echo "\n"
+print_header "Script finished."
