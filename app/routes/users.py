@@ -3,12 +3,6 @@ from app.database.models.user import User
 
 users_blueprint = Blueprint('users', __name__)
 
-@users_blueprint.route('/users', methods=['POST'])
-def create_user():
-    data = request.get_json()
-    user = User.create(data)
-    return jsonify(user), 201
-
 @users_blueprint.route('/users', methods=['GET'])
 def get_users():
     users = User.get_all()
