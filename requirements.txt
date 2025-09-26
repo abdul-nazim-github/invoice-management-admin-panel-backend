@@ -13,5 +13,8 @@ Flask-Caching>=2.0.0
 # --- Configuration ---
 python-dotenv>=0.20.0
 
+# --- UUID Generation for Token Blacklisting ---
+uuid6>=2024.1.25
+
 # --- Production Server ---
 gunicorn>=20.1.0
