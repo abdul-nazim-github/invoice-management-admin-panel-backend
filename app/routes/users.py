@@ -18,6 +18,7 @@ def get_current_user_profile():
     return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
 @users_blueprint.route('/users', methods=['GET'])
+@jwt_required()
 @require_admin
 def get_users():
     page, per_page = get_pagination()
@@ -76,6 +77,7 @@ def update_user(user_id):
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["update_user"], details=str(e), status=500)
 
 @users_blueprint.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
 @require_admin
 def delete_user(user_id):
     try:

@@ -1,4 +1,5 @@
 from flask import Blueprint, request
+from flask_jwt_extended import jwt_required
 from app.database.models.product import Product
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
@@ -8,6 +9,7 @@ from app.utils.pagination import get_pagination
 products_blueprint = Blueprint('products', __name__)
 
 @products_blueprint.route('/products', methods=['POST'])
+@jwt_required()
 @require_admin
 def create_product():
     data = request.get_json()
@@ -40,6 +42,7 @@ def create_product():
                               status=500)
 
 @products_blueprint.route('/products', methods=['GET'])
+@jwt_required()
 def get_products():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
@@ -58,6 +61,7 @@ def get_products():
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['GET'])
+@jwt_required()
 def get_product(product_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
@@ -74,6 +78,7 @@ def get_product(product_id):
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['PUT'])
+@jwt_required()
 @require_admin
 def update_product(product_id):
     data = request.get_json()
@@ -97,6 +102,7 @@ def update_product(product_id):
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['DELETE'])
+@jwt_required()
 @require_admin
 def delete_product(product_id):
     try:

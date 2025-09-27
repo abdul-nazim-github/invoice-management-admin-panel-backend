@@ -1,4 +1,5 @@
 from flask import Blueprint, request
+from flask_jwt_extended import jwt_required
 from app.database.models.customer import Customer
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
@@ -8,6 +9,7 @@ from app.utils.pagination import get_pagination
 customers_blueprint = Blueprint('customers', __name__)
 
 @customers_blueprint.route('/customers', methods=['POST'])
+@jwt_required()
 @require_admin
 def create_customer():
     data = request.get_json()
@@ -40,6 +42,7 @@ def create_customer():
                               status=500)
 
 @customers_blueprint.route('/customers', methods=['GET'])
+@jwt_required()
 def get_customers():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
@@ -58,6 +61,7 @@ def get_customers():
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['GET'])
+@jwt_required()
 def get_customer(customer_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
@@ -74,6 +78,7 @@ def get_customer(customer_id):
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['PUT'])
+@jwt_required()
 @require_admin
 def update_customer(customer_id):
     data = request.get_json()
@@ -98,6 +103,7 @@ def update_customer(customer_id):
 
 
 @customers_blueprint.route('/customers/bulk-delete', methods=['POST'])
+@jwt_required()
 @require_admin
 def bulk_delete_customers():
     data = request.get_json()

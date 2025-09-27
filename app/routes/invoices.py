@@ -1,4 +1,5 @@
 from flask import Blueprint, request
+from flask_jwt_extended import jwt_required
 from app.database.models.invoice import Invoice
 from app.database.models.product import Product
 from app.utils.response import success_response, error_response
@@ -9,6 +10,7 @@ from app.utils.pagination import get_pagination
 invoices_blueprint = Blueprint('invoices', __name__)
 
 @invoices_blueprint.route('/invoices', methods=['POST'])
+@jwt_required()
 @require_admin
 def create_invoice():
     data = request.get_json()
@@ -77,6 +79,7 @@ def create_invoice():
 
 
 @invoices_blueprint.route('/invoices', methods=['GET'])
+@jwt_required()
 def get_invoices():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
@@ -95,6 +98,7 @@ def get_invoices():
                               status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['GET'])
+@jwt_required()
 def get_invoice(invoice_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
@@ -111,6 +115,7 @@ def get_invoice(invoice_id):
                               status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['PUT'])
+@jwt_required()
 @require_admin
 def update_invoice(invoice_id):
     data = request.get_json()
@@ -134,6 +139,7 @@ def update_invoice(invoice_id):
                               status=500)
 
 @invoices_blueprint.route('/invoices/bulk-delete', methods=['POST'])
+@jwt_required()
 @require_admin
 def bulk_delete_invoices():
     data = request.get_json()
@@ -162,6 +168,7 @@ def bulk_delete_invoices():
                               status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>/pay', methods=['POST'])
+@jwt_required()
 @require_admin
 def record_payment(invoice_id):
     data = request.get_json()
