@@ -1,42 +1,52 @@
 
 import pymysql
 from app.database.base import get_db_connection
-from seed import seed_initial_admin
+from seed import create_tables_from_schema, seed_initial_admin
 import os
 
 def reset_and_seed_database():
-    """Drops the database, recreates it, and seeds it with the initial admin user."""
+    """Drops the database, recreates it, creates tables, and seeds the admin user."""
     conn = None
     try:
-        # Get DB name from environment, with a fallback
         db_name = os.getenv("DB_NAME", "invoice_db")
 
-        # Connect to MySQL server without specifying a database
+        # 1. Connect to MySQL server and recreate the database
         conn = get_db_connection(db_required=False)
         with conn.cursor() as cursor:
             print(f"Dropping database `{db_name}` if it exists...")
             cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`")
             print(f"Creating database `{db_name}`...")
             cursor.execute(f"CREATE DATABASE `{db_name}`")
+        conn.close() # Close the connection
         print("Database has been reset.")
 
-        # Now that the database exists, we can seed it.
-        print("Starting the seeding process...")
-        seed_initial_admin() # This will create tables and the admin user
-        print("Seeding process completed.")
+        # At this point, subsequent connections via get_db_connection() will connect
+        # to the correct, newly created database.
+
+        # 2. Create all tables by executing the schema
+        print("Creating all tables from schema...")
+        create_tables_from_schema()
+        
+        # 3. Seed the initial admin user
+        print("Seeding initial admin user...")
+        seed_initial_admin()
+        
+        print("Database initialization and seeding process completed successfully.")
 
     except pymysql.MySQLError as e:
         print(f"A database error occurred during reset and seed: {e}")
-        # Re-raise the exception to halt the application if the DB setup fails
+        raise
+    except Exception as e:
+        print(f"An unexpected error occurred during reset and seed: {e}")
         raise
     finally:
-        if conn:
+        # Ensure the connection is closed even if errors occur
+        if conn and conn.open:
             conn.close()
 
-# This block allows the script to be run directly from the command line if needed
 if __name__ == "__main__":
     try:
         reset_and_seed_database()
     except Exception as e:
-        print(f"An error occurred during the reset and seed process: {e}")
+        print(f"An error occurred during the standalone reset and seed process: {e}")
 
