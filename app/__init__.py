@@ -27,20 +27,20 @@ def create_app():
     
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
-        return error_response('invalid_token', ERROR_MESSAGES["auth"]["invalid_token"], 401)
+        return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
     @jwt.unauthorized_loader
     def missing_token_callback(error):
-        return error_response('authorization_required', ERROR_MESSAGES["auth"]["missing_token"], 401)
+        return error_response(type='authorization_required', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
-        return error_response('token_expired', ERROR_MESSAGES["auth"]["invalid_token"], 401)
+        return error_response(type='token_expired', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
     @jwt.user_lookup_error_loader
     def user_lookup_error_callback(jwt_header, jwt_data):
         # When a token's user doesn't exist in the DB, treat it as an invalid token.
-        return error_response('invalid_token', ERROR_MESSAGES["auth"]["invalid_token"], 401)
+        return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
 
     # --- JWT User Claims ---
