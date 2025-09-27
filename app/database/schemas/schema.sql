@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS customers (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(255) NOT NULL,              -- Customer's name
-  email VARCHAR(255),                      -- Customer's email address
+  email VARCHAR(255) UNIQUE,               -- Customer's unique email address
   phone VARCHAR(20),                       -- Customer's phone number
   address TEXT,                            -- Customer's physical address
   gst_number VARCHAR(50),                  -- Customer's GST identification number

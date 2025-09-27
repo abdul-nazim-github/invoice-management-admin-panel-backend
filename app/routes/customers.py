@@ -42,6 +42,12 @@ def create_customer():
                               details=validation_errors,
                               status=400)
 
+    # Check for existing customer with the same email
+    if 'email' in data and data['email']:
+        existing_customer = Customer.find_by_email(data['email'])
+        if existing_customer:
+            return error_response('conflict', message='A customer with this email address already exists.', status=409)
+
     try:
         customer_id = Customer.create(data)
         if customer_id:
@@ -52,6 +58,9 @@ def create_customer():
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
     except Exception as e:
+        # Check for unique constraint violation from the database
+        if 'UNIQUE constraint failed: customers.email' in str(e) or 'Duplicate entry' in str(e):
+             return error_response('conflict', message='A customer with this email address already exists.', status=409)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               details=str(e), 

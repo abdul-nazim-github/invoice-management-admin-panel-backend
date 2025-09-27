@@ -34,6 +34,16 @@ class Customer(BaseModel):
         return cls(**row)
 
     @classmethod
+    def find_by_email(cls, email, include_deleted=False):
+        """Finds a customer by their email address."""
+        query = f"SELECT * FROM {cls._table_name} WHERE email = %s"
+        if not include_deleted:
+            query += " AND status != 'deleted'"
+        
+        row = DBManager.execute_query(query, (email,), fetch='one')
+        return cls.from_row(row)
+
+    @classmethod
     def search(cls, search_term, include_deleted=False):
         """Searches for customers by full_name, email, or phone."""
         search_fields = ['full_name', 'email', 'phone']
