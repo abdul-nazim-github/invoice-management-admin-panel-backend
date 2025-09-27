@@ -22,9 +22,9 @@ def success_response(result=None, message="Success", meta=None, status=200):
 
 def error_response(type="server_error", message=None, details=None, status=400):
     """
-    Creates a standardized error JSON response with default messages.
+    Creates a standardized, UI-friendly error JSON response.
     """
-    # Centralized mapping of error types to user-friendly messages
+    # Centralized mapping of error types to user-friendly messages for fallback
     error_messages = {
         "validation_error": "Invalid input provided. Please check the details.",
         "not_found": "The requested resource could not be found.",
@@ -33,16 +33,25 @@ def error_response(type="server_error", message=None, details=None, status=400):
         "server_error": "An unexpected error occurred on our end. Please try again later.",
     }
 
-    # Use the default message for the type if no specific message is provided
+    # Use the specific message if provided, otherwise fallback to the type-based message
     response_message = message or error_messages.get(type, "An unknown error occurred.")
+    
+    # For server errors in non-debug mode, do not send back detailed implementation errors.
+    if type == "server_error" and not current_app.debug:
+        response_message = "An unexpected error occurred on our end. Please try again later."
+        details = None # Don't leak details
+
+    response_data = {
+        "success": False,
+        "message": response_message,
+    }
+    
+    # Only include details if they are present and not empty
+    if details:
+        response_data["details"] = details
 
     return (
-        jsonify({
-            "success": False,
-            "type": type,
-            "message": response_message,
-            "error": {"details": details if details else {}},
-        }),
+        jsonify(response_data),
         status,
     )
 
