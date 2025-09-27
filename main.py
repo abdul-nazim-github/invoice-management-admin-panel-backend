@@ -1,13 +1,23 @@
+
 from dotenv import load_dotenv
-# Load environment variables from .env file before anything else
+# Load environment variables first to ensure all configs are set
 load_dotenv()
 
 from app import create_app
+from reset_and_seed import reset_and_seed_database
 
-# The app factory function creates the Flask application instance
+# --- Database Initialization ---
+# WARNING: This will delete and recreate the database on every application start.
+# All data will be lost on restart. This is for development purposes only.
+print("Initializing database...")
+reset_and_seed_database()
+print("Database initialization complete.")
+# -----------------------------
+
+# Create the Flask application instance using the app factory pattern
 app = create_app()
 
 if __name__ == "__main__":
-    # The app.run() is suitable for development.
-    # For production, use a production-ready WSGI server like Gunicorn or uWSGI.
+    # For development, app.run() is used. 
+    # For production, a more robust WSGI server like Gunicorn should be used.
     app.run(host="0.0.0.0", port=5001, debug=True)
