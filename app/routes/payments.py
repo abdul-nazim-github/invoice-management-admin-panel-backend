@@ -26,8 +26,13 @@ def create_payment():
 
     try:
         payment_id = Payment.create(data)
-        payment = Payment.find_by_id(payment_id)
-        return success_response(payment.to_dict(), message="Payment created successfully", status=201)
+        if payment_id:
+            payment = Payment.find_by_id(payment_id)
+            if payment:
+                return success_response(payment.to_dict(), message="Payment created successfully", status=201)
+        return error_response('server_error', 
+                              message=ERROR_MESSAGES["server_error"]["create_payment"], 
+                              status=500)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_payment"], 
@@ -39,11 +44,10 @@ def get_payments():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        payments = Payment.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
-        total_payments = Payment.count(include_deleted=include_deleted)
+        payments, total = Payment.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'payments': [p.to_dict() for p in payments],
-            'total': total_payments,
+            'total': total,
             'page': page,
             'per_page': per_page
         })
@@ -79,12 +83,11 @@ def update_payment(payment_id):
                               status=400)
 
     try:
-        if not Payment.find_by_id(payment_id):
+        if not Payment.update(payment_id, data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["payment"], 
                                   status=404)
 
-        Payment.update(payment_id, data)
         updated_payment = Payment.find_by_id(payment_id)
         return success_response(updated_payment.to_dict(), message="Payment updated successfully")
     except Exception as e:
@@ -97,12 +100,11 @@ def update_payment(payment_id):
 @require_admin
 def delete_payment(payment_id):
     try:
-        if not Payment.find_by_id(payment_id):
+        if not Payment.soft_delete(payment_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["payment"], 
                                   status=404)
 
-        Payment.soft_delete(payment_id)
         return success_response(message="Payment soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 

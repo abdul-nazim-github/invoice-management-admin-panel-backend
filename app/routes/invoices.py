@@ -26,8 +26,13 @@ def create_invoice():
 
     try:
         invoice_id = Invoice.create(data)
-        invoice = Invoice.find_by_id(invoice_id)
-        return success_response(invoice.to_dict(), message="Invoice created successfully", status=201)
+        if invoice_id:
+            invoice = Invoice.find_by_id(invoice_id)
+            if invoice:
+                return success_response(invoice.to_dict(), message="Invoice created successfully", status=201)
+        return error_response('server_error', 
+                              message=ERROR_MESSAGES["server_error"]["create_invoice"], 
+                              status=500)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_invoice"], 
@@ -39,11 +44,10 @@ def get_invoices():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        invoices = Invoice.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
-        total_invoices = Invoice.count(include_deleted=include_deleted)
+        invoices, total = Invoice.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'invoices': [i.to_dict() for i in invoices],
-            'total': total_invoices,
+            'total': total,
             'page': page,
             'per_page': per_page
         })
@@ -79,12 +83,11 @@ def update_invoice(invoice_id):
                               status=400)
 
     try:
-        if not Invoice.find_by_id(invoice_id):
+        if not Invoice.update(invoice_id, data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["invoice"], 
                                   status=404)
 
-        Invoice.update(invoice_id, data)
         updated_invoice = Invoice.find_by_id(invoice_id)
         return success_response(updated_invoice.to_dict(), message="Invoice updated successfully")
     except Exception as e:
@@ -97,12 +100,11 @@ def update_invoice(invoice_id):
 @require_admin
 def delete_invoice(invoice_id):
     try:
-        if not Invoice.find_by_id(invoice_id):
+        if not Invoice.soft_delete(invoice_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["invoice"], 
                                   status=404)
 
-        Invoice.soft_delete(invoice_id)
         return success_response(message="Invoice soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 

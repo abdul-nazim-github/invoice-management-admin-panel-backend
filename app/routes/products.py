@@ -16,7 +16,7 @@ def create_product():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    required_fields = ['product_code', 'name', 'description', 'price', 'stock', 'status']
+    required_fields = ['product_code', 'name', 'description', 'price', 'stock']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return error_response('validation_error', 
@@ -26,8 +26,13 @@ def create_product():
 
     try:
         product_id = Product.create(data)
-        product = Product.find_by_id(product_id)
-        return success_response(product.to_dict(), message="Product created successfully", status=201)
+        if product_id:
+            product = Product.find_by_id(product_id)
+            if product:
+                return success_response(product.to_dict(), message="Product created successfully", status=201)
+        return error_response('server_error', 
+                              message=ERROR_MESSAGES["server_error"]["create_product"], 
+                              status=500)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_product"], 
@@ -39,11 +44,10 @@ def get_products():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        products = Product.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
-        total_products = Product.count(include_deleted=include_deleted)
+        products, total = Product.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'products': [p.to_dict() for p in products],
-            'total': total_products,
+            'total': total,
             'page': page,
             'per_page': per_page
         })
@@ -79,12 +83,11 @@ def update_product(product_id):
                               status=400)
 
     try:
-        if not Product.find_by_id(product_id):
+        if not Product.update(product_id, data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
-        Product.update(product_id, data)
         updated_product = Product.find_by_id(product_id)
         return success_response(updated_product.to_dict(), message="Product updated successfully")
     except Exception as e:
@@ -97,12 +100,11 @@ def update_product(product_id):
 @require_admin
 def delete_product(product_id):
     try:
-        if not Product.find_by_id(product_id):
+        if not Product.soft_delete(product_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
-        Product.soft_delete(product_id)
         return success_response(message="Product soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 

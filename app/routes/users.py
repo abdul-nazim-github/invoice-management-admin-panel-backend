@@ -14,11 +14,10 @@ def get_users():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        users = User.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
-        total_users = User.count(include_deleted=include_deleted)
+        users, total = User.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'users': [u.to_dict() for u in users],
-            'total': total_users,
+            'total': total,
             'page': page,
             'per_page': per_page
         })
@@ -59,10 +58,9 @@ def update_user(user_id):
         return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
     try:
-        if not User.find_by_id(user_id):
+        if not User.update(user_id, data):
             return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
-        User.update(user_id, data)
         updated_user = User.find_by_id(user_id)
         return success_response(updated_user.to_dict(), message="User updated successfully")
     except Exception as e:
@@ -72,10 +70,9 @@ def update_user(user_id):
 @require_admin
 def delete_user(user_id):
     try:
-        if not User.find_by_id(user_id):
+        if not User.soft_delete(user_id):
             return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
-        User.soft_delete(user_id)
         return success_response(message="User soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["delete_user"], details=str(e), status=500)

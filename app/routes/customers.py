@@ -16,7 +16,7 @@ def create_customer():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    required_fields = ['name', 'email', 'phone', 'address', 'gst_number', 'status']
+    required_fields = ['full_name', 'email', 'phone', 'address', 'gst_number']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return error_response('validation_error', 
@@ -26,8 +26,13 @@ def create_customer():
 
     try:
         customer_id = Customer.create(data)
-        customer = Customer.find_by_id(customer_id)
-        return success_response(customer.to_dict(), message="Customer created successfully", status=201)
+        if customer_id:
+            customer = Customer.find_by_id(customer_id)
+            if customer:
+                return success_response(customer.to_dict(), message="Customer created successfully", status=201)
+        return error_response('server_error', 
+                              message=ERROR_MESSAGES["server_error"]["create_customer"], 
+                              status=500)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
@@ -39,11 +44,10 @@ def get_customers():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        customers = Customer.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
-        total_customers = Customer.count(include_deleted=include_deleted)
+        customers, total = Customer.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'customers': [c.to_dict() for c in customers],
-            'total': total_customers,
+            'total': total,
             'page': page,
             'per_page': per_page
         })
@@ -79,12 +83,11 @@ def update_customer(customer_id):
                               status=400)
 
     try:
-        if not Customer.find_by_id(customer_id):
+        if not Customer.update(customer_id, data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        Customer.update(customer_id, data)
         updated_customer = Customer.find_by_id(customer_id)
         return success_response(updated_customer.to_dict(), message="Customer updated successfully")
     except Exception as e:
@@ -97,12 +100,11 @@ def update_customer(customer_id):
 @require_admin
 def delete_customer(customer_id):
     try:
-        if not Customer.find_by_id(customer_id):
+        if not Customer.soft_delete(customer_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        Customer.soft_delete(customer_id)
         return success_response(message="Customer soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 
