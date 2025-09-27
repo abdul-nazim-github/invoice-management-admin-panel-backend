@@ -43,7 +43,7 @@ ERROR_MESSAGES = {
         "invalid_token": "Invalid or expired token. Please log in again.",
         "missing_token": "Missing authorization token. Please provide a valid token.",
         "unauthorized": "Unauthorized access. You do not have permission to perform this action.",
-        "invalid_credentials": "Invalid credentials."
+        "invalid_credentials": "Invalid credentials. Please check your username or email and password."
     },
     "conflict": {
         "user_exists": "A user with this email address already exists."
