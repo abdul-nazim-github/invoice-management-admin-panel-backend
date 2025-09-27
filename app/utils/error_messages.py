@@ -4,7 +4,7 @@
 ERROR_MESSAGES = {
     "validation": {
         "request_body_empty": "Request body cannot be empty.",
-        "missing_credentials": "Email and password are required.",
+        "missing_credentials": "Username or email and password are required.",
         "missing_fields": "Missing required fields.",
         "invalid_input": "Invalid input provided. Please check the data types and formats.",
     },
@@ -43,7 +43,7 @@ ERROR_MESSAGES = {
         "invalid_token": "Invalid or expired token. Please log in again.",
         "missing_token": "Missing authorization token. Please provide a valid token.",
         "unauthorized": "Unauthorized access. You do not have permission to perform this action.",
-        "invalid_credentials": "Invalid credentials. Please check your email and password."
+        "invalid_credentials": "Invalid credentials."
     },
     "conflict": {
         "user_exists": "A user with this email address already exists."

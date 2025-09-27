@@ -52,20 +52,18 @@ class User(BaseModel):
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):
-        base_query = cls._get_base_query(include_deleted)
-        # Use "AND" if the base query already has a "WHERE" clause (i.e., when not including deleted)
-        # and "WHERE" if it doesn't.
-        clause = "AND" if not include_deleted else "WHERE"
-        query = f'{base_query} {clause} email = %s'
-        result = DBManager.execute_query(query, (email,), fetch='one')
-        return cls.from_row(result)
+        return cls.find_by_username_or_email(login_identifier=email, include_deleted=include_deleted)
 
     @classmethod
     def find_by_username(cls, username, include_deleted=False):
+        return cls.find_by_username_or_email(login_identifier=username, include_deleted=include_deleted)
+
+    @classmethod
+    def find_by_username_or_email(cls, login_identifier, include_deleted=False):
         base_query = cls._get_base_query(include_deleted)
         # Use "AND" if the base query already has a "WHERE" clause (i.e., when not including deleted)
         # and "WHERE" if it doesn't.
         clause = "AND" if not include_deleted else "WHERE"
-        query = f'{base_query} {clause} username = %s'
-        result = DBManager.execute_query(query, (username,), fetch='one')
+        query = f'{base_query} {clause} (username = %s OR email = %s)'
+        result = DBManager.execute_query(query, (login_identifier, login_identifier), fetch='one')
         return cls.from_row(result)

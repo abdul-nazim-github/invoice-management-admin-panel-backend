@@ -13,13 +13,16 @@ def login():
     Authenticates a user and returns a JWT access token.
     """
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password'):
-        return error_response(type='validation_error', message=ERROR_MESSAGES["validation"]["missing_credentials"], status=400)
+    if not data:
+        return error_response(type='validation_error', message="Request body cannot be empty.", status=400)
 
-    email = data.get('email')
+    login_identifier = data.get('email') or data.get('username')
     password = data.get('password')
 
-    user = User.find_by_email(email)
+    if not login_identifier or not password:
+        return error_response(type='validation_error', message=ERROR_MESSAGES["validation"]["missing_credentials"], status=400)
+
+    user = User.find_by_username_or_email(login_identifier)
 
     if user and user.check_password(password):
         # Include the user's role in the JWT claims
