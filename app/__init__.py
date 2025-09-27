@@ -25,16 +25,21 @@ def create_app():
     jwt = JWTManager(app)
 
     # --- JWT Blocklist Configuration ---
-    # This callback checks if a token has been revoked (logged out).
-    @jwt.token_in_blocklist_loader
+    # By defining handlers and registering them explicitly, we eliminate false "unused function" 
+    # warnings from linters while ensuring the correct handler is tied to the correct event.
+
     def check_if_token_in_blocklist(jwt_header, jwt_payload):
+        """This callback checks if a token has been revoked (logged out)."""
         jti = jwt_payload["jti"]
         return jti in BLOCKLIST
 
-    # This callback defines the response for a revoked token.
-    @jwt.revoked_token_loader
     def revoked_token_callback(jwt_header, jwt_payload):
+        """This callback defines the response for a revoked token."""
         return error_response(type='token_revoked', message="Token has been revoked. Please sign in again.", status=401)
+
+    # Registering the blocklist handlers with the JWTManager instance
+    jwt.token_in_blocklist_loader(check_if_token_in_blocklist)
+    jwt.revoked_token_loader(revoked_token_callback)
 
 
     # --- JWT Custom Error Handlers ---
