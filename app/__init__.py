@@ -24,23 +24,23 @@ def create_app():
 
     # --- JWT Custom Error Handlers ---
     # These handlers provide consistent JSON responses for common JWT errors.
-    
-    @jwt.invalid_token_loader
-    def invalid_token_callback(error):
+    def _invalid_token_callback(error):
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
-    @jwt.unauthorized_loader
-    def missing_token_callback(error):
+    def _missing_token_callback(error):
         return error_response(type='missing_token', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
 
-    @jwt.expired_token_loader
-    def expired_token_callback(jwt_header, jwt_payload):
+    def _expired_token_callback(jwt_header, jwt_payload):
         return error_response(type='token_expired', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
-    @jwt.user_lookup_error_loader
-    def user_lookup_error_callback(jwt_header, jwt_data):
+    def _user_lookup_error_callback(jwt_header, jwt_data):
         # When a token's user doesn't exist in the DB, treat it as an invalid token.
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
+
+    jwt.invalid_token_loader(_invalid_token_callback)
+    jwt.unauthorized_loader(_missing_token_callback)
+    jwt.expired_token_loader(_expired_token_callback)
+    jwt.user_lookup_error_loader(_user_lookup_error_callback)
 
 
     # --- JWT User Claims ---
