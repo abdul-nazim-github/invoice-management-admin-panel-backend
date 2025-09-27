@@ -25,9 +25,6 @@ def create_app():
     jwt = JWTManager(app)
 
     # --- JWT Blocklist Configuration ---
-    # By defining handlers and registering them explicitly, we eliminate false "unused function" 
-    # warnings from linters while ensuring the correct handler is tied to the correct event.
-
     def check_if_token_in_blocklist(jwt_header, jwt_payload):
         """This callback checks if a token has been revoked (logged out)."""
         jti = jwt_payload["jti"]
@@ -36,11 +33,6 @@ def create_app():
     def revoked_token_callback(jwt_header, jwt_payload):
         """This callback defines the response for a revoked token."""
         return error_response(type='token_revoked', message="Token has been revoked. Please sign in again.", status=401)
-
-    # Registering the blocklist handlers with the JWTManager instance
-    jwt.token_in_blocklist_loader(check_if_token_in_blocklist)
-    jwt.revoked_token_loader(revoked_token_callback)
-
 
     # --- JWT Custom Error Handlers ---
     def handle_invalid_token(error):
@@ -55,16 +47,19 @@ def create_app():
     def handle_user_lookup_error(jwt_header, jwt_data):
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
+    # --- JWT User Claims ---
+    def user_lookup_callback(_jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        return User.find_by_id(identity)
+
+    # Registering all JWT handlers explicitly to avoid linter warnings
+    jwt.token_in_blocklist_loader(check_if_token_in_blocklist)
+    jwt.revoked_token_loader(revoked_token_callback)
     jwt.invalid_token_loader(handle_invalid_token)
     jwt.unauthorized_loader(handle_missing_token)
     jwt.expired_token_loader(handle_expired_token)
     jwt.user_lookup_error_loader(handle_user_lookup_error)
-
-    # --- JWT User Claims ---
-    @jwt.user_lookup_loader
-    def user_lookup_callback(_jwt_header, jwt_data):
-        identity = jwt_data["sub"]
-        return User.find_by_id(identity)
+    jwt.user_lookup_loader(user_lookup_callback)
 
     # --- Register Blueprints ---
     app.register_blueprint(auth_blueprint, url_prefix='/api/auth')
