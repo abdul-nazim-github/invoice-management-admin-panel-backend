@@ -89,7 +89,6 @@ def initialize_database():
         
         # 3. Create all tables by executing the schema
         _create_tables_from_schema(conn_db)
-        
         # 4. Seed the initial admin user
         _seed_initial_admin(conn_db)
         
