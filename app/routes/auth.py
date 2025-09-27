@@ -3,6 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required
 from app.database.models.user import User
 from app.utils.auth import require_admin
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.response import error_response
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -13,7 +14,7 @@ def login():
     """
     data = request.get_json()
     if not data or not data.get('email') or not data.get('password'):
-        return jsonify({"message": "Email and password are required"}), 400
+        return error_response('validation_error', ERROR_MESSAGES["validation"]["missing_credentials"], 400)
 
     email = data.get('email')
     password = data.get('password')
@@ -26,10 +27,7 @@ def login():
         access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
         return jsonify(access_token=access_token), 200
     
-    return jsonify({
-        "message": ERROR_MESSAGES["auth"]["login_failed"],
-        "error": "invalid_credentials"
-    }), 401
+    return error_response('invalid_credentials', ERROR_MESSAGES["auth"]["login_failed"], 401)
 
 @auth_blueprint.route('/register', methods=['POST'])
 @jwt_required()
@@ -40,18 +38,18 @@ def register():
     """
     data = request.get_json()
     if not data:
-        return jsonify({"message": "Request body is empty"}), 400
+        return error_response('validation_error', ERROR_MESSAGES["validation"]["request_body_empty"], 400)
     
     required_fields = ['username', 'email', 'password', 'name']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
-        return jsonify({"message": f"Missing required fields: {', '.join(missing_fields)}"}), 400
+        return error_response('validation_error', f"Missing required fields: {', '.join(missing_fields)}", 400)
 
     if User.find_by_email(data['email']):
-        return jsonify({"message": "User with this email already exists"}), 409
+        return error_response('conflict', ERROR_MESSAGES["conflict"]["user_exists"], 409)
 
     try:
         user = User.create(data)
         return jsonify(user.to_dict()), 201
     except Exception as e:
-        return jsonify({"message": "Could not create user", "error": str(e)}), 500
+        return error_response('server_error', ERROR_MESSAGES["server_error"]["create_user"], 500)

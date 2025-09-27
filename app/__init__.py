@@ -39,7 +39,8 @@ def create_app():
 
     @jwt.user_lookup_error_loader
     def user_lookup_error_callback(jwt_header, jwt_data):
-        return error_response('user_not_found', ERROR_MESSAGES["not_found"]["user"], 401)
+        # When a token's user doesn't exist in the DB, treat it as an invalid token.
+        return error_response('invalid_token', ERROR_MESSAGES["auth"]["invalid_token"], 401)
 
 
     # --- JWT User Claims ---
