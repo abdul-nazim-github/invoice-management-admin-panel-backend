@@ -70,7 +70,7 @@ def _seed_initial_admin(conn):
 
 def initialize_database():
     """Drops the database, recreates it, creates tables, and seeds the admin user."""
-    db_name = os.getenv("DB_NAME", "invoice_db")
+    db_name = os.getenv("DB_NAME", "vyaper_billing_db")
     conn = None
     try:
         # 1. Connect to MySQL server (without specifying a DB) to drop/create

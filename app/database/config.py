@@ -19,8 +19,8 @@ class Config:
     MYSQL_CONFIG = {
         "host": os.getenv("DB_HOST", "localhost"),
         "user": os.getenv("DB_USER", "root"),
-        "password": os.getenv("DB_PASSWORD", ""),
-        "database": os.getenv("DB_NAME", "invoice_db"),
+        "password": os.getenv("DB_PASSWORD", "root"),
+        "database": os.getenv("DB_NAME", "vyaper_billing_db"),
         "cursorclass": pymysql.cursors.DictCursor
     }
 
