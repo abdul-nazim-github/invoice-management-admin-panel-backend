@@ -51,6 +51,7 @@ def create_customer():
     try:
         customer_id = Customer.create(data)
         if customer_id:
+            # Fetch the customer with payment status to return a consistent response
             customer = Customer.find_by_id(customer_id)
             if customer:
                 return success_response(customer.to_dict(), message="Customer created successfully.", status=201)
@@ -72,6 +73,7 @@ def get_customers():
     page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
+        # This now returns customers with their payment status
         customers, total = Customer.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         return success_response({
             'customers': [c.to_dict() for c in customers],
@@ -90,6 +92,7 @@ def get_customers():
 def get_customer(customer_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
+        # This now returns a single customer with their payment status
         customer = Customer.find_by_id(customer_id, include_deleted=include_deleted)
         if customer:
             return success_response(customer.to_dict(), message="Customer retrieved successfully.")
