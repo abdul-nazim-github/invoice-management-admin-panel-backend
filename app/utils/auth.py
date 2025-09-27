@@ -27,7 +27,7 @@ def create_token(payload: dict[str, object]):
     Notes:
         - Adds "exp" (expiration) and "iat" (issued at) claims automatically.
         - Expiration is based on current_app.config["JWT_EXPIRES_MIN"] (in minutes).
-        - Uses HS256 algorithm with current_app.config["JWT_SECRET"].
+        - Uses HS256 algorithm with current_app.config["JWT_SECRET_KEY"].
     """
     try:
         exp = int(time.time()) + current_app.config["JWT_EXPIRES_MIN"] * 60
@@ -39,7 +39,7 @@ def create_token(payload: dict[str, object]):
 
         token = jwt.encode(
             payload,
-            current_app.config["JWT_SECRET"],
+            current_app.config["JWT_SECRET_KEY"],
             algorithm="HS256"
         )
 
@@ -75,7 +75,7 @@ def decode_token(token: str):
     try:
         return jwt.decode(
             token,
-            current_app.config["JWT_SECRET"],
+            current_app.config["JWT_SECRET_KEY"],
             algorithms=["HS256"]
         )
     except jwt.ExpiredSignatureError:
