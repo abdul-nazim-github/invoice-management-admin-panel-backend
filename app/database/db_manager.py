@@ -15,14 +15,12 @@ def normalize_value(value):
     return value
 
 def normalize_row(row):
-    """Normalize all values in a DB row (dictionary)."""
-    if not row:
-        return {}
-    # Assumes row is a dictionary
+    """Normalize all values in a DB row dictionary."""
+    # Assumes row is a dictionary, as provided by DictCursor
     return {k: normalize_value(v) for k, v in row.items()}
 
 def normalize_rows(rows):
-    """Normalize multiple DB rows."""
+    """Normalize a list of DB row dictionaries."""
     return [normalize_row(r) for r in rows]
 
 # --- DBManager Class ---
@@ -37,31 +35,27 @@ class DBManager:
     def execute_query(query, params=None, fetch=None):
         """
         Executes a read-only query and returns normalized data.
+        This method relies on pymysql.cursors.DictCursor being set for the
+        connection, which returns each row as a dictionary.
         """
         conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute(query, params or ())
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
 
-            # Get column names from cursor description
-            columns = [desc[0] for desc in cursor.description]
+                if fetch == 'one':
+                    # fetchone() with DictCursor returns a single dictionary or None
+                    row = cursor.fetchone()
+                    return normalize_row(row) if row else None
 
-            if fetch == 'one':
-                row = cursor.fetchone()
-                if not row:
-                    return None
-                # Create a dictionary and normalize it
-                dict_row = dict(zip(columns, row))
-                return normalize_row(dict_row)
+                if fetch == 'all':
+                    # fetchall() with DictCursor returns a list of dictionaries
+                    rows = cursor.fetchall()
+                    return normalize_rows(rows) if rows else []
 
-            if fetch == 'all':
-                rows = cursor.fetchall()
-                if not rows:
-                    return []
-                # Create a list of dictionaries and normalize them
-                dict_rows = [dict(zip(columns, r)) for r in rows]
-                return normalize_rows(dict_rows)
-
-        return None
+            return None
+        finally:
+            conn.close()
 
     @staticmethod
     def execute_write_query(query, params=None):
@@ -70,9 +64,11 @@ class DBManager:
         Returns the ID of the last inserted row.
         """
         conn = get_db_connection()
-        last_id = None
-        with conn.cursor() as cursor:
-            cursor.execute(query, params or ())
-            last_id = cursor.lastrowid
-        conn.commit()
-        return last_id
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params or ())
+                last_id = cursor.lastrowid
+            conn.commit()
+            return last_id
+        finally:
+            conn.close()

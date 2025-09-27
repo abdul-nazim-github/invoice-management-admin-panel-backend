@@ -18,10 +18,6 @@ class User(BaseModel):
             setattr(self, key, value)
 
     def check_password(self, password):
-        # --- DEBUGGING --
-        print(f"DEBUG: Checking password for user {self.email}")
-        print(f"DEBUG: Stored Hash: {self.password_hash}")
-        # --- END DEBUGGING ---
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
