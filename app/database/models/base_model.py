@@ -13,11 +13,8 @@ class BaseModel:
     def create(cls, data):
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["%s"] * len(data))
-        query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders}) RETURNING id'
-        result = DBManager.execute_query(query, tuple(data.values()), fetch='one')
-        if result and 'id' in result:
-            return result['id']
-        return None
+        query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders})'
+        return DBManager.execute_write_query(query, tuple(data.values()))
 
     @classmethod
     def find_all(cls, include_deleted=False):
