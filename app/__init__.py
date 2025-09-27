@@ -42,7 +42,7 @@ def create_app():
         return error_response(type='missing_token', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
 
     def handle_expired_token(jwt_header, jwt_payload):
-        return error_response(type='token_expired', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
+        return error_response(type='token_expired', message=ERROR_MESSAGES["auth"]["token_expired"], status=401)
 
     def handle_user_lookup_error(jwt_header, jwt_data):
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)

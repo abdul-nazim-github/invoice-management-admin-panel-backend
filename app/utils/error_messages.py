@@ -40,7 +40,8 @@ ERROR_MESSAGES = {
         "delete_user": "An unexpected error occurred while deleting the user."
     },
     "auth": {
-        "invalid_token": "Invalid or expired token. Please log in again.",
+        "invalid_token": "Token is invalid or malformed. Please log in again.",
+        "token_expired": "Token has expired. Please log in again.",
         "missing_token": "Missing authorization token. Please provide a valid token.",
         "unauthorized": "Unauthorized access. You do not have permission to perform this action.",
         "invalid_credentials": "Invalid credentials. Please check your username or email and password."
