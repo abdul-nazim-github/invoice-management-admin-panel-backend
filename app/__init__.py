@@ -1,7 +1,8 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from app.database.models.user import User
+from app.utils.error_messages import ERROR_MESSAGES
 
 # Import blueprints from their correct locations
 from .routes.auth import auth_blueprint
@@ -22,6 +23,34 @@ def create_app():
     
     # Initialize extensions
     jwt = JWTManager(app)
+
+    # --- JWT Custom Error Handlers ---
+    # These handlers provide consistent JSON responses for common JWT errors.
+    
+    @jwt.invalid_token_loader
+    def invalid_token_callback(error):
+        # Triggered when a token is invalid (e.g., malformed).
+        return jsonify({
+            "message": ERROR_MESSAGES["auth"]["invalid_token"],
+            "error": "invalid_token"
+        }), 401
+
+    @jwt.unauthorized_loader
+    def missing_token_callback(error):
+        # Triggered when a token is missing from a protected endpoint.
+        return jsonify({
+            "message": ERROR_MESSAGES["auth"]["missing_token"],
+            "error": "authorization_required"
+        }), 401
+
+    @jwt.expired_token_loader
+    def expired_token_callback(jwt_header, jwt_payload):
+        # Triggered when a token has expired.
+        return jsonify({
+            "message": ERROR_MESSAGES["auth"]["invalid_token"], # Re-using for expired
+            "error": "token_expired"
+        }), 401
+
 
     # --- JWT User Claims ---
     # This function is called whenever a protected endpoint is accessed,

@@ -1,4 +1,5 @@
-# A centralized dictionary for user-facing error messages.
+
+# app/utils/error_messages.py
 
 ERROR_MESSAGES = {
     "validation": {
@@ -22,17 +23,18 @@ ERROR_MESSAGES = {
         "fetch_product": "An unexpected error occurred while fetching product(s).",
         "update_product": "An unexpected error occurred while updating the product.",
         "delete_product": "An unexpected error occurred while deleting the product.",
-
+        
         "create_invoice": "An unexpected error occurred while creating the invoice.",
         "fetch_invoice": "An unexpected error occurred while fetching invoice(s).",
         "update_invoice": "An unexpected error occurred while updating the invoice.",
         "delete_invoice": "An unexpected error occurred while deleting the invoice.",
-
+        
         "create_payment": "An unexpected error occurred while creating the payment.",
         "fetch_payment": "An unexpected error occurred while fetching payment(s).",
-        "update_payment": "An unexpected error occurred while updating the payment.",
-        "delete_payment": "An unexpected error occurred while deleting the payment.",
-        
-        "generic": "An unexpected server error occurred. Please try again later."
+    },
+    "auth": {
+        "invalid_token": "Invalid or expired token. Please log in again.",
+        "missing_token": "Missing authorization token. Please provide a valid token.",
+        "unauthorized": "Unauthorized access. You do not have permission to perform this action.",
     }
 }
