@@ -27,8 +27,6 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 @auth_blueprint.route('/register', methods=['POST'])
-@require_auth
-@require_admin
 def register():
     """
     Registers a new user.
