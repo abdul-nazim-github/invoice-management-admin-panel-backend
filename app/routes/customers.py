@@ -96,16 +96,29 @@ def update_customer(customer_id):
                               details=str(e), 
                               status=500)
 
-@customers_blueprint.route('/customers/<int:customer_id>', methods=['DELETE'])
-@require_admin
-def delete_customer(customer_id):
-    try:
-        if not Customer.soft_delete(customer_id):
-            return error_response('not_found', 
-                                  message=ERROR_MESSAGES["not_found"]["customer"], 
-                                  status=404)
 
-        return success_response(message="Customer soft-deleted successfully")
+@customers_blueprint.route('/customers/bulk-delete', methods=['POST'])
+@require_admin
+def bulk_delete_customers():
+    data = request.get_json()
+    if not data or 'ids' not in data or not isinstance(data['ids'], list):
+        return error_response('validation_error', 
+                              message="Invalid request. 'ids' must be a list of customer IDs.",
+                              status=400)
+
+    ids_to_delete = data['ids']
+    if not ids_to_delete:
+        return error_response('validation_error', 
+                              message="The 'ids' list cannot be empty.",
+                              status=400)
+
+    try:
+        deleted_count = Customer.bulk_soft_delete(ids_to_delete)
+        if deleted_count > 0:
+            return success_response(message=f"{deleted_count} customer(s) soft-deleted successfully.")
+        return error_response('not_found', 
+                              message="No matching customers found for the provided IDs.", 
+                              status=404)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_customer"], 

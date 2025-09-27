@@ -12,6 +12,7 @@ ERROR_MESSAGES = {
         "product": "Product not found.",
         "invoice": "Invoice not found.",
         "payment": "Payment not found.",
+        "user": "User not found."
     },
     "server_error": {
         "create_customer": "An unexpected error occurred while creating the customer.",
@@ -31,6 +32,10 @@ ERROR_MESSAGES = {
         
         "create_payment": "An unexpected error occurred while creating the payment.",
         "fetch_payment": "An unexpected error occurred while fetching payment(s).",
+
+        "fetch_user": "An unexpected error occurred while fetching user(s).",
+        "update_user": "An unexpected error occurred while updating the user.",
+        "delete_user": "An unexpected error occurred while deleting the user."
     },
     "auth": {
         "invalid_token": "Invalid or expired token. Please log in again.",

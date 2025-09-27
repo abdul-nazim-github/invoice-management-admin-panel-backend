@@ -1,4 +1,5 @@
 from .base_model import BaseModel
+from app.database.db import get_db
 
 class Customer(BaseModel):
     _table_name = 'customers'
@@ -32,4 +33,21 @@ class Customer(BaseModel):
             return None
         return cls(**row)
 
-    # create and update are inherited from BaseModel
+    @classmethod
+    def bulk_soft_delete(cls, ids):
+        if not ids:
+            return 0
+
+        db = get_db()
+        # Using a tuple for the IN clause
+        placeholders = ', '.join(['%s'] * len(ids))
+        query = f"UPDATE {cls._table_name} SET status = 'deleted' WHERE id IN ({placeholders}) AND status != 'deleted'"
+        
+        cursor = db.cursor()
+        cursor.execute(query, tuple(ids))
+        db.commit()
+        
+        deleted_count = cursor.rowcount
+        cursor.close()
+        return deleted_count
+

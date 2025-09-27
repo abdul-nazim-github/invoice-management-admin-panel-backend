@@ -8,6 +8,15 @@ from app.utils.pagination import get_pagination
 
 users_blueprint = Blueprint('users', __name__)
 
+@users_blueprint.route('/users/me', methods=['GET'])
+@jwt_required()
+def get_current_user_profile():
+    current_user_id = get_jwt_identity()
+    user = User.find_by_id(current_user_id)
+    if user:
+        return success_response(user.to_dict())
+    return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
+
 @users_blueprint.route('/users', methods=['GET'])
 @require_admin
 def get_users():
