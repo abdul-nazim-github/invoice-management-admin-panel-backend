@@ -1,6 +1,7 @@
 
 import pymysql
 from app.database.db_manager import DBManager
+from werkzeug.security import generate_password_hash
 
 # --- Default Admin User Details ---
 ADMIN_EMAIL = "admin@example.com"
@@ -52,20 +53,17 @@ def seed_initial_admin():
 
         print(f"No admin user found. Creating initial admin: {ADMIN_EMAIL}")
 
-        # Use the User model's create method, which handles hashing and uses DBManager
-        from app.database.models.user import User
-        user_data = {
-            'username': ADMIN_USERNAME,
-            'email': ADMIN_EMAIL,
-            'password': ADMIN_PASSWORD,
-            'name': ADMIN_NAME,
-            'role': ADMIN_ROLE
-        }
-        
-        # The User.create method should handle everything
-        created_user = User.create(user_data)
+        # Explicitly hash the password with scrypt
+        password_hash = generate_password_hash(ADMIN_PASSWORD, method='scrypt')
 
-        if created_user:
+        # Insert the new admin user using DBManager
+        sql = """
+        INSERT INTO users (username, email, password_hash, name, role)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+        user_id = DBManager.execute_write_query(sql, (ADMIN_USERNAME, ADMIN_EMAIL, password_hash, ADMIN_NAME, ADMIN_ROLE))
+
+        if user_id:
             print("=" * 50)
             print("Default admin user created successfully!")
             print(f"  Email: {ADMIN_EMAIL}")

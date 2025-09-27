@@ -1,3 +1,4 @@
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
@@ -37,7 +38,7 @@ class User(BaseModel):
 
     @classmethod
     def create(cls, data):
-        hashed_password = generate_password_hash(data['password'])
+        hashed_password = generate_password_hash(data['password'], method='scrypt')
         role = data.get('role', 'staff')
         name = data.get('name')
         username = data['username']
@@ -68,3 +69,4 @@ class User(BaseModel):
         query = f'{base_query} {clause} username = %s'
         result = DBManager.execute_query(query, (username,), fetch='one')
         return cls.from_row(result)
+
