@@ -27,7 +27,7 @@ def login():
         access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
         return jsonify(access_token=access_token), 200
     
-    return error_response(type='invalid_credentials', message=ERROR_MESSAGES["auth"]["login_failed"], status=401)
+    return error_response(type='invalid_credentials', message=ERROR_MESSAGES["auth"]["invalid_credentials"], status=401)
 
 @auth_blueprint.route('/register', methods=['POST'])
 @jwt_required()
