@@ -2,7 +2,6 @@ from flask import Blueprint, request
 from app.database.models.customer import Customer
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
-from app.utils.cache import cache
 
 customers_blueprint = Blueprint('customers', __name__)
 
@@ -24,9 +23,8 @@ def create_customer():
 
     try:
         customer_id = Customer.create(data)
-        customer = Customer.get_by_id(customer_id)
-        cache.delete_memoized(get_customers)
-        return success_response(customer, message="Customer created successfully", status=201)
+        customer = Customer.find_by_id(customer_id)
+        return success_response(customer.to_dict(), message="Customer created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
@@ -34,11 +32,11 @@ def create_customer():
                               status=500)
 
 @customers_blueprint.route('/customers', methods=['GET'])
-@cache.cached()
 def get_customers():
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        customers = Customer.get_all()
-        return success_response(customers)
+        customers = Customer.find_all(include_deleted=include_deleted)
+        return success_response([c.to_dict() for c in customers])
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
@@ -46,12 +44,12 @@ def get_customers():
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['GET'])
-@cache.cached()
 def get_customer(customer_id):
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        customer = Customer.get_by_id(customer_id)
+        customer = Customer.find_by_id(customer_id, include_deleted=include_deleted)
         if customer:
-            return success_response(customer)
+            return success_response(customer.to_dict())
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
@@ -70,16 +68,14 @@ def update_customer(customer_id):
                               status=400)
 
     try:
-        if not Customer.get_by_id(customer_id):
+        if not Customer.find_by_id(customer_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
         Customer.update(customer_id, data)
-        cache.delete_memoized(get_customer, customer_id)
-        cache.delete_memoized(get_customers)
-        updated_customer = Customer.get_by_id(customer_id)
-        return success_response(updated_customer, message="Customer updated successfully")
+        updated_customer = Customer.find_by_id(customer_id)
+        return success_response(updated_customer.to_dict(), message="Customer updated successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 
@@ -89,15 +85,13 @@ def update_customer(customer_id):
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer(customer_id):
     try:
-        if not Customer.get_by_id(customer_id):
+        if not Customer.find_by_id(customer_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        Customer.delete(customer_id)
-        cache.delete_memoized(get_customer, customer_id)
-        cache.delete_memoized(get_customers)
-        return success_response(message="Customer deleted successfully")
+        Customer.soft_delete(customer_id)
+        return success_response(message="Customer soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_customer"], 

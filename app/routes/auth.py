@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash
 from flask_jwt_extended import create_access_token
 from app.database.models.user import User
+from app.utils.auth import require_auth, require_admin
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -26,6 +27,8 @@ def login():
     return jsonify({"message": "Invalid credentials"}), 401
 
 @auth_blueprint.route('/register', methods=['POST'])
+@require_auth
+@require_admin
 def register():
     """
     Registers a new user.

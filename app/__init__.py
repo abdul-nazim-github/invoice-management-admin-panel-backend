@@ -1,6 +1,5 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
-from .utils.cache import cache
 
 # Import blueprints from their correct locations
 from .routes.auth import auth_blueprint
@@ -22,7 +21,6 @@ def create_app():
     
     # Initialize extensions
     jwt = JWTManager(app)
-    cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache'})
 
     # --- Register Blueprints ---
     # The new auth blueprint

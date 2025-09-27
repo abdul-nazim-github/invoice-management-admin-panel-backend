@@ -2,7 +2,6 @@ from flask import Blueprint, request
 from app.database.models.invoice import Invoice
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
-from app.utils.cache import cache
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
@@ -24,9 +23,8 @@ def create_invoice():
 
     try:
         invoice_id = Invoice.create(data)
-        invoice = Invoice.get_by_id(invoice_id)
-        cache.delete_memoized(get_invoices)
-        return success_response(invoice, message="Invoice created successfully", status=201)
+        invoice = Invoice.find_by_id(invoice_id)
+        return success_response(invoice.to_dict(), message="Invoice created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_invoice"], 
@@ -34,11 +32,11 @@ def create_invoice():
                               status=500)
 
 @invoices_blueprint.route('/invoices', methods=['GET'])
-@cache.cached()
 def get_invoices():
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        invoices = Invoice.get_all()
-        return success_response(invoices)
+        invoices = Invoice.find_all(include_deleted=include_deleted)
+        return success_response([i.to_dict() for i in invoices])
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_invoice"], 
@@ -46,12 +44,12 @@ def get_invoices():
                               status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['GET'])
-@cache.cached()
 def get_invoice(invoice_id):
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        invoice = Invoice.get_by_id(invoice_id)
+        invoice = Invoice.find_by_id(invoice_id, include_deleted=include_deleted)
         if invoice:
-            return success_response(invoice)
+            return success_response(invoice.to_dict())
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["invoice"], 
                               status=404)
@@ -70,16 +68,14 @@ def update_invoice(invoice_id):
                               status=400)
 
     try:
-        if not Invoice.get_by_id(invoice_id):
+        if not Invoice.find_by_id(invoice_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["invoice"], 
                                   status=404)
 
         Invoice.update(invoice_id, data)
-        cache.delete_memoized(get_invoice, invoice_id)
-        cache.delete_memoized(get_invoices)
-        updated_invoice = Invoice.get_by_id(invoice_id)
-        return success_response(updated_invoice, message="Invoice updated successfully")
+        updated_invoice = Invoice.find_by_id(invoice_id)
+        return success_response(updated_invoice.to_dict(), message="Invoice updated successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_invoice"], 
@@ -89,15 +85,13 @@ def update_invoice(invoice_id):
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['DELETE'])
 def delete_invoice(invoice_id):
     try:
-        if not Invoice.get_by_id(invoice_id):
+        if not Invoice.find_by_id(invoice_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["invoice"], 
                                   status=404)
 
-        Invoice.delete(invoice_id)
-        cache.delete_memoized(get_invoice, invoice_id)
-        cache.delete_memoized(get_invoices)
-        return success_response(message="Invoice deleted successfully")
+        Invoice.soft_delete(invoice_id)
+        return success_response(message="Invoice soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_invoice"], 

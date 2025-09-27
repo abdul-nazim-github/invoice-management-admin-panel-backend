@@ -1,94 +1,38 @@
-"""
-This module defines the Invoice class, which encapsulates the logic for 
-interacting with the invoices table in the database.
-"""
+from .base_model import BaseModel
+from datetime import date
 
-from ..db_manager import DBManager
+class Invoice(BaseModel):
+    _table_name = 'invoices'
 
-class Invoice:
-    """
-    Represents an invoice in the system.
-    This class contains static methods to perform CRUD operations on the invoices table.
-    """
+    def __init__(self, id, invoice_number, customer_id, user_id, invoice_date, total_amount, status, due_date=None, **kwargs):
+        self.id = id
+        self.invoice_number = invoice_number
+        self.customer_id = customer_id
+        self.user_id = user_id
+        self.invoice_date = invoice_date
+        self.due_date = due_date
+        self.total_amount = total_amount
+        self.status = status
+        # Absorb any extra columns
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
-    @staticmethod
-    def create(data):
-        """
-        Creates a new invoice in the database.
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'invoice_number': self.invoice_number,
+            'customer_id': self.customer_id,
+            'user_id': self.user_id,
+            'invoice_date': self.invoice_date.isoformat() if isinstance(self.invoice_date, date) else self.invoice_date,
+            'due_date': self.due_date.isoformat() if isinstance(self.due_date, date) else self.due_date,
+            'total_amount': float(self.total_amount), # Cast DECIMAL to float
+            'status': self.status
+        }
 
-        Args:
-            data (dict): A dictionary containing the invoice's information.
+    @classmethod
+    def from_row(cls, row):
+        if not row:
+            return None
+        return cls(**row)
 
-        Returns:
-            dict: A dictionary representing the newly created invoice.
-        """
-        query = '''
-        INSERT INTO invoices (customer_id, invoice_date, total_amount, status)
-        VALUES (%s, %s, %s, %s)
-        '''
-        params = (data['customer_id'], data['invoice_date'], data['total_amount'], data['status'])
-        invoice_id = DBManager.execute_write_query(query, params)
-        new_invoice = data.copy()
-        new_invoice['id'] = invoice_id
-        return new_invoice
-
-    @staticmethod
-    def get_all():
-        """
-        Retrieves all invoices from the database.
-
-        Returns:
-            list: A list of dictionaries, where each dictionary represents an invoice.
-        """
-        query = 'SELECT * FROM invoices'
-        return DBManager.execute_query(query, fetch='all')
-
-    @staticmethod
-    def get_by_id(invoice_id):
-        """
-        Retrieves a single invoice from the database by its ID.
-
-        Args:
-            invoice_id (int): The ID of the invoice to retrieve.
-
-        Returns:
-            dict: A dictionary representing the invoice, or None if the invoice is not found.
-        """
-        query = 'SELECT * FROM invoices WHERE id = %s'
-        return DBManager.execute_query(query, (invoice_id,), fetch='one')
-
-    @staticmethod
-    def update(invoice_id, data):
-        """
-        Updates an existing invoice in the database.
-
-        Args:
-            invoice_id (int): The ID of the invoice to update.
-            data (dict): A dictionary containing the invoice's new information.
-
-        Returns:
-            dict: A dictionary representing the updated invoice, or None if the invoice is not found.
-        """
-        query = '''
-        UPDATE invoices 
-        SET customer_id = %s, invoice_date = %s, total_amount = %s, status = %s 
-        WHERE id = %s
-        '''
-        params = (data['customer_id'], data['invoice_date'], data['total_amount'], data['status'], invoice_id)
-        DBManager.execute_write_query(query, params)
-        return Invoice.get_by_id(invoice_id)
-
-    @staticmethod
-    def delete(invoice_id):
-        """
-        Deletes an invoice from the database.
-
-        Args:
-            invoice_id (int): The ID of the invoice to delete.
-
-        Returns:
-            dict: A message confirming the deletion.
-        """
-        query = 'DELETE FROM invoices WHERE id = %s'
-        DBManager.execute_write_query(query, (invoice_id,))
-        return {'message': 'Invoice deleted successfully'}
+    # create, update, find_all, find_by_id, and soft_delete are inherited from BaseModel

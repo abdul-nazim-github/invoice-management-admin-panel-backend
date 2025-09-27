@@ -1,30 +1,25 @@
-"""
-This module defines the User class, which encapsulates the logic for 
-interacting with the users table in the database.
-"""
-
 from werkzeug.security import generate_password_hash, check_password_hash
-from .base import get_db_connection
+from .base_model import BaseModel
+from app.database.db_manager import DBManager
 
-class User:
-    """
-    Represents a user in the system.
-    This class is now a proper object model with instance methods.
-    """
-    def __init__(self, id, username, email, password_hash, role='staff', name=None):
+class User(BaseModel):
+    _table_name = 'users'
+
+    def __init__(self, id, username, email, password_hash, role='staff', name=None, **kwargs):
         self.id = id
         self.username = username
         self.email = email
         self.password_hash = password_hash
         self.role = role
         self.name = name
+        # Absorb any extra columns that might be in the database row
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def check_password(self, password):
-        """Checks if the provided password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        """Converts the User object to a dictionary."""
         return {
             'id': self.id,
             'username': self.username,
@@ -35,60 +30,35 @@ class User:
 
     @classmethod
     def from_row(cls, row):
-        """Creates a User object from a database row."""
         if not row:
             return None
-        # Assuming row order is: id, username, email, password_hash, name, role
-        return cls(id=row[0], username=row[1], email=row[2], password_hash=row[3], name=row[4], role=row[5])
+        # Unpack the row dictionary into the constructor
+        return cls(**row)
 
-    @staticmethod
-    def create(data):
-        """
-        Creates a new user in the database with a hashed password.
-        """
-        conn = get_db_connection()
+    @classmethod
+    def create(cls, data):
         hashed_password = generate_password_hash(data['password'])
-        role = data.get('role', 'staff')  # Default to 'staff' if no role is provided
+        role = data.get('role', 'staff')
         name = data.get('name')
+        username = data['username']
+        email = data['email']
 
-        with conn.cursor() as cursor:
-            cursor.execute(
-                'INSERT INTO users (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)',
-                (data['username'], data['email'], hashed_password, name, role)
-            )
-            conn.commit()
-            user_id = cursor.lastrowid
-            return User.get_by_id(user_id)
-
-
-    @classmethod
-    def find_by_email(cls, email):
-        """
-        Retrieves a single user from the database by their email.
-        """
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id, username, email, password_hash, name, role FROM users WHERE email = %s", (email,))
-            row = cursor.fetchone()
-            return cls.from_row(row)
-
-    @classmethod
-    def get_by_id(cls, user_id):
-        """
-        Retrieodes a single user by their ID.
-        """
-        conn = get_db_connection()
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT id, username, email, password_hash, name, role FROM users WHERE id = %s", (user_id,))
-            row = cursor.fetchone()
-            return cls.from_row(row)
+        query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)'
+        user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role))
         
-    @staticmethod
-    def get_all():
-        """
-        Retrieves all users from the database.
-        """
-        conn = get_db_connection()
-        with conn.cursor(dictionary=True) as cursor:
-            cursor.execute('SELECT id, username, email, name, role FROM users')
-            return cursor.fetchall()
+        # After creating, fetch the full user object
+        return cls.find_by_id(user_id)
+
+    @classmethod
+    def find_by_email(cls, email, include_deleted=False):
+        base_query = cls._get_base_query(include_deleted)
+        query = f'{base_query} {'AND' if not include_deleted else 'WHERE'} email = %s'
+        result = DBManager.execute_query(query, (email,), fetch='one')
+        return cls.from_row(result)
+
+    @classmethod
+    def find_by_username(cls, username, include_deleted=False):
+        base_query = cls._get_base_query(include_deleted)
+        query = f'{base_query} {'AND' if not include_deleted else 'WHERE'} username = %s'
+        result = DBManager.execute_query(query, (username,), fetch='one')
+        return cls.from_row(result)

@@ -2,7 +2,6 @@ from flask import Blueprint, request
 from app.database.models.payment import Payment
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
-from app.utils.cache import cache
 
 payments_blueprint = Blueprint('payments', __name__)
 
@@ -14,7 +13,7 @@ def create_payment():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    required_fields = ['invoice_id', 'payment_date', 'amount', 'payment_method', 'status']
+    required_fields = ['invoice_id', 'payment_date', 'amount', 'method']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return error_response('validation_error', 
@@ -24,9 +23,8 @@ def create_payment():
 
     try:
         payment_id = Payment.create(data)
-        payment = Payment.get_by_id(payment_id)
-        cache.delete_memoized(get_payments)
-        return success_response(payment, message="Payment created successfully", status=201)
+        payment = Payment.find_by_id(payment_id)
+        return success_response(payment.to_dict(), message="Payment created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_payment"], 
@@ -34,11 +32,11 @@ def create_payment():
                               status=500)
 
 @payments_blueprint.route('/payments', methods=['GET'])
-@cache.cached()
 def get_payments():
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        payments = Payment.get_all()
-        return success_response(payments)
+        payments = Payment.find_all(include_deleted=include_deleted)
+        return success_response([p.to_dict() for p in payments])
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_payment"], 
@@ -46,12 +44,12 @@ def get_payments():
                               status=500)
 
 @payments_blueprint.route('/payments/<int:payment_id>', methods=['GET'])
-@cache.cached()
 def get_payment(payment_id):
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        payment = Payment.get_by_id(payment_id)
+        payment = Payment.find_by_id(payment_id, include_deleted=include_deleted)
         if payment:
-            return success_response(payment)
+            return success_response(payment.to_dict())
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["payment"], 
                               status=404)
@@ -70,16 +68,14 @@ def update_payment(payment_id):
                               status=400)
 
     try:
-        if not Payment.get_by_id(payment_id):
+        if not Payment.find_by_id(payment_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["payment"], 
                                   status=404)
 
         Payment.update(payment_id, data)
-        cache.delete_memoized(get_payment, payment_id)
-        cache.delete_memoized(get_payments)
-        updated_payment = Payment.get_by_id(payment_id)
-        return success_response(updated_payment, message="Payment updated successfully")
+        updated_payment = Payment.find_by_id(payment_id)
+        return success_response(updated_payment.to_dict(), message="Payment updated successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_payment"], 
@@ -89,15 +85,13 @@ def update_payment(payment_id):
 @payments_blueprint.route('/payments/<int:payment_id>', methods=['DELETE'])
 def delete_payment(payment_id):
     try:
-        if not Payment.get_by_id(payment_id):
+        if not Payment.find_by_id(payment_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["payment"], 
                                   status=404)
 
-        Payment.delete(payment_id)
-        cache.delete_memoized(get_payment, payment_id)
-        cache.delete_memoized(get_payments)
-        return success_response(message="Payment deleted successfully")
+        Payment.soft_delete(payment_id)
+        return success_response(message="Payment soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_payment"], 

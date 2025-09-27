@@ -2,7 +2,6 @@ from flask import Blueprint, request
 from app.database.models.product import Product
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
-from app.utils.cache import cache
 
 products_blueprint = Blueprint('products', __name__)
 
@@ -24,9 +23,8 @@ def create_product():
 
     try:
         product_id = Product.create(data)
-        product = Product.get_by_id(product_id)
-        cache.delete_memoized(get_products)
-        return success_response(product, message="Product created successfully", status=201)
+        product = Product.find_by_id(product_id)
+        return success_response(product.to_dict(), message="Product created successfully", status=201)
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_product"], 
@@ -34,11 +32,11 @@ def create_product():
                               status=500)
 
 @products_blueprint.route('/products', methods=['GET'])
-@cache.cached()
 def get_products():
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        products = Product.get_all()
-        return success_response(products)
+        products = Product.find_all(include_deleted=include_deleted)
+        return success_response([p.to_dict() for p in products])
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_product"], 
@@ -46,12 +44,12 @@ def get_products():
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['GET'])
-@cache.cached()
 def get_product(product_id):
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        product = Product.get_by_id(product_id)
+        product = Product.find_by_id(product_id, include_deleted=include_deleted)
         if product:
-            return success_response(product)
+            return success_response(product.to_dict())
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["product"], 
                               status=404)
@@ -70,16 +68,14 @@ def update_product(product_id):
                               status=400)
 
     try:
-        if not Product.get_by_id(product_id):
+        if not Product.find_by_id(product_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
         Product.update(product_id, data)
-        cache.delete_memoized(get_product, product_id)
-        cache.delete_memoized(get_products)
-        updated_product = Product.get_by_id(product_id)
-        return success_response(updated_product, message="Product updated successfully")
+        updated_product = Product.find_by_id(product_id)
+        return success_response(updated_product.to_dict(), message="Product updated successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_product"], 
@@ -89,15 +85,13 @@ def update_product(product_id):
 @products_blueprint.route('/products/<int:product_id>', methods=['DELETE'])
 def delete_product(product_id):
     try:
-        if not Product.get_by_id(product_id):
+        if not Product.find_by_id(product_id):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
-        Product.delete(product_id)
-        cache.delete_memoized(get_product, product_id)
-        cache.delete_memoized(get_products)
-        return success_response(message="Product deleted successfully")
+        Product.soft_delete(product_id)
+        return success_response(message="Product soft-deleted successfully")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_product"], 
