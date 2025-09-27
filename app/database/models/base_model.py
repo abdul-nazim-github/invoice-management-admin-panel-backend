@@ -7,7 +7,7 @@ class BaseModel:
     def _get_base_query(cls, include_deleted=False):
         if include_deleted:
             return f'SELECT * FROM {cls._table_name}'
-        return f'SELECT * FROM {cls._table_name} WHERE is_deleted = FALSE'
+        return f'SELECT * FROM {cls._table_name} WHERE deleted_at IS NULL'
 
     @classmethod
     def find_all(cls, include_deleted=False):
@@ -33,7 +33,7 @@ class BaseModel:
 
     @classmethod
     def soft_delete(cls, id):
-        query = f'UPDATE {cls._table_name} SET is_deleted = TRUE, deleted_at = NOW() WHERE id = %s'
+        query = f'UPDATE {cls._table_name} SET deleted_at = NOW() WHERE id = %s'
         DBManager.execute_write_query(query, (id,))
 
     @classmethod
@@ -48,6 +48,6 @@ class BaseModel:
     def count(cls, include_deleted=False):
         query = f'SELECT COUNT(*) as count FROM {cls._table_name}'
         if not include_deleted:
-            query += ' WHERE is_deleted = FALSE'
+            query += ' WHERE deleted_at IS NULL'
         result = DBManager.execute_query(query, fetch='one')
         return result['count']
