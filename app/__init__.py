@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_jwt_extended import JWTManager
 
@@ -13,11 +14,10 @@ def create_app():
     app = Flask(__name__)
 
     # --- Configuration ---
-    # For JWT, a secret key is required. This should be in your instance config.
-    # For demonstration, we'll set a simple one here.
-    # IMPORTANT: Change this in a real application!
-    app.config["JWT_SECRET_KEY"] = "super-secret-key-change-me"
-    app.config["SECRET_KEY"] = "another-super-secret-key-change-me"
+    # Load the secret key from environment variables for better security
+    # Fallback to a default, insecure key for development if not set
+    app.config["JWT_SECRET_KEY"] = os.environ.get('JWT_SECRET_KEY', 'default-super-secret-key')
+    app.config["SECRET_KEY"] = os.environ.get('SECRET_KEY', 'default-another-super-secret-key')
     
     # Initialize extensions
     jwt = JWTManager(app)
