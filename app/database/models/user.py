@@ -47,8 +47,10 @@ class User(BaseModel):
         query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)'
         user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role))
         
-        # After creating, fetch the full user object
-        return cls.find_by_id(user_id)
+        # After creating, fetch the user data as a dict
+        user_data = cls.find_by_id(user_id)
+        # Convert the dict to a User object instance before returning
+        return cls.from_row(user_data)
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):

@@ -14,13 +14,20 @@ class BaseModel:
     @classmethod
     def find_all(cls, include_deleted=False):
         query = cls._get_base_query(include_deleted)
-        return DBManager.execute_query(query, fetch='all')
+        results = DBManager.execute_query(query, fetch='all')
+        # Use from_row to convert each dictionary in the result list to a model instance
+        return [cls.from_row(row) for row in results if row]
 
     @classmethod
     def find_by_id(cls, _id, include_deleted=False):
-        query = cls._get_base_query(include_deleted)
-        query += f' AND id = %s' if not include_deleted else ' WHERE id = %s'
-        return DBManager.execute_query(query, (_id,), fetch='one')
+        base_query = cls._get_base_query(include_deleted)
+        # Use "AND" if the base query already has a "WHERE" clause (i.e., when not including deleted)
+        # and "WHERE" if it doesn't.
+        clause = "AND" if not include_deleted else "WHERE"
+        query = f'{base_query} {clause} id = %s'
+        result = DBManager.execute_query(query, (_id,), fetch='one')
+        # Use from_row to convert the dictionary result to a model instance
+        return cls.from_row(result)
 
     @classmethod
     def soft_delete(cls, _id):
