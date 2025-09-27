@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required
 from app.database.models.user import User
 from app.utils.auth import require_admin
+from app.utils.error_messages import ERROR_MESSAGES
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -25,7 +26,10 @@ def login():
         access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
         return jsonify(access_token=access_token), 200
     
-    return jsonify({"message": "Invalid credentials"}), 401
+    return jsonify({
+        "message": ERROR_MESSAGES["auth"]["login_failed"],
+        "error": "invalid_credentials"
+    }), 401
 
 @auth_blueprint.route('/register', methods=['POST'])
 @jwt_required()

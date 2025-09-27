@@ -36,5 +36,6 @@ ERROR_MESSAGES = {
         "invalid_token": "Invalid or expired token. Please log in again.",
         "missing_token": "Missing authorization token. Please provide a valid token.",
         "unauthorized": "Unauthorized access. You do not have permission to perform this action.",
+        "login_failed": "Authorization failed: Invalid credentials provided."
     }
 }
