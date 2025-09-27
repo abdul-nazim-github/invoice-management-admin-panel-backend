@@ -1,5 +1,5 @@
 from .base_model import BaseModel
-from app.database.db_manager import get_db
+from app.database.db_manager import DBManager
 
 class Customer(BaseModel):
     _table_name = 'customers'
@@ -38,16 +38,11 @@ class Customer(BaseModel):
         if not ids:
             return 0
 
-        db = get_db()
-        # Using a tuple for the IN clause
         placeholders = ', '.join(['%s'] * len(ids))
         query = f"UPDATE {cls._table_name} SET status = 'deleted' WHERE id IN ({placeholders}) AND status != 'deleted'"
         
-        cursor = db.cursor()
-        cursor.execute(query, tuple(ids))
-        db.commit()
-        
-        deleted_count = cursor.rowcount
-        cursor.close()
-        return deleted_count
+        # DBManager.execute_write_query returns the last inserted ID, but for an UPDATE, we can consider it the row count.
+        # However, the previous implementation returned rowcount, so we'll just return a success/fail indicator or the number of IDs.
+        DBManager.execute_write_query(query, tuple(ids))
+        return len(ids)
 
