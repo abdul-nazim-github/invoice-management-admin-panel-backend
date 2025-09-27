@@ -44,6 +44,6 @@ def register():
 
     try:
         user = User.create(data)
-        return jsonify(user), 201
+        return jsonify(user.to_dict()), 201
     except Exception as e:
         return jsonify({"message": "Could not create user", "error": str(e)}), 500
