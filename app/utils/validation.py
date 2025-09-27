@@ -166,22 +166,30 @@ def validate_invoice_data(data, is_update=False):
                     errors.append(f"Validation failed for item at index {i}: {', '.join(item_errors)}")
     return errors
 
-def validate_payment_data(data):
-    """Validates payment data for the record_payment endpoint."""
+def validate_payment_data(data, is_update=False):
+    """Validates payment data for create and update operations."""
     errors = []
-    required_fields = ['payment_date', 'amount', 'method']
-    missing_fields = [field for field in required_fields if field not in data or not data[field]]
-    if missing_fields:
-        errors.append(f"Missing required fields: {', '.join(missing_fields)}")
-        return errors
+    
+    if not is_update:
+        required_fields = ['invoice_id', 'amount', 'payment_date', 'method']
+        missing_fields = [field for field in required_fields if field not in data or not data[field]]
+        if missing_fields:
+            errors.append(f"Missing required fields: {', '.join(missing_fields)}")
+            return errors
 
-    if not is_valid_date(data['payment_date']):
-        errors.append("Invalid payment_date format. Use YYYY-MM-DD.")
+    if 'invoice_id' in data and (not isinstance(data['invoice_id'], int) or data['invoice_id'] <= 0):
+        errors.append("invoice_id must be a positive integer.")
 
-    if not is_valid_price(data['amount']):
+    if 'amount' in data and not is_valid_price(data['amount']):
         errors.append("Invalid amount. Must be a positive number.")
 
-    if not isinstance(data['method'], str) or len(data['method']) < 3:
+    if 'payment_date' in data and not is_valid_date(data['payment_date']):
+        errors.append("Invalid payment_date format. Use YYYY-MM-DD.")
+
+    if 'method' in data and (not isinstance(data['method'], str) or len(data['method']) < 3):
         errors.append("Invalid payment method. Must be a string of at least 3 characters.")
+
+    if 'reference_no' in data and (not isinstance(data['reference_no'], str) or len(data['reference_no']) < 5):
+        errors.append("Invalid reference number. Must be a string of at least 5 characters.")
 
     return errors

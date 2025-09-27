@@ -1,5 +1,5 @@
 from .base_model import BaseModel
-from datetime import date
+from app.database.db_manager import DBManager
 
 class Payment(BaseModel):
     _table_name = 'payments'
@@ -19,8 +19,8 @@ class Payment(BaseModel):
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
-            'amount': float(self.amount), # Cast DECIMAL to float
-            'payment_date': self.payment_date.isoformat() if isinstance(self.payment_date, date) else self.payment_date,
+            'amount': str(self.amount),
+            'payment_date': self.payment_date.isoformat(),
             'method': self.method,
             'reference_no': self.reference_no
         }
@@ -31,4 +31,9 @@ class Payment(BaseModel):
             return None
         return cls(**row)
 
-    # create, update, find_all, find_by_id, and soft_delete are inherited from BaseModel
+    @classmethod
+    def search(cls, search_term, include_deleted=False):
+        """Searches for payments by reference_no or method."""
+        search_fields = ['reference_no', 'method']
+        return super().search(search_term, search_fields, include_deleted)
+

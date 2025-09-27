@@ -20,7 +20,7 @@ def search_customers():
 
     try:
         customers = Customer.search(search_term, include_deleted=include_deleted)
-        return success_response([c.to_dict() for c in customers])
+        return success_response([c.to_dict() for c in customers], message="Customers matching the search term retrieved successfully.")
     except Exception as e:
         return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
 
@@ -53,7 +53,7 @@ def create_customer():
         if customer_id:
             customer = Customer.find_by_id(customer_id)
             if customer:
-                return success_response(customer.to_dict(), message="Customer created successfully", status=201)
+                return success_response(customer.to_dict(), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
@@ -78,7 +78,7 @@ def get_customers():
             'total': total,
             'page': page,
             'per_page': per_page
-        })
+        }, message="Customers retrieved successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
@@ -92,7 +92,7 @@ def get_customer(customer_id):
     try:
         customer = Customer.find_by_id(customer_id, include_deleted=include_deleted)
         if customer:
-            return success_response(customer.to_dict())
+            return success_response(customer.to_dict(), message="Customer retrieved successfully.")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
@@ -127,7 +127,7 @@ def update_customer(customer_id):
                                   status=404)
 
         updated_customer = Customer.find_by_id(customer_id)
-        return success_response(updated_customer.to_dict(), message="Customer updated successfully")
+        return success_response(updated_customer.to_dict(), message="Customer updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 

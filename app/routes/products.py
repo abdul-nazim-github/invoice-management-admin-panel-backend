@@ -20,7 +20,7 @@ def search_products():
 
     try:
         products = Product.search(search_term, include_deleted=include_deleted)
-        return success_response([p.to_dict() for p in products])
+        return success_response([p.to_dict() for p in products], message="Products matching the search term retrieved successfully.")
     except Exception as e:
         return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
 
@@ -47,7 +47,7 @@ def create_product():
         if product_id:
             product = Product.find_by_id(product_id)
             if product:
-                return success_response(product.to_dict(), message="Product created successfully", status=201)
+                return success_response(product.to_dict(), message="Product created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_product"], 
                               status=500)
@@ -69,7 +69,7 @@ def get_products():
             'total': total,
             'page': page,
             'per_page': per_page
-        })
+        }, message="Products retrieved successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_product"], 
@@ -83,7 +83,7 @@ def get_product(product_id):
     try:
         product = Product.find_by_id(product_id, include_deleted=include_deleted)
         if product:
-            return success_response(product.to_dict())
+            return success_response(product.to_dict(), message="Product retrieved successfully.")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["product"], 
                               status=404)
@@ -117,7 +117,7 @@ def update_product(product_id):
                                   status=404)
 
         updated_product = Product.find_by_id(product_id)
-        return success_response(updated_product.to_dict(), message="Product updated successfully")
+        return success_response(updated_product.to_dict(), message="Product updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_product"], 
@@ -134,7 +134,7 @@ def delete_product(product_id):
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
-        return success_response(message="Product soft-deleted successfully")
+        return success_response(message="Product soft-deleted successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_product"], 

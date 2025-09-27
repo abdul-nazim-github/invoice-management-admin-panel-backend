@@ -6,7 +6,7 @@ from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
-from app.utils.validation import validate_invoice_data, validate_payment_data
+from app.utils.validation import validate_invoice_data
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
@@ -21,7 +21,7 @@ def search_invoices():
 
     try:
         invoices = Invoice.search(search_term, include_deleted=include_deleted)
-        return success_response([i.to_dict() for i in invoices])
+        return success_response([i.to_dict() for i in invoices], message="Invoices matching the search term retrieved successfully.")
     except Exception as e:
         return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
 
@@ -65,7 +65,7 @@ def create_invoice():
 
         new_invoice = Invoice.find_by_id(invoice_id)
         if new_invoice:
-            return success_response(new_invoice.to_dict(), message="Invoice created successfully", status=201)
+            return success_response(new_invoice.to_dict(), message="Invoice created successfully.", status=201)
         else:
             return error_response('not_found', message="Newly created invoice could not be found.", status=404)
             
@@ -84,7 +84,7 @@ def get_invoices():
             'total': total,
             'page': page,
             'per_page': per_page
-        })
+        }, message="Invoices retrieved successfully.")
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
 
@@ -95,7 +95,7 @@ def get_invoice(invoice_id):
     try:
         invoice = Invoice.find_by_id(invoice_id, include_deleted=include_deleted)
         if invoice:
-            return success_response(invoice.to_dict())
+            return success_response(invoice.to_dict(), message="Invoice retrieved successfully.")
         return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
@@ -117,7 +117,7 @@ def update_invoice(invoice_id):
             return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
 
         updated_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(updated_invoice.to_dict(), message="Invoice updated successfully")
+        return success_response(updated_invoice.to_dict(), message="Invoice updated successfully.")
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["update_invoice"], details=str(e), status=500)
 
@@ -140,35 +140,3 @@ def bulk_delete_invoices():
         return error_response('not_found', message="No matching invoices found for the provided IDs.", status=404)
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["delete_invoice"], details=str(e), status=500)
-
-@invoices_blueprint.route('/invoices/<int:invoice_id>/pay', methods=['POST'])
-@jwt_required()
-@require_admin
-def record_payment(invoice_id):
-    data = request.get_json()
-    if not data:
-        return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
-
-    validation_errors = validate_payment_data(data)
-    if validation_errors:
-        return error_response('validation_error', message="The provided payment data is invalid.", details=validation_errors, status=400)
-
-    try:
-        invoice = Invoice.find_by_id(invoice_id)
-        if not invoice:
-            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
-
-        payment_data = {
-            'invoice_id': invoice_id,
-            'payment_date': data['payment_date'],
-            'amount': data['amount'],
-            'method': data['method']
-        }
-
-        payment_id = Invoice.record_payment(payment_data)
-
-        if payment_id:
-            return success_response({'payment_id': payment_id}, message="Payment recorded successfully", status=201)
-        return error_response('server_error', message="Failed to record payment.", status=500)
-    except Exception as e:
-        return error_response('server_error', message="An error occurred while recording the payment.", details=str(e), status=500)
