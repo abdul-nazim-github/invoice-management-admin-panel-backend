@@ -26,11 +26,11 @@ curl -X GET $BASE_URL/health
 # -----------------
 # Auth Endpoints
 # -----------------
-echo "\n### Login as Admin (to get Admin Token) ###"
+echo "\n### Sign In as Admin (to get Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -d '{
   "email": "admin@example.com",
   "password": "adminpassword"
-}' $BASE_URL/auth/login
+}' $BASE_URL/auth/sign-in
 
 
 echo "\n### Register a New User (Requires Admin Token) ###"
@@ -42,11 +42,15 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 }' $BASE_URL/auth/register
 
 
-echo "\n### Login as Standard User (to get User Token) ###"
+echo "\n### Sign In as Standard User (to get User Token) ###"
 curl -X POST -H "Content-Type: application/json" -d '{
   "email": "test@example.com",
   "password": "password123"
-}' $BASE_URL/auth/login
+}' $BASE_URL/auth/sign-in
+
+
+echo "\n### Sign Out (Requires Any Valid Token) ###"
+curl -X POST -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" $BASE_URL/auth/sign-out
 
 
 # -----------------

@@ -7,8 +7,8 @@ from app.utils.response import error_response
 
 auth_blueprint = Blueprint('auth', __name__)
 
-@auth_blueprint.route('/login', methods=['POST'])
-def login():
+@auth_blueprint.route('/sign-in', methods=['POST'])
+def sign_in():
     """
     Authenticates a user and returns a JWT access token.
     """
@@ -31,6 +31,18 @@ def login():
         return jsonify(access_token=access_token), 200
     
     return error_response(type='invalid_credentials', message=ERROR_MESSAGES["auth"]["invalid_credentials"], status=401)
+
+@auth_blueprint.route('/sign-out', methods=['POST'])
+@jwt_required()
+def sign_out():
+    """
+    Signs out the user. In a stateless JWT implementation, this endpoint
+    is primarily for the client to have a formal sign-out process.
+    For a true invalidation, a token blocklist would be required.
+    """
+    # The client is responsible for deleting the token.
+    return jsonify(message="Successfully signed out."), 200
+
 
 @auth_blueprint.route('/register', methods=['POST'])
 @jwt_required()
