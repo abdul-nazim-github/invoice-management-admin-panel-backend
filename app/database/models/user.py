@@ -42,23 +42,23 @@ class User:
         return cls(id=row[0], username=row[1], email=row[2], password_hash=row[3], name=row[4], role=row[5])
 
     @staticmethod
-def create(data):
-    """
-    Creates a new user in the database with a hashed password.
-    """
-    conn = get_db_connection()
-    hashed_password = generate_password_hash(data['password'])
-    role = data.get('role', 'staff')  # Default to 'staff' if no role is provided
-    name = data.get('name')
+    def create(data):
+        """
+        Creates a new user in the database with a hashed password.
+        """
+        conn = get_db_connection()
+        hashed_password = generate_password_hash(data['password'])
+        role = data.get('role', 'staff')  # Default to 'staff' if no role is provided
+        name = data.get('name')
 
-    with conn.cursor() as cursor:
-        cursor.execute(
-            'INSERT INTO users (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)',
-            (data['username'], data['email'], hashed_password, name, role)
-        )
-        conn.commit()
-        user_id = cursor.lastrowid
-        return User.get_by_id(user_id)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO users (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)',
+                (data['username'], data['email'], hashed_password, name, role)
+            )
+            conn.commit()
+            user_id = cursor.lastrowid
+            return User.get_by_id(user_id)
 
 
     @classmethod
