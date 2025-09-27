@@ -5,6 +5,9 @@ from app.database.models.user import User
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.response import error_response
 
+# Import the token blocklist
+from app.database.token_blocklist import BLOCKLIST
+
 # Import blueprints from their correct locations
 from .routes.auth import auth_blueprint
 from .routes.users import users_blueprint
@@ -21,34 +24,38 @@ def create_app():
     
     jwt = JWTManager(app)
 
-    # --- JWT Custom Error Handlers ---
-    # By defining handlers and registering them explicitly, we eliminate false "unused function" 
-    # warnings from linters while ensuring the correct handler is tied to the correct event.
+    # --- JWT Blocklist Configuration ---
+    # This callback checks if a token has been revoked (logged out).
+    @jwt.token_in_blocklist_loader
+    def check_if_token_in_blocklist(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        return jti in BLOCKLIST
 
+    # This callback defines the response for a revoked token.
+    @jwt.revoked_token_loader
+    def revoked_token_callback(jwt_header, jwt_payload):
+        return error_response(type='token_revoked', message="Token has been revoked. Please sign in again.", status=401)
+
+
+    # --- JWT Custom Error Handlers ---
     def handle_invalid_token(error):
-        """Handles cases where the token is invalid (e.g., malformed)."""
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
     def handle_missing_token(error):
-        """Handles requests that are missing an authorization token."""
         return error_response(type='missing_token', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
 
     def handle_expired_token(jwt_header, jwt_payload):
-        """Handles expired tokens."""
         return error_response(type='token_expired', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
     def handle_user_lookup_error(jwt_header, jwt_data):
-        """Handles cases where the user from the token cannot be found in the database."""
         return error_response(type='invalid_token', message=ERROR_MESSAGES["auth"]["invalid_token"], status=401)
 
-    # Registering the handlers with the JWTManager instance
     jwt.invalid_token_loader(handle_invalid_token)
     jwt.unauthorized_loader(handle_missing_token)
     jwt.expired_token_loader(handle_expired_token)
     jwt.user_lookup_error_loader(handle_user_lookup_error)
 
     # --- JWT User Claims ---
-    # The user_lookup_loader can still use the decorator syntax without issue.
     @jwt.user_lookup_loader
     def user_lookup_callback(_jwt_header, jwt_data):
         identity = jwt_data["sub"]

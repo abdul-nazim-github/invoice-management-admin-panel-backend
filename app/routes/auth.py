@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt
 from app.database.models.user import User
+from app.database.token_blocklist import BLOCKLIST
 from app.utils.auth import require_admin
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.response import error_response
@@ -36,11 +37,10 @@ def sign_in():
 @jwt_required()
 def sign_out():
     """
-    Signs out the user. In a stateless JWT implementation, this endpoint
-    is primarily for the client to have a formal sign-out process.
-    For a true invalidation, a token blocklist would be required.
+    Signs out the user by adding the token's JTI to the blocklist.
     """
-    # The client is responsible for deleting the token.
+    jti = get_jwt()["jti"]
+    BLOCKLIST.add(jti)
     return jsonify(message="Successfully signed out."), 200
 
 
