@@ -63,6 +63,12 @@ class Invoice(BaseModel):
 
         return invoice
 
+    @classmethod
+    def search(cls, search_term, include_deleted=False):
+        """Searches for invoices by customer_id or status."""
+        search_fields = ['customer_id', 'status']
+        return super().search(search_term, search_fields, include_deleted)
+
     @staticmethod
     def add_item(invoice_id, product_id, quantity):
         product_query = "SELECT price FROM products WHERE id = %s"

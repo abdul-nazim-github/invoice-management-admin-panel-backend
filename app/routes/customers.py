@@ -5,8 +5,24 @@ from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
+from app.utils.validation import validate_customer_data
 
 customers_blueprint = Blueprint('customers', __name__)
+
+@customers_blueprint.route('/customers/search', methods=['GET'])
+@jwt_required()
+def search_customers():
+    search_term = request.args.get('q')
+    if not search_term:
+        return error_response('validation_error', message="Search term 'q' is required.", status=400)
+
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+
+    try:
+        customers = Customer.search(search_term, include_deleted=include_deleted)
+        return success_response([c.to_dict() for c in customers])
+    except Exception as e:
+        return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
 
 @customers_blueprint.route('/customers', methods=['POST'])
 @jwt_required()
@@ -18,12 +34,12 @@ def create_customer():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    required_fields = ['full_name', 'email', 'phone', 'address', 'gst_number']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
+    # Validate incoming data
+    validation_errors = validate_customer_data(data)
+    if validation_errors:
         return error_response('validation_error', 
-                              message=ERROR_MESSAGES["validation"]["missing_fields"],
-                              details=f"Missing: {', '.join(missing_fields)}",
+                              message="The provided data is invalid.",
+                              details=validation_errors,
                               status=400)
 
     try:
@@ -85,6 +101,14 @@ def update_customer(customer_id):
     if not data:
         return error_response('validation_error', 
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
+                              status=400)
+
+    # Validate incoming data
+    validation_errors = validate_customer_data(data, is_update=True)
+    if validation_errors:
+        return error_response('validation_error', 
+                              message="The provided data is invalid.",
+                              details=validation_errors,
                               status=400)
 
     try:

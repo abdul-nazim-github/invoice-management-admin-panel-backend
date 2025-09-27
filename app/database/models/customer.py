@@ -34,6 +34,12 @@ class Customer(BaseModel):
         return cls(**row)
 
     @classmethod
+    def search(cls, search_term, include_deleted=False):
+        """Searches for customers by full_name, email, or phone."""
+        search_fields = ['full_name', 'email', 'phone']
+        return super().search(search_term, search_fields, include_deleted)
+
+    @classmethod
     def bulk_soft_delete(cls, ids):
         if not ids:
             return 0
@@ -41,8 +47,6 @@ class Customer(BaseModel):
         placeholders = ', '.join(['%s'] * len(ids))
         query = f"UPDATE {cls._table_name} SET status = 'deleted' WHERE id IN ({placeholders}) AND status != 'deleted'"
         
-        # DBManager.execute_write_query returns the last inserted ID, but for an UPDATE, we can consider it the row count.
-        # However, the previous implementation returned rowcount, so we'll just return a success/fail indicator or the number of IDs.
         DBManager.execute_write_query(query, tuple(ids))
         return len(ids)
 

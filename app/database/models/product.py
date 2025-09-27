@@ -32,4 +32,9 @@ class Product(BaseModel):
             return None
         return cls(**row)
 
-    # create, update, find_all, find_by_id, and soft_delete are inherited from BaseModel
+    @classmethod
+    def search(cls, search_term, include_deleted=False):
+        """Searches for products by product_code or name."""
+        search_fields = ['product_code', 'name']
+        return super().search(search_term, search_fields, include_deleted)
+

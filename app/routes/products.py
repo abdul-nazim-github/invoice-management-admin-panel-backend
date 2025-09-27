@@ -5,8 +5,25 @@ from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
+from app.utils.validation import validate_product_data
 
 products_blueprint = Blueprint('products', __name__)
+
+@products_blueprint.route('/products/search', methods=['GET'])
+@jwt_required()
+def search_products():
+    search_term = request.args.get('q')
+    if not search_term:
+        return error_response('validation_error', message="Search term 'q' is required.", status=400)
+
+    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+
+    try:
+        products = Product.search(search_term, include_deleted=include_deleted)
+        return success_response([p.to_dict() for p in products])
+    except Exception as e:
+        return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
+
 
 @products_blueprint.route('/products', methods=['POST'])
 @jwt_required()
@@ -18,12 +35,11 @@ def create_product():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    required_fields = ['product_code', 'name', 'description', 'price', 'stock']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
+    validation_errors = validate_product_data(data)
+    if validation_errors:
         return error_response('validation_error', 
-                              message=ERROR_MESSAGES["validation"]["missing_fields"],
-                              details=f"Missing: {', '.join(missing_fields)}",
+                              message="The provided data is invalid.",
+                              details=validation_errors,
                               status=400)
 
     try:
@@ -85,6 +101,13 @@ def update_product(product_id):
     if not data:
         return error_response('validation_error', 
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
+                              status=400)
+
+    validation_errors = validate_product_data(data, is_update=True)
+    if validation_errors:
+        return error_response('validation_error', 
+                              message="The provided data is invalid.",
+                              details=validation_errors,
                               status=400)
 
     try:

@@ -1,3 +1,4 @@
+
 from app.database.db_manager import DBManager
 
 class BaseModel:
@@ -25,8 +26,6 @@ class BaseModel:
     @classmethod
     def find_by_id(cls, id, include_deleted=False):
         base_query = cls._get_base_query(include_deleted)
-        # Use "AND" if the base query already has a "WHERE" clause (i.e., when not including deleted)
-        # and "WHERE" if it doesn't.
         clause = "AND" if "WHERE" in base_query else "WHERE"
         query = f'{base_query} {clause} id = %s'
         result = DBManager.execute_query(query, (id,), fetch='one')
@@ -56,12 +55,10 @@ class BaseModel:
         offset = (page - 1) * per_page
         base_query = cls._get_base_query(include_deleted)
         
-        # Query for the data with pagination
         query_data = f'{base_query} LIMIT %s OFFSET %s'
         results = DBManager.execute_query(query_data, (per_page, offset), fetch='all')
         items = [cls.from_row(row) for row in results]
         
-        # Query for the total count
         query_count = f'SELECT COUNT(*) as count FROM {cls._table_name}'
         if not include_deleted:
             query_count += ' WHERE deleted_at IS NULL'
@@ -69,3 +66,17 @@ class BaseModel:
         total = count_result['count']
         
         return items, total
+
+    @classmethod
+    def search(cls, search_term, search_fields, include_deleted=False):
+        base_query = cls._get_base_query(include_deleted)
+        clause = "AND" if "WHERE" in base_query else "WHERE"
+
+        search_conditions = " OR ".join([f"{field} LIKE %s" for field in search_fields])
+        query = f"{base_query} {clause} ({search_conditions})"
+
+        search_pattern = f"%{search_term}%"
+        params = [search_pattern] * len(search_fields)
+
+        results = DBManager.execute_query(query, params, fetch='all')
+        return [cls.from_row(row) for row in results]
