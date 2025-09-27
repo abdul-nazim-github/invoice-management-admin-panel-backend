@@ -31,7 +31,7 @@ def create_app():
 
     @jwt.unauthorized_loader
     def missing_token_callback(error):
-        return error_response(type='authorization_required', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
+        return error_response(type='missing_token', message=ERROR_MESSAGES["auth"]["missing_token"], status=401)
 
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
