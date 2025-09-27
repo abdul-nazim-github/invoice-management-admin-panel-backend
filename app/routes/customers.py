@@ -2,10 +2,13 @@ from flask import Blueprint, request
 from app.database.models.customer import Customer
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.auth import require_admin
+from app.utils.pagination import get_pagination
 
 customers_blueprint = Blueprint('customers', __name__)
 
 @customers_blueprint.route('/customers', methods=['POST'])
+@require_admin
 def create_customer():
     data = request.get_json()
     if not data:
@@ -33,10 +36,17 @@ def create_customer():
 
 @customers_blueprint.route('/customers', methods=['GET'])
 def get_customers():
+    page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        customers = Customer.find_all(include_deleted=include_deleted)
-        return success_response([c.to_dict() for c in customers])
+        customers = Customer.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
+        total_customers = Customer.count(include_deleted=include_deleted)
+        return success_response({
+            'customers': [c.to_dict() for c in customers],
+            'total': total_customers,
+            'page': page,
+            'per_page': per_page
+        })
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
@@ -60,6 +70,7 @@ def get_customer(customer_id):
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['PUT'])
+@require_admin
 def update_customer(customer_id):
     data = request.get_json()
     if not data:
@@ -83,6 +94,7 @@ def update_customer(customer_id):
                               status=500)
 
 @customers_blueprint.route('/customers/<int:customer_id>', methods=['DELETE'])
+@require_admin
 def delete_customer(customer_id):
     try:
         if not Customer.find_by_id(customer_id):

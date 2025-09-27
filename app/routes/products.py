@@ -2,10 +2,13 @@ from flask import Blueprint, request
 from app.database.models.product import Product
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.auth import require_admin
+from app.utils.pagination import get_pagination
 
 products_blueprint = Blueprint('products', __name__)
 
 @products_blueprint.route('/products', methods=['POST'])
+@require_admin
 def create_product():
     data = request.get_json()
     if not data:
@@ -33,10 +36,17 @@ def create_product():
 
 @products_blueprint.route('/products', methods=['GET'])
 def get_products():
+    page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        products = Product.find_all(include_deleted=include_deleted)
-        return success_response([p.to_dict() for p in products])
+        products = Product.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
+        total_products = Product.count(include_deleted=include_deleted)
+        return success_response({
+            'products': [p.to_dict() for p in products],
+            'total': total_products,
+            'page': page,
+            'per_page': per_page
+        })
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_product"], 
@@ -60,6 +70,7 @@ def get_product(product_id):
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['PUT'])
+@require_admin
 def update_product(product_id):
     data = request.get_json()
     if not data:
@@ -83,6 +94,7 @@ def update_product(product_id):
                               status=500)
 
 @products_blueprint.route('/products/<int:product_id>', methods=['DELETE'])
+@require_admin
 def delete_product(product_id):
     try:
         if not Product.find_by_id(product_id):

@@ -2,10 +2,13 @@ from flask import Blueprint, request
 from app.database.models.payment import Payment
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
+from app.utils.auth import require_admin
+from app.utils.pagination import get_pagination
 
 payments_blueprint = Blueprint('payments', __name__)
 
 @payments_blueprint.route('/payments', methods=['POST'])
+@require_admin
 def create_payment():
     data = request.get_json()
     if not data:
@@ -33,10 +36,17 @@ def create_payment():
 
 @payments_blueprint.route('/payments', methods=['GET'])
 def get_payments():
+    page, per_page = get_pagination()
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        payments = Payment.find_all(include_deleted=include_deleted)
-        return success_response([p.to_dict() for p in payments])
+        payments = Payment.find_with_pagination(page=page, per_page=per_page, include_deleted=include_deleted)
+        total_payments = Payment.count(include_deleted=include_deleted)
+        return success_response({
+            'payments': [p.to_dict() for p in payments],
+            'total': total_payments,
+            'page': page,
+            'per_page': per_page
+        })
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_payment"], 
@@ -60,6 +70,7 @@ def get_payment(payment_id):
                               status=500)
 
 @payments_blueprint.route('/payments/<int:payment_id>', methods=['PUT'])
+@require_admin
 def update_payment(payment_id):
     data = request.get_json()
     if not data:
@@ -83,6 +94,7 @@ def update_payment(payment_id):
                               status=500)
 
 @payments_blueprint.route('/payments/<int:payment_id>', methods=['DELETE'])
+@require_admin
 def delete_payment(payment_id):
     try:
         if not Payment.find_by_id(payment_id):
