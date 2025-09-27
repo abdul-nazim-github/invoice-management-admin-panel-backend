@@ -14,7 +14,7 @@ def get_current_user_profile():
     current_user_id = get_jwt_identity()
     user = User.find_by_id(current_user_id)
     if user:
-        return success_response(user.to_dict())
+        return success_response(user.to_dict(), message="User profile retrieved successfully")
     return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
 @users_blueprint.route('/users', methods=['GET'])
@@ -29,7 +29,7 @@ def get_users():
             'total': total,
             'page': page,
             'per_page': per_page
-        })
+        }, message="Users retrieved successfully")
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
 
@@ -47,7 +47,7 @@ def get_user(user_id):
     try:
         user = User.find_by_id(user_id, include_deleted=include_deleted)
         if user:
-            return success_response(user.to_dict())
+            return success_response(user.to_dict(), message="User retrieved successfully")
         return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
