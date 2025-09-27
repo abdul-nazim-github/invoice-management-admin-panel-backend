@@ -1,8 +1,7 @@
 from flask import Blueprint, request, jsonify
-from werkzeug.security import check_password_hash
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required
 from app.database.models.user import User
-from app.utils.auth import require_auth, require_admin
+from app.utils.auth import require_admin
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -21,17 +20,19 @@ def login():
     user = User.find_by_email(email)
 
     if user and user.check_password(password):
-        access_token = create_access_token(identity=user.id)
+        # Include the user's role in the JWT claims
+        additional_claims = {"role": user.role}
+        access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
         return jsonify(access_token=access_token), 200
     
     return jsonify({"message": "Invalid credentials"}), 401
 
 @auth_blueprint.route('/register', methods=['POST'])
-@require_auth
+@jwt_required()
 @require_admin
 def register():
     """
-    Registers a new user.
+    Registers a new user. This is an admin-only action.
     """
     data = request.get_json()
     if not data:

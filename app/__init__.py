@@ -1,6 +1,7 @@
 import os
 from flask import Flask
 from flask_jwt_extended import JWTManager
+from app.database.models.user import User
 
 # Import blueprints from their correct locations
 from .routes.auth import auth_blueprint
@@ -21,6 +22,14 @@ def create_app():
     
     # Initialize extensions
     jwt = JWTManager(app)
+
+    # --- JWT User Claims ---
+    # This function is called whenever a protected endpoint is accessed,
+    # and it adds the user's role to the JWT claims.
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        return User.find_by_id(identity)
 
     # --- Register Blueprints ---
     # The new auth blueprint
