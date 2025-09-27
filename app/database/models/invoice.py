@@ -1,5 +1,5 @@
 from .base_model import BaseModel
-from app.database.db import get_db
+from app.database.db_manager import get_db
 from datetime import date
 
 class Invoice(BaseModel):
