@@ -4,13 +4,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app import create_app
-from reset_and_seed import reset_and_seed_database
+from seed import initialize_database
 
 # --- Database Initialization ---
 # WARNING: This will delete and recreate the database on every application start.
 # All data will be lost on restart. This is for development purposes only.
 print("Initializing database...")
-reset_and_seed_database()
+initialize_database()
 print("Database initialization complete.")
 # -----------------------------
 
