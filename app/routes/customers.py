@@ -38,15 +38,22 @@ def create_customer():
         )
 
     if 'email' in validated_data and validated_data['email']:
-        if Customer.find_by_email(validated_data['email']):
-            return error_response('conflict', message='A customer with this email address already exists.', status=409)
+        existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
+        if existing_customer:
+            if existing_customer.deleted_at is None:
+                return error_response('conflict', message='A customer with this email address already exists.', status=409)
+            else:
+                return error_response(
+                    'conflict',
+                    message='A soft-deleted customer with this email address already exists. Please use a different email.',
+                    status=409
+                )
 
     try:
         customer_id = Customer.create(validated_data)
         if customer_id:
             customer = Customer.find_by_id_with_aggregates(customer_id)
             if customer:
-                # Use the summary schema, which excludes aggregates
                 return success_response(customer_summary_schema.dump(customer), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
@@ -73,7 +80,6 @@ def get_customers():
             limit=per_page, 
             include_deleted=include_deleted
         )
-        # Use the summary schema for the list view
         serialized_customers = customer_summary_schema.dump(customers, many=True)
         return success_response({
             'customers': serialized_customers,
@@ -94,7 +100,6 @@ def get_customer(customer_id):
     try:
         customer = Customer.find_by_id_with_aggregates(customer_id, include_deleted=include_deleted)
         if customer:
-            # Use the full detail schema for the get by ID view
             return success_response(customer_detail_schema.dump(customer), message="Customer details fetched successfully")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
@@ -124,6 +129,18 @@ def update_customer(customer_id):
             details=err.messages,
             status=400
         )
+    
+    if 'email' in validated_data and validated_data['email']:
+        existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
+        if existing_customer and existing_customer.id != customer_id:
+            if existing_customer.deleted_at is None:
+                return error_response('conflict', message='A customer with this email address already exists.', status=409)
+            else:
+                return error_response(
+                    'conflict',
+                    message='A soft-deleted customer with this email address already exists. Please use a different email.',
+                    status=409
+                )
 
     try:
         if not Customer.update(customer_id, validated_data):
@@ -132,7 +149,6 @@ def update_customer(customer_id):
                                   status=404)
 
         updated_customer = Customer.find_by_id_with_aggregates(customer_id)
-        # Use the summary schema for the update response
         return success_response(customer_summary_schema.dump(updated_customer), message="Customer updated successfully.")
     except Exception as e:
         return error_response('server_error', 

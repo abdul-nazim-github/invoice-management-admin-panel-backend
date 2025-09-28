@@ -54,6 +54,25 @@ class Customer(BaseModel):
         return DBManager.execute_write_query(query, tuple(filtered_data.values()))
 
     @classmethod
+    def update(cls, id, data):
+        if not data:
+            return 0
+        
+        allowed_fields = {'name', 'email', 'phone', 'address', 'gst_number'}
+        update_data = {key: value for key, value in data.items() if key in allowed_fields}
+
+        if not update_data:
+            return 0
+
+        set_clause = ", ".join([f"{key} = %s" for key in update_data.keys()])
+        query = f"UPDATE {cls._table_name} SET {set_clause}, updated_at = NOW() WHERE id = %s"
+        
+        params = list(update_data.values())
+        params.append(id)
+        
+        return DBManager.execute_write_query(query, tuple(params))
+
+    @classmethod
     def find_by_email(cls, email, include_deleted=False):
         query = f"SELECT * FROM {cls._table_name} WHERE email = %s"
         if not include_deleted:
