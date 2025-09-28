@@ -59,8 +59,7 @@ class Customer(BaseModel):
         query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders})'
         
         # Execute the query and return the new customer's ID
-        result = DBManager.execute_write_query(query, tuple(filtered_data.values()))
-        return result.lastrowid
+        return DBManager.execute_write_query(query, tuple(filtered_data.values()))
 
     @classmethod
     def find_by_id(cls, id, include_deleted=False):
