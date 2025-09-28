@@ -92,11 +92,15 @@ class DBManager:
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
-            where_clauses = [f"{field} ILIKE %s" for field in search_fields]
+            # Use LOWER() for case-insensitive search compatible with MySQL and PostgreSQL
+            where_clauses = [f"LOWER({field}) LIKE %s" for field in search_fields]
             query = f"SELECT * FROM {self._table_name} WHERE {' OR '.join(where_clauses)}"
-            params = [f"%{search_term}%"] * len(search_fields)
+            # Ensure search term is lowercased for the comparison
+            params = [f"%{search_term.lower()}%"] * len(search_fields)
+
             if not include_deleted and 'is_deleted' in self.get_table_columns():
                 query += " AND is_deleted = FALSE"
+
             cursor.execute(query, tuple(params))
             rows = cursor.fetchall()
             return normalize_rows(rows)
@@ -131,11 +135,16 @@ class DBManager:
             cursor = conn.cursor()
             columns = ", ".join(data.keys())
             placeholders = ", ".join(["%s"] * len(data))
-            query = f"INSERT INTO {self._table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+            query = f"INSERT INTO {self._table_name} ({columns}) VALUES ({placeholders})"
             cursor.execute(query, tuple(data.values()))
-            new_row = cursor.fetchone()
+            
+            # Fetch the newly created record using the ID from the insert
+            new_id = cursor.lastrowid
             conn.commit()
-            return normalize_row(new_row)
+            
+            # After committing, fetch the complete record
+            return self.get_by_id(new_id)
+
         except Exception as e:
             conn.rollback()
             raise e
@@ -152,12 +161,14 @@ class DBManager:
             if 'updated_at' in self.get_table_columns() and 'updated_at' not in data:
                 set_clause_parts.append("updated_at = NOW()")
             set_clause = ", ".join(set_clause_parts)
-            query = f"UPDATE {self._table_name} SET {set_clause} WHERE id = %s RETURNING *"
+            query = f"UPDATE {self._table_name} SET {set_clause} WHERE id = %s"
             params = list(data.values()) + [record_id]
             cursor.execute(query, tuple(params))
-            updated_row = cursor.fetchone()
             conn.commit()
-            return normalize_row(updated_row)
+
+            # After committing, fetch the updated record to return it
+            return self.get_by_id(record_id)
+            
         except Exception as e:
             conn.rollback()
             raise e
