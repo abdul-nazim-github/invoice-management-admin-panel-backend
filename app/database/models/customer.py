@@ -12,9 +12,7 @@ class Customer(BaseModel):
         self.status = getattr(self, 'status', 'new') 
 
     def to_dict(self):
-        """Serializes the Customer object to a dictionary, keeping original field names."""
         d = super().to_dict()
-        # These complex objects are handled by the schema, not the basic model dict.
         d.pop('invoices', None) 
         d.pop('aggregates', None)
         return d
@@ -43,7 +41,13 @@ class Customer(BaseModel):
         billed_result = db.fetch_one_raw(billed_query, (customer_id,))
         total_billed = billed_result['total'] if billed_result and billed_result['total'] is not None else 0
 
-        paid_query = "SELECT SUM(amount) as total FROM payments WHERE customer_id = %s"
+        # Corrected Query: Joins payments with invoices to link to the customer
+        paid_query = """
+            SELECT SUM(p.amount) as total 
+            FROM payments p
+            JOIN invoices i ON p.invoice_id = i.id
+            WHERE i.customer_id = %s
+        """
         paid_result = db.fetch_one_raw(paid_query, (customer_id,))
         total_paid = paid_result['total'] if paid_result and paid_result['total'] is not None else 0
 
