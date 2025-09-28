@@ -69,6 +69,22 @@ class DBManager:
             return normalize_row(row)
         finally:
             conn.close()
+            
+    def find_one_where(self, where_clause, params, include_deleted=False):
+        """Finds a single record by a custom WHERE clause."""
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            query = f"SELECT * FROM {self._table_name} WHERE {where_clause}"
+            final_params = list(params)
+            if not include_deleted and 'is_deleted' in self.get_table_columns():
+                query += " AND is_deleted = FALSE"
+
+            cursor.execute(query, tuple(final_params))
+            row = cursor.fetchone()
+            return normalize_row(row)
+        finally:
+            conn.close()
 
     def search(self, search_term, search_fields, include_deleted=False):
         if not search_fields:

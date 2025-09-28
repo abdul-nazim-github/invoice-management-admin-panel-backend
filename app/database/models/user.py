@@ -1,69 +1,50 @@
-
 from werkzeug.security import generate_password_hash, check_password_hash
 from .base_model import BaseModel
-from app.database.db_manager import DBManager
 
 class User(BaseModel):
     _table_name = 'users'
 
-    def __init__(self, id, username, email, password_hash, role='staff', name=None, **kwargs):
-        self.id = id
-        self.username = username
-        self.email = email
-        self.password_hash = password_hash
-        self.role = role
-        self.name = name
-        # Absorb any extra columns that might be in the database row
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def __init__(self, **kwargs):
+        # Never store plain text password on the model instance
+        if 'password' in kwargs:
+            self.password_hash = self.hash_password(kwargs.pop('password'))
+        super().__init__(**kwargs)
+
+    # --- Password handling ---
+    
+    @staticmethod
+    def hash_password(password):
+        """Hashes a password for storing."""
+        if not password:
+            raise ValueError("Password cannot be empty.")
+        return generate_password_hash(password)
 
     def check_password(self, password):
+        """Checks a password against the stored hash."""
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-            'role': self.role,
-            'name': self.name
-        }
-
-    @classmethod
-    def from_row(cls, row):
-        if not row:
-            return None
-        # Unpack the row dictionary into the constructor
-        return cls(**row)
-
-    @classmethod
-    def create(cls, data):
-        hashed_password = generate_password_hash(data['password'], method='scrypt')
-        role = data.get('role', 'staff')
-        name = data.get('name')
-        username = data['username']
-        email = data['email']
-
-        query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)'
-        user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role))
-        
-        # After creating, fetch the full user object. find_by_id now returns a User instance directly.
-        return cls.find_by_id(user_id)
-
-    @classmethod
-    def find_by_email(cls, email, include_deleted=False):
-        return cls.find_by_username_or_email(login_identifier=email, include_deleted=include_deleted)
+    # --- Custom Finder Methods ---
 
     @classmethod
     def find_by_username(cls, username, include_deleted=False):
-        return cls.find_by_username_or_email(login_identifier=username, include_deleted=include_deleted)
+        """Finds a user by their username."""
+        db = cls._get_db_manager()
+        row = db.find_one_where("username = %s", (username,), include_deleted=include_deleted)
+        return cls.from_row(row)
+
+    @classmethod
+    def find_by_email(cls, email, include_deleted=False):
+        """Finds a user by their email address."""
+        db = cls._get_db_manager()
+        row = db.find_one_where("email = %s", (email,), include_deleted=include_deleted)
+        return cls.from_row(row)
 
     @classmethod
     def find_by_username_or_email(cls, login_identifier, include_deleted=False):
-        base_query = cls._get_base_query(include_deleted)
-        # Use "AND" if the base query already has a "WHERE" clause (i.e., when not including deleted)
-        # and "WHERE" if it doesn't.
-        clause = "AND" if not include_deleted else "WHERE"
-        query = f'{base_query} {clause} (username = %s OR email = %s)'
-        result = DBManager.execute_query(query, (login_identifier, login_identifier), fetch='one')
-        return cls.from_row(result)
+        """Finds a user by either their username or email."""
+        db = cls._get_db_manager()
+        # Use a case-insensitive search for the identifier
+        where_clause = "username ILIKE %s OR email ILIKE %s"
+        params = (login_identifier, login_identifier)
+        row = db.find_one_where(where_clause, params, include_deleted=include_deleted)
+        return cls.from_row(row)
