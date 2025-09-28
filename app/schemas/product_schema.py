@@ -8,7 +8,6 @@ class ProductSchema(Schema):
     description = fields.Str(required=False, allow_none=True)
     price = fields.Decimal(
         required=True, 
-        as_string=True, 
         validate=validate.Range(min=0),
         places=2,  # Explicitly round to 2 decimal places
         rounding=ROUND_HALF_UP # Use a standard rounding mode for currency
