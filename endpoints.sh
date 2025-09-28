@@ -98,7 +98,6 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 # -----------------
 echo "\n### Create a New Product (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "product_code": "PROD-001",
     "name": "New Product",
     "description": "A shiny new product",
     "price": 19.99,
