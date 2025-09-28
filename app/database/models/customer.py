@@ -41,7 +41,6 @@ class Customer(BaseModel):
         billed_result = db.fetch_one_raw(billed_query, (customer_id,))
         total_billed = billed_result['total'] if billed_result and billed_result['total'] is not None else 0
 
-        # Corrected Query: Joins payments with invoices to link to the customer
         paid_query = """
             SELECT SUM(p.amount) as total 
             FROM payments p
@@ -51,7 +50,8 @@ class Customer(BaseModel):
         paid_result = db.fetch_one_raw(paid_query, (customer_id,))
         total_paid = paid_result['total'] if paid_result and paid_result['total'] is not None else 0
 
-        invoices_query = "SELECT * FROM invoices WHERE customer_id = %s ORDER BY invoice_date DESC"
+        # Corrected Query: Orders by created_at instead of the non-existent invoice_date
+        invoices_query = "SELECT * FROM invoices WHERE customer_id = %s ORDER BY created_at DESC"
         invoices = db.fetch_all_raw(invoices_query, (customer_id,))
 
         customer.aggregates = {
