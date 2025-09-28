@@ -1,20 +1,17 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 
 class Customer(BaseModel):
     _table_name = 'customers'
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            # Convert date strings to datetime objects upon instantiation
             if key in ('created_at', 'updated_at') and value and isinstance(value, str):
                 try:
-                    # Handle ISO format with or without 'T' separator
                     setattr(self, key, datetime.fromisoformat(value.replace(' ', 'T')))
                 except (ValueError, TypeError):
-                    # If parsing fails, keep the original string
                     setattr(self, key, value)
             else:
                 setattr(self, key, value)
@@ -23,7 +20,9 @@ class Customer(BaseModel):
         self.aggregates = getattr(self, 'aggregates', {})
 
     def to_dict(self):
-        """Converts the customer object to a dictionary with nested aggregates and invoices."""
+        created_at_iso = self.created_at.isoformat() if isinstance(self.created_at, (datetime, date)) else str(self.created_at)
+        updated_at_iso = self.updated_at.isoformat() if isinstance(self.updated_at, (datetime, date)) else str(self.updated_at)
+
         return {
             'id': self.id,
             'full_name': self.name,
@@ -31,8 +30,8 @@ class Customer(BaseModel):
             'phone': self.phone,
             'address': self.address,
             'gst_number': self.gst_number,
-            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
-            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
+            'created_at': created_at_iso,
+            'updated_at': updated_at_iso,
             'status': getattr(self, 'payment_status', None),
             'invoice_count': getattr(self, 'invoice_count', 0),
             'aggregates': self.aggregates
@@ -65,7 +64,6 @@ class Customer(BaseModel):
     
     @classmethod
     def find_by_id(cls, id, include_deleted=False):
-        """A simple find_by_id for internal use, like after creation."""
         query = f"SELECT * FROM {cls._table_name} WHERE id = %s"
         if not include_deleted:
             query += " AND deleted_at IS NULL"
@@ -109,26 +107,35 @@ class Customer(BaseModel):
 
         total_paid_query = "SELECT COALESCE(SUM(p.amount), 0) as total_paid FROM payments p JOIN invoices i ON p.invoice_id = i.id WHERE i.customer_id = %s"
         total_paid_row = DBManager.execute_query(total_paid_query, (customer_id,), fetch='one')
-        total_paid = total_paid_row['total_paid'] if total_paid_row else 0
+
+        total_paid = float(total_paid_row['total_paid']) if total_paid_row and total_paid_row['total_paid'] is not None else 0.0
+        total_billed = float(customer_row['total_billed']) if customer_row and customer_row['total_billed'] is not None else 0.0
         
         customer = cls.from_row(customer_row)
-        total_billed = customer_row['total_billed']
-        customer.aggregates = {
-            'total_billed': float(total_billed),
-            'total_paid': float(total_paid),
-            'total_due': float(total_billed - total_paid),
-            'invoices': [
-                {
+        total_due = total_billed - total_paid
+
+        invoices_list = []
+        if invoices_rows:
+            for row in invoices_rows:
+                due_date = row.get('due_date')
+                created_at = row.get('created_at')
+                invoices_list.append({
                     'id': row['id'],
                     'invoice_number': row['invoice_number'],
-                    'due_date': row['due_date'].isoformat(),
-                    'total_amount': float(row['total_amount']),
-                    'created_at': row['created_at'].isoformat(),
+                    'due_date': due_date.isoformat() if isinstance(due_date, (datetime, date)) else str(due_date),
+                    'total_amount': float(row.get('total_amount') or 0.0),
+                    'created_at': created_at.isoformat() if isinstance(created_at, (datetime, date)) else str(created_at),
                     'status': row['status'],
-                    'due_amount': float(row['due_amount'])
-                } for row in invoices_rows
-            ]
+                    'due_amount': float(row.get('due_amount') or 0.0)
+                })
+
+        customer.aggregates = {
+            'total_billed': total_billed,
+            'total_paid': total_paid,
+            'total_due': total_due,
+            'invoices': invoices_list
         }
+        
         return customer
 
     @classmethod
@@ -181,7 +188,7 @@ class Customer(BaseModel):
         return customers, total
 
     @classmethod
-    def bulk__soft_delete(cls, ids):
+    def bulk_soft_delete(cls, ids):
         if not ids:
             return 0
         placeholders = ', '.join(['%s'] * len(ids))
