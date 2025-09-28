@@ -77,10 +77,9 @@ class Customer(BaseModel):
                 COALESCE(SUM(i.total_amount), 0) AS total_billed,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status IN ('Pending', 'Partially Paid') AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
-                    WHEN SUM(CASE WHEN i.status = 'Partially Paid' THEN 1 ELSE 0 END) > 0 THEN 'Partially Paid'
+                    WHEN SUM(CASE WHEN i.status = 'Overdue' OR (i.status = 'Pending' AND i.due_date < NOW()) THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    WHEN SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                     ELSE 'New'
                 END AS status
             FROM {cls._table_name} c
@@ -158,10 +157,9 @@ class Customer(BaseModel):
                 c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status IN ('Pending', 'Partially Paid') AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
-                    WHEN SUM(CASE WHEN i.status = 'Partially Paid' THEN 1 ELSE 0 END) > 0 THEN 'Partially Paid'
+                    WHEN SUM(CASE WHEN i.status = 'Overdue' OR (i.status = 'Pending' AND i.due_date < NOW()) THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    WHEN SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                     ELSE 'New'
                 END AS status
             FROM {cls._table_name} c
