@@ -29,7 +29,7 @@ class Product(BaseModel):
             'product_code': self.product_code,
             'name': self.name,
             'description': self.description,
-            'price': float(self.price),  # Cast DECIMAL to float for JSON serialization
+            'price': str(self.price),  # Cast DECIMAL to string to preserve format
             'stock': self.stock,
             'created_at': self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None
