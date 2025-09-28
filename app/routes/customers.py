@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 
 from app.database.models.customer import Customer
-from app.schemas.customer_schema import CustomerSchema, CustomerSummarySchema, CustomerDetailSchema
+from app.schemas.customer_schema import CustomerSchema, CustomerSummarySchema, CustomerDetailSchema, CustomerUpdateSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
@@ -15,7 +15,7 @@ customers_blueprint = Blueprint('customers', __name__)
 customer_schema = CustomerSchema()
 customer_summary_schema = CustomerSummarySchema()
 customer_detail_schema = CustomerDetailSchema()
-customer_update_schema = CustomerSchema(partial=True)
+customer_update_schema = CustomerUpdateSchema()
 
 @customers_blueprint.route('/customers', methods=['POST'])
 @jwt_required()
@@ -110,7 +110,7 @@ def get_customer(customer_id):
                               details=str(e), 
                               status=500)
 
-@customers_blueprint.route('/customers/<int:customer_id>', methods=['PUT'])
+@customers_blueprint.route('/customers/<string:customer_id>', methods=['PUT'])
 @jwt_required()
 @require_admin
 def update_customer(customer_id):
@@ -129,27 +129,29 @@ def update_customer(customer_id):
             details=err.messages,
             status=400
         )
-    
-    if 'email' in validated_data and validated_data['email']:
-        existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
-        if existing_customer and existing_customer.id != customer_id:
-            if existing_customer.deleted_at is None:
-                return error_response('conflict', message='A customer with this email address already exists.', status=409)
-            else:
-                return error_response(
-                    'conflict',
-                    message='A soft-deleted customer with this email address already exists. Please use a different email.',
-                    status=409
-                )
 
     try:
-        if not Customer.update(customer_id, validated_data):
-            return error_response('not_found', 
-                                  message=ERROR_MESSAGES["not_found"]["customer"], 
-                                  status=404)
+        # First, ensure the customer exists.
+        customer_to_update = Customer.find_by_id(customer_id)
+        if not customer_to_update:
+            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["customer"], status=404)
 
+        # If email is being updated, check for conflicts.
+        if 'email' in validated_data and validated_data['email']:
+            existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
+            if existing_customer and str(existing_customer.id) != str(customer_id):
+                return error_response(
+                    'conflict',
+                    message='A customer with this email address already exists (active or deleted).'
+                )
+
+        # Proceed with the update.
+        Customer.update(customer_id, validated_data)
+
+        # Fetch the updated data and return it.
         updated_customer = Customer.find_by_id_with_aggregates(customer_id)
         return success_response(customer_summary_schema.dump(updated_customer), message="Customer updated successfully.")
+
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 
