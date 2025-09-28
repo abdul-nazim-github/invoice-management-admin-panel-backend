@@ -92,7 +92,6 @@ class Customer(BaseModel):
                 c.address,
                 c.gst_number,
                 c.created_at, 
-                c.updated_at,
                 c.status,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
@@ -105,7 +104,7 @@ class Customer(BaseModel):
             FROM {cls._table_name} c
             LEFT JOIN invoices i ON c.id = i.customer_id AND i.status != 'deleted'
             {where_sql}
-            GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at, c.status
+            GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.status
         """
 
         outer_where = ""
