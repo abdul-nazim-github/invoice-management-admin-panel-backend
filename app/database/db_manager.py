@@ -8,7 +8,6 @@ def normalize_value(value):
     """Normalize values that the default JSON encoder can't handle."""
     if isinstance(value, Decimal):
         return float(value)
-    # Datetime objects are handled by the serialization schema (Marshmallow)
     return value
 
 def normalize_row(row):
@@ -21,15 +20,17 @@ def normalize_rows(rows):
     """Normalize a list of DB row dictionaries."""
     return [normalize_row(r) for r in rows]
 
-# --- DBManager Class (Refactored for Separation of Concerns) ---
+# --- DBManager Class ---
 
 class DBManager:
     """A class to simplify and centralize database interactions."""
 
-    def __init__(self, table_name):
+    def __init__(self, table_name=None):
         self._table_name = table_name
 
     def get_table_columns(self):
+        if not self._table_name:
+            raise ValueError("DBManager must have a table_name for this operation.")
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
@@ -37,92 +38,74 @@ class DBManager:
                 return [desc[0] for desc in cursor.description]
         finally:
             conn.close()
+            
+    # --- Generic Raw SQL Execution ---
 
-    # --- Read Operations ---
+    def fetch_one_raw(self, query, params=None):
+        """Executes a raw SQL query and returns a single, normalized row."""
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
+                row = cursor.fetchone()
+                return normalize_row(row)
+        finally:
+            conn.close()
+
+    def fetch_all_raw(self, query, params=None):
+        """Executes a raw SQL query and returns all normalized rows."""
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                return normalize_rows(rows)
+        finally:
+            conn.close()
+
+    # --- Read Operations (Table-specific) ---
 
     def get_all(self, include_deleted=False):
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                query = f"SELECT * FROM {self._table_name}"
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    query += " WHERE is_deleted = FALSE"
-                query += " ORDER BY created_at DESC"
-                cursor.execute(query)
-                rows = cursor.fetchall()
-                return normalize_rows(rows)
-        finally:
-            conn.close()
+        query = f"SELECT * FROM {self._table_name}"
+        if not include_deleted and 'is_deleted' in self.get_table_columns():
+            query += " WHERE is_deleted = FALSE"
+        query += " ORDER BY created_at DESC"
+        return self.fetch_all_raw(query)
 
     def get_by_id(self, record_id, include_deleted=False):
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                query = f"SELECT * FROM {self._table_name} WHERE id = %s"
-                params = [record_id]
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    query += " AND is_deleted = FALSE"
-                cursor.execute(query, tuple(params))
-                row = cursor.fetchone()
-                return normalize_row(row)
-        finally:
-            conn.close()
+        query = f"SELECT * FROM {self._table_name} WHERE id = %s"
+        params = [record_id]
+        if not include_deleted and 'is_deleted' in self.get_table_columns():
+            query += " AND is_deleted = FALSE"
+        return self.fetch_one_raw(query, tuple(params))
 
     def find_one_where(self, where_clause, params, include_deleted=False):
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                query = f"SELECT * FROM {self._table_name} WHERE {where_clause}"
-                final_params = list(params)
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    query += " AND is_deleted = FALSE"
-                cursor.execute(query, tuple(final_params))
-                row = cursor.fetchone()
-                return normalize_row(row)
-        finally:
-            conn.close()
-
-    def search(self, search_term, search_fields, include_deleted=False):
-        if not search_fields:
-            return []
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                where_clauses = [f"LOWER({field}) LIKE %s" for field in search_fields]
-                query = f"SELECT * FROM {self._table_name} WHERE {' OR '.join(where_clauses)}"
-                params = [f"%{search_term.lower()}%"] * len(search_fields)
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    query += " AND is_deleted = FALSE"
-                cursor.execute(query, tuple(params))
-                rows = cursor.fetchall()
-                return normalize_rows(rows)
-        finally:
-            conn.close()
+        query = f"SELECT * FROM {self._table_name} WHERE {where_clause}"
+        final_params = list(params)
+        if not include_deleted and 'is_deleted' in self.get_table_columns():
+            query += " AND is_deleted = FALSE"
+        return self.fetch_one_raw(query, tuple(final_params))
 
     def get_paginated(self, page=1, per_page=10, include_deleted=False):
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cursor:
-                offset = (page - 1) * per_page
-                count_query = f"SELECT COUNT(*) as total FROM {self._table_name}"
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    count_query += " WHERE is_deleted = FALSE"
-                cursor.execute(count_query)
-                total = cursor.fetchone()['total']
-                data_query = f"SELECT * FROM {self._table_name}"
-                if not include_deleted and 'is_deleted' in self.get_table_columns():
-                    data_query += " WHERE is_deleted = FALSE"
-                data_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
-                cursor.execute(data_query, (per_page, offset))
-                rows = cursor.fetchall()
-                return normalize_rows(rows), total
-        finally:
-            conn.close()
+        offset = (page - 1) * per_page
+        
+        count_query = f"SELECT COUNT(*) as total FROM {self._table_name}"
+        if not include_deleted and 'is_deleted' in self.get_table_columns():
+            count_query += " WHERE is_deleted = FALSE"
+        total_result = self.fetch_one_raw(count_query)
+        total = total_result['total'] if total_result else 0
+
+        data_query = f"SELECT * FROM {self._table_name}"
+        if not include_deleted and 'is_deleted' in self.get_table_columns():
+            data_query += " WHERE is_deleted = FALSE"
+        data_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        rows = self.fetch_all_raw(data_query, (per_page, offset))
+        
+        return rows, total
             
-    # --- Write Operations (Focused on a single task) ---
+    # --- Write Operations ---
 
     def create(self, data):
-        """Executes an INSERT statement and returns the new record's ID."""
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
@@ -140,7 +123,6 @@ class DBManager:
             conn.close()
 
     def update(self, record_id, data):
-        """Executes an UPDATE statement. Returns nothing."""
         if not data:
             return
         conn = get_db_connection()
@@ -161,18 +143,35 @@ class DBManager:
             conn.close()
 
     def delete(self, record_id, soft_delete=True):
-        """Executes a DELETE or soft-delete UPDATE. Returns True on success."""
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
             if soft_delete and 'is_deleted' in self.get_table_columns():
-                query = f"UPDATE {self._table_name} SET is_deleted = TRUE, updated_at = NOW() WHERE id = %s"
+                query = f"UPDATE {self._table_name} SET is_deleted = TRUE, deleted_at = NOW() WHERE id = %s"
             else:
                 query = f"DELETE FROM {self._table_name} WHERE id = %s"
             cursor.execute(query, (record_id,))
             rowcount = cursor.rowcount
             conn.commit()
             return rowcount > 0
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+
+    def restore(self, record_id):
+        """Restores a soft-deleted record. Returns True on success."""
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            if 'is_deleted' in self.get_table_columns():
+                query = f"UPDATE {self._table_name} SET is_deleted = FALSE, deleted_at = NULL WHERE id = %s"
+                cursor.execute(query, (record_id,))
+                rowcount = cursor.rowcount
+                conn.commit()
+                return rowcount > 0
+            return False # Table doesn't support soft delete
         except Exception as e:
             conn.rollback()
             raise e
