@@ -46,7 +46,7 @@ def create_customer():
                 return error_response(
                     'conflict_soft_deleted',
                     message='A customer with this email was previously deleted. Do you want to restore them?',
-                    details={'email': existing_customer.email},
+                    details={'customer_id': str(existing_customer.id), 'email': existing_customer.email},
                     status=409
                 )
 
