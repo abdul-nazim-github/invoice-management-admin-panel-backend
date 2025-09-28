@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 
 from app.database.models.customer import Customer
-from app.schemas.customer_schema import CustomerSchema
+from app.schemas.customer_schema import CustomerSchema, CustomerDetailSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
@@ -13,6 +13,7 @@ customers_blueprint = Blueprint('customers', __name__)
 
 # Instantiate schemas
 customer_schema = CustomerSchema()
+customer_detail_schema = CustomerDetailSchema()
 customer_update_schema = CustomerSchema(partial=True) # For PUT, allow partial updates
 
 @customers_blueprint.route('/customers', methods=['POST'])
@@ -44,10 +45,10 @@ def create_customer():
     try:
         customer_id = Customer.create(validated_data)
         if customer_id:
-            customer = Customer.find_by_id(customer_id)
+            customer = Customer.find_by_id_with_aggregates(customer_id)
             if customer:
-                # Use the schema to serialize the output
-                return success_response(customer_schema.dump(customer), message="Customer created successfully.", status=201)
+                # Use the detail schema to serialize the output, which includes the 'status'
+                return success_response(customer_detail_schema.dump(customer), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
@@ -62,17 +63,19 @@ def create_customer():
 def get_customers():
     page, per_page = get_pagination()
     q = request.args.get('q', None)
+    status = request.args.get('status', None)
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     
     try:
         customers, total = Customer.list_all(
             q=q, 
+            status=status,
             offset=(page - 1) * per_page, 
             limit=per_page, 
             include_deleted=include_deleted
         )
-        # Use the schema to serialize the output
-        serialized_customers = customer_schema.dump(customers, many=True)
+        # Use the detail schema to serialize the output, ensuring 'status' is included
+        serialized_customers = customer_detail_schema.dump(customers, many=True)
         return success_response({
             'customers': serialized_customers,
             'total': total,
@@ -92,6 +95,7 @@ def get_customer(customer_id):
     try:
         customer = Customer.find_by_id_with_aggregates(customer_id, include_deleted=include_deleted)
         if customer:
+            # The to_dict() method on the model now includes the status and aggregates
             return success_response(customer.to_dict(), message="Customer details fetched successfully")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
@@ -129,9 +133,9 @@ def update_customer(customer_id):
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        updated_customer = Customer.find_by_id(customer_id)
-        # Use the schema to serialize the output
-        return success_response(customer_schema.dump(updated_customer), message="Customer updated successfully.")
+        updated_customer = Customer.find_by_id_with_aggregates(customer_id)
+        # Use the detail schema to serialize the output
+        return success_response(customer_detail_schema.dump(updated_customer), message="Customer updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 
