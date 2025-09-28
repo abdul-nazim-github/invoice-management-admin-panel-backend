@@ -15,9 +15,9 @@ def is_valid_status(status, allowed_statuses):
     """Validates that a status is in a list of allowed statuses."""
     return status in allowed_statuses
 
-def is_valid_full_name(name):
+def is_valid_name(name):
     """
-    Validates that the full name contains only alphabetic characters and spaces.
+    Validates that the name contains only alphabetic characters and spaces.
     - Must not be empty.
     - Can contain multiple space-separated names, hyphens, and apostrophes.
     """
@@ -81,14 +81,14 @@ def validate_customer_data(data, is_update=False):
     errors = []
     
     if not is_update:
-        required_fields = ['full_name', 'email', 'phone', 'address', 'gst_number']
+        required_fields = ['name', 'email', 'phone', 'address', 'gst_number']
         missing_fields = [field for field in required_fields if field not in data or not data[field]]
         if missing_fields:
             errors.append(f"Missing required fields: {', '.join(missing_fields)}")
             return errors
 
-    if 'full_name' in data and not is_valid_full_name(data['full_name']):
-        errors.append("Invalid full name. Only letters, spaces, hyphens, and apostrophes are allowed.")
+    if 'name' in data and not is_valid_name(data['name']):
+        errors.append("Invalid name. Only letters, spaces, hyphens, and apostrophes are allowed.")
         
     if 'email' in data and not is_valid_email(data['email']):
         errors.append("Invalid email address format.")

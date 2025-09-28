@@ -65,7 +65,7 @@ curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" $BASE_URL/users/me
 # -----------------
 echo "\n### Create a New Customer (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "full_name": "New Customer",
+    "name": "New Customer",
     "email": "customer@example.com",
     "phone": "1234567890",
     "address": "456 Customer Ave",
@@ -83,7 +83,7 @@ curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" $BASE_URL/customers/
 
 echo "\n### Update a Customer (Requires Admin Token) ###"
 curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "full_name": "Updated Customer Name"
+    "name": "Updated Customer Name"
 }' $BASE_URL/customers/1
 
 
@@ -166,4 +166,3 @@ echo "\n### Bulk Delete Invoices (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
     "ids": [1, 2]
 }' $BASE_URL/invoices/bulk-delete
-

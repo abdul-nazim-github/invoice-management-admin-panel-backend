@@ -50,16 +50,17 @@ CREATE TABLE IF NOT EXISTS users (
 -- ------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS customers (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  full_name VARCHAR(255) NOT NULL,              -- Customer's name
+  name VARCHAR(255) NOT NULL,              -- Customer's name
   email VARCHAR(255) UNIQUE,               -- Customer's unique email address
   phone VARCHAR(20),                       -- Customer's phone number
   address TEXT,                            -- Customer's physical address
   gst_number VARCHAR(50),                  -- Customer's GST identification number
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of customer creation
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   -- Indexes for faster queries
-  INDEX idx_customers_full_name (full_name),
+  INDEX idx_customers_name (name),
   INDEX idx_customers_email (email),
   INDEX idx_customers_phone (phone),
   INDEX idx_customers_gst_number (gst_number),

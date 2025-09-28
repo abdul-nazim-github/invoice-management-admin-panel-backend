@@ -1,4 +1,3 @@
-
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
@@ -6,13 +5,15 @@ from decimal import Decimal
 class Customer(BaseModel):
     _table_name = 'customers'
 
-    def __init__(self, id, full_name, email, phone, address, gst_number, **kwargs):
+    def __init__(self, id, name, email, phone, address, gst_number, created_at=None, updated_at=None, **kwargs):
         self.id = id
-        self.full_name = full_name
+        self.name = name
         self.email = email
         self.phone = phone
         self.address = address
         self.gst_number = gst_number
+        self.created_at = created_at
+        self.updated_at = updated_at
         # Absorb any extra columns, like invoice_count or payment_status if passed directly
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -20,11 +21,13 @@ class Customer(BaseModel):
     def to_dict(self):
         data = {
             'id': self.id,
-            'full_name': self.full_name,
+            'name': self.name,
             'email': self.email,
             'phone': self.phone,
             'address': self.address,
-            'gst_number': self.gst_number
+            'gst_number': self.gst_number,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
         }
         # Add invoice_count and payment_status if they have been set on the instance
         if hasattr(self, 'invoice_count'):
@@ -47,7 +50,7 @@ class Customer(BaseModel):
         This prevents errors if extra data is passed in the request body.
         """
         allowed_fields = {
-            'full_name', 'email', 'phone', 'address', 'gst_number'
+            'name', 'email', 'phone', 'address', 'gst_number'
         }
         
         filtered_data = {key: value for key, value in data.items() if key in allowed_fields}
@@ -97,7 +100,7 @@ class Customer(BaseModel):
             params.append(customer_id)
 
         if q:
-            where.append("(c.full_name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
+            where.append("(c.name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
             like = f"%{q}%"
             params.extend([like, like, like])
 
@@ -107,12 +110,13 @@ class Customer(BaseModel):
         base_query = f"""
             SELECT 
                 c.id,
-                c.full_name, 
+                c.name, 
                 c.email, 
                 c.phone,
                 c.address,
                 c.gst_number,
                 c.created_at,
+                c.updated_at,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
                     WHEN SUM(CASE WHEN i.status='pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
@@ -124,7 +128,7 @@ class Customer(BaseModel):
             FROM {cls._table_name} c
             LEFT JOIN invoices i ON c.id = i.customer_id AND i.deleted_at IS NULL
             {where_sql}
-            GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number, c.created_at
+            GROUP BY c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at
         """
 
         outer_where = ""
