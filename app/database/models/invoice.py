@@ -6,39 +6,38 @@ from datetime import date, datetime
 class Invoice(BaseModel):
     _table_name = 'invoices'
 
-    def __init__(self, id, invoice_number, customer_id, user_id, subtotal_amount, tax_amount, total_amount, status, due_date=None, tax_percent=0, discount_amount=0, **kwargs):
-        self.id = id
-        self.invoice_number = invoice_number
-        self.customer_id = customer_id
-        self.user_id = user_id
-        self.due_date = due_date
-        self.subtotal_amount = subtotal_amount
-        self.discount_amount = discount_amount
-        self.tax_percent = tax_percent
-        self.tax_amount = tax_amount
-        self.total_amount = total_amount
-        self.status = status
-        self.items = [] # To hold invoice items
-        # Absorb any extra columns
+    def __init__(self, **kwargs):
+        # Initialize all kwargs as instance attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
+        
+        self.items = []  # Ensure items is always initialized
 
     def to_dict(self):
+        # Convert all instance attributes to a dictionary
         invoice_dict = {
             'id': self.id,
             'invoice_number': self.invoice_number,
-            'customer_id': self.customer_id,
-            'user_id': self.user_id,
             'due_date': self.due_date.isoformat() if isinstance(self.due_date, date) else self.due_date,
             'subtotal_amount': float(self.subtotal_amount),
             'discount_amount': float(self.discount_amount),
             'tax_percent': float(self.tax_percent),
             'tax_amount': float(self.tax_amount),
-            'total_amount': float(self.total_amount), # Cast DECIMAL to float
+            'total_amount': float(self.total_amount),
             'status': self.status,
-            'items': self.items, # Include items in the dictionary
+            'items': self.items,
             'created_at': self.created_at.isoformat() if hasattr(self, 'created_at') and isinstance(self.created_at, datetime) else None,
-            'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and isinstance(self.updated_at, datetime) else None
+            'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and isinstance(self.updated_at, datetime) else None,
+            'customer': {
+                'id': self.customer_id,
+                'name': self.customer_name,
+                'email': self.customer_email
+            },
+            'user': {
+                'id': self.user_id,
+                'name': self.user_name,
+                'email': self.user_email
+            }
         }
         return invoice_dict
 
@@ -50,9 +49,18 @@ class Invoice(BaseModel):
 
     @classmethod
     def find_by_id(cls, invoice_id, include_deleted=False):
-        query = f"SELECT * FROM {cls._table_name} WHERE id = %s"
+        query = f"""
+            SELECT 
+                i.*, 
+                c.name as customer_name, c.email as customer_email,
+                u.name as user_name, u.email as user_email
+            FROM {cls._table_name} i
+            JOIN customers c ON i.customer_id = c.id
+            JOIN users u ON i.user_id = u.id
+            WHERE i.id = %s
+        """
         if not include_deleted:
-            query += " AND status != 'deleted'"
+            query += " AND i.deleted_at IS NULL"
 
         invoice_row = DBManager.execute_query(query, (invoice_id,), fetch='one')
 
@@ -72,10 +80,53 @@ class Invoice(BaseModel):
         return invoice
 
     @classmethod
-    def search(cls, search_term, include_deleted=False):
-        """Searches for invoices by customer_id or status."""
-        search_fields = ['customer_id', 'status']
-        return super().search(search_term, search_fields, include_deleted)
+    def list_all(cls, q=None, status=None, offset=0, limit=20, include_deleted=False):
+        where = []
+        params = []
+
+        if not include_deleted:
+            where.append("i.deleted_at IS NULL")
+        
+        if status:
+            where.append("i.status = %s")
+            params.append(status)
+
+        if q:
+            where.append("(c.name LIKE %s OR c.email LIKE %s OR i.invoice_number LIKE %s)")
+            like_query = f"%{q}%"
+            params.extend([like_query, like_query, like_query])
+
+        where_sql = " WHERE " + " AND ".join(where) if where else ""
+
+        query = f"""
+            SELECT 
+                i.*, 
+                c.name as customer_name, c.email as customer_email,
+                u.name as user_name, u.email as user_email
+            FROM {cls._table_name} i
+            JOIN customers c ON i.customer_id = c.id
+            JOIN users u ON i.user_id = u.id
+            {where_sql}
+            ORDER BY i.id DESC
+            LIMIT %s OFFSET %s
+        """
+        
+        pagination_params = params + [limit, offset]
+        rows = DBManager.execute_query(query, tuple(pagination_params), fetch='all')
+        
+        invoices = [cls.from_row(row) for row in rows] if rows else []
+
+        count_query = f"""
+            SELECT COUNT(*) as total
+            FROM {cls._table_name} i
+            JOIN customers c ON i.customer_id = c.id
+            {where_sql}
+        """
+        
+        result = DBManager.execute_query(count_query, tuple(params), fetch='one')
+        total = result['total'] if result else 0
+
+        return invoices, total
 
     @staticmethod
     def add_item(invoice_id, product_id, quantity):
@@ -96,7 +147,7 @@ class Invoice(BaseModel):
             return 0
 
         placeholders = ', '.join(['%s'] * len(ids))
-        query = f"UPDATE {cls._table_name} SET status = 'deleted' WHERE id IN ({placeholders}) AND status != 'deleted'"
+        query = f"UPDATE {cls._table_name} SET deleted_at = NOW() WHERE id IN ({placeholders}) AND deleted_at IS NULL"
         
         DBManager.execute_write_query(query, tuple(ids))
         return len(ids)
@@ -122,11 +173,11 @@ class Invoice(BaseModel):
                 total_paid_row = cursor.fetchone()
                 total_paid = total_paid_row[0] or 0
 
-                new_status = 'pending'
+                new_status = 'Pending'
                 if total_paid >= invoice_total:
-                    new_status = 'paid'
+                    new_status = 'Paid'
                 elif total_paid > 0:
-                    new_status = 'partially_paid'
+                    new_status = 'Partially Paid'
 
                 cursor.execute("UPDATE invoices SET status = %s WHERE id = %s", (new_status, payment_data['invoice_id']))
 

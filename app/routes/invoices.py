@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
 
 from app.database.models.invoice import Invoice
@@ -12,26 +12,8 @@ from app.utils.pagination import get_pagination
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
-# Instantiate schemas
 invoice_schema = InvoiceSchema()
 invoice_update_schema = InvoiceSchema(partial=True)
-
-@invoices_blueprint.route('/invoices/search', methods=['GET'])
-@jwt_required()
-def search_invoices():
-    search_term = request.args.get('q')
-    if not search_term:
-        return error_response('validation_error', message="Search term 'q' is required.", status=400)
-
-    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
-
-    try:
-        invoices = Invoice.search(search_term, include_deleted=include_deleted)
-        serialized_invoices = invoice_schema.dump(invoices, many=True)
-        return success_response(serialized_invoices, message="Invoices matching the search term retrieved successfully.")
-    except Exception as e:
-        return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
-
 
 @invoices_blueprint.route('/invoices', methods=['POST'])
 @jwt_required()
@@ -42,30 +24,35 @@ def create_invoice():
         return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
     try:
-        # Validate and deserialize the request data
         validated_data = invoice_schema.load(data)
     except ValidationError as err:
-        return error_response(
-            'validation_error',
-            message="The provided data is invalid.",
-            details=err.messages,
-            status=400
-        )
+        return error_response('validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
-        # Calculate total_amount from product prices
-        total_amount = 0
+        current_user_id = get_jwt_identity()
+        subtotal_amount = 0
         for item in validated_data['items']:
             product = Product.find_by_id(item['product_id'])
             if not product:
                 return error_response('not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
-            total_amount += product.price * item['quantity']
+            subtotal_amount += product.price * item['quantity']
+        
+        tax_percent = validated_data.get('tax_percent', 0)
+        discount_amount = validated_data.get('discount_amount', 0)
+        
+        tax_amount = (subtotal_amount - discount_amount) * (tax_percent / 100)
+        total_amount = subtotal_amount - discount_amount + tax_amount
 
         invoice_data = {
             'customer_id': validated_data['customer_id'],
+            'user_id': current_user_id,
             'due_date': validated_data['due_date'],
+            'subtotal_amount': subtotal_amount,
+            'discount_amount': discount_amount,
+            'tax_percent': tax_percent,
+            'tax_amount': tax_amount,
             'total_amount': total_amount,
-            'status': validated_data.get('status', 'pending')
+            'status': validated_data.get('status', 'Pending')
         }
 
         invoice_id = Invoice.create(invoice_data)
@@ -76,10 +63,7 @@ def create_invoice():
             Invoice.add_item(invoice_id, item['product_id'], item['quantity'])
 
         new_invoice = Invoice.find_by_id(invoice_id)
-        if new_invoice:
-            return success_response(invoice_schema.dump(new_invoice), message="Invoice created successfully.", status=201)
-        else:
-            return error_response('not_found', message="Newly created invoice could not be found.", status=404)
+        return success_response(new_invoice.to_dict(), message="Invoice created successfully.", status=201)
             
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["create_invoice"], details=str(e), status=500)
@@ -88,10 +72,15 @@ def create_invoice():
 @jwt_required()
 def get_invoices():
     page, per_page = get_pagination()
+    q = request.args.get('q')
+    status = request.args.get('status')
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+
     try:
-        invoices, total = Invoice.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
-        serialized_invoices = invoice_schema.dump(invoices, many=True)
+        invoices, total = Invoice.list_all(q=q, status=status, offset=(page - 1) * per_page, limit=per_page, include_deleted=include_deleted)
+        
+        serialized_invoices = [inv.to_dict() for inv in invoices]
+
         return success_response({
             'invoices': serialized_invoices,
             'total': total,
@@ -108,7 +97,7 @@ def get_invoice(invoice_id):
     try:
         invoice = Invoice.find_by_id(invoice_id, include_deleted=include_deleted)
         if invoice:
-            return success_response(invoice_schema.dump(invoice), message="Invoice retrieved successfully.")
+            return success_response(invoice.to_dict(), message="Invoice retrieved successfully.")
         return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
@@ -131,7 +120,7 @@ def update_invoice(invoice_id):
             return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
 
         updated_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(invoice_schema.dump(updated_invoice), message="Invoice updated successfully.")
+        return success_response(updated_invoice.to_dict(), message="Invoice updated successfully.")
     except Exception as e:
         return error_response('server_error', message=ERROR_MESSAGES["server_error"]["update_invoice"], details=str(e), status=500)
 
