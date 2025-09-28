@@ -19,3 +19,6 @@ uuid6>=2024.1.25
 
 # --- Production Server ---
 gunicorn>=20.1.0
+
+# --- Validation ---
+marshmallow>=3.19.0

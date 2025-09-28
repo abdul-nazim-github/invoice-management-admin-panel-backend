@@ -1,13 +1,19 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
+from marshmallow import ValidationError
+
 from app.database.models.customer import Customer
+from app.schemas.customer_schema import CustomerSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
-from app.utils.validation import validate_customer_data
 
 customers_blueprint = Blueprint('customers', __name__)
+
+# Instantiate schemas
+customer_schema = CustomerSchema()
+customer_update_schema = CustomerSchema(partial=True) # For PUT, allow partial updates
 
 @customers_blueprint.route('/customers', methods=['POST'])
 @jwt_required()
@@ -19,34 +25,33 @@ def create_customer():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    # Validate incoming data
-    validation_errors = validate_customer_data(data)
-    if validation_errors:
-        return error_response('validation_error', 
-                              message="The provided data is invalid.",
-                              details=validation_errors,
-                              status=400)
+    try:
+        # Validate and deserialize the request data
+        validated_data = customer_schema.load(data)
+    except ValidationError as err:
+        return error_response(
+            'validation_error',
+            message="The provided data is invalid.",
+            details=err.messages,
+            status=400
+        )
 
     # Check for existing customer with the same email
-    if 'email' in data and data['email']:
-        existing_customer = Customer.find_by_email(data['email'])
-        if existing_customer:
+    if 'email' in validated_data and validated_data['email']:
+        if Customer.find_by_email(validated_data['email']):
             return error_response('conflict', message='A customer with this email address already exists.', status=409)
 
     try:
-        customer_id = Customer.create(data)
+        customer_id = Customer.create(validated_data)
         if customer_id:
-            # Fetch the customer with payment status to return a consistent response
             customer = Customer.find_by_id(customer_id)
             if customer:
-                return success_response(customer.to_dict(), message="Customer created successfully.", status=201)
+                # Use the schema to serialize the output
+                return success_response(customer_schema.dump(customer), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
     except Exception as e:
-        # Check for unique constraint violation from the database
-        if 'UNIQUE constraint failed: customers.email' in str(e) or 'Duplicate entry' in str(e):
-             return error_response('conflict', message='A customer with this email address already exists.', status=409)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               details=str(e), 
@@ -66,8 +71,10 @@ def get_customers():
             limit=per_page, 
             include_deleted=include_deleted
         )
+        # Use the schema to serialize the output
+        serialized_customers = customer_schema.dump(customers, many=True)
         return success_response({
-            'customers': [c.to_dict() for c in customers],
+            'customers': serialized_customers,
             'total': total,
             'page': page,
             'per_page': per_page
@@ -83,10 +90,10 @@ def get_customers():
 def get_customer(customer_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        # This now returns a single customer with their payment status
         customer = Customer.find_by_id(customer_id, include_deleted=include_deleted)
         if customer:
-            return success_response(customer.to_dict(), message="Customer retrieved successfully.")
+            # Use the schema to serialize the output
+            return success_response(customer_schema.dump(customer), message="Customer retrieved successfully.")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
@@ -106,22 +113,26 @@ def update_customer(customer_id):
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    # Validate incoming data
-    validation_errors = validate_customer_data(data, is_update=True)
-    if validation_errors:
-        return error_response('validation_error', 
-                              message="The provided data is invalid.",
-                              details=validation_errors,
-                              status=400)
+    try:
+        # Validate and deserialize the request data for update (allows partial data)
+        validated_data = customer_update_schema.load(data)
+    except ValidationError as err:
+        return error_response(
+            'validation_error',
+            message="The provided data is invalid.",
+            details=err.messages,
+            status=400
+        )
 
     try:
-        if not Customer.update(customer_id, data):
+        if not Customer.update(customer_id, validated_data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        updated_customer = Customer.find_by_id(customer_id)
-        return success_response(updated_customer.to_dict(), message="Customer updated successfully.")
+        updated_.pycustomer = Customer.find_by_id(customer_id)
+        # Use the schema to serialize the output
+        return success_response(customer_schema.dump(updated_customer), message="Customer updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 
