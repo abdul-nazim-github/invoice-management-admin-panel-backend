@@ -32,7 +32,7 @@ class Customer(BaseModel):
             'gst_number': self.gst_number,
             'created_at': created_at_iso,
             'updated_at': updated_at_iso,
-            'status': getattr(self, 'payment_status', None),
+            'status': getattr(self, 'status', None),
             'aggregates': self.aggregates
         }
 
@@ -77,10 +77,12 @@ class Customer(BaseModel):
                 COALESCE(SUM(i.total_amount), 0) AS total_billed,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status = 'Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status IN ('Pending', 'Partially Paid') AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status = 'Partially Paid' THEN 1 ELSE 0 END) > 0 THEN 'Partially Paid'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    ELSE 'Paid'
-                END AS payment_status
+                    WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    ELSE 'New'
+                END AS status
             FROM {cls._table_name} c
             LEFT JOIN invoices i ON c.id = i.customer_id AND i.deleted_at IS NULL
             WHERE c.id = %s
@@ -156,10 +158,12 @@ class Customer(BaseModel):
                 c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status = 'Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status IN ('Pending', 'Partially Paid') AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status = 'Partially Paid' THEN 1 ELSE 0 END) > 0 THEN 'Partially Paid'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    ELSE 'Paid'
-                END AS payment_status
+                    WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    ELSE 'New'
+                END AS status
             FROM {cls._table_name} c
             LEFT JOIN invoices i ON c.id = i.customer_id AND i.deleted_at IS NULL
             {where_sql}
@@ -168,7 +172,7 @@ class Customer(BaseModel):
 
         outer_where = ""
         if status:
-            outer_where = " WHERE sub.payment_status = %s"
+            outer_where = " WHERE sub.status = %s"
         
         final_query = f"SELECT * FROM ({base_query}) AS sub {outer_where} ORDER BY sub.id DESC LIMIT %s OFFSET %s"
         
