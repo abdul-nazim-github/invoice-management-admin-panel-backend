@@ -85,15 +85,14 @@ def get_customers():
                               details=str(e), 
                               status=500)
 
-@customers_blueprint.route('/customers/<int:customer_id>', methods=['GET'])
+@customers_blueprint.route('/customers/<string:customer_id>', methods=['GET'])
 @jwt_required()
 def get_customer(customer_id):
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        customer = Customer.find_by_id(customer_id, include_deleted=include_deleted)
+        customer = Customer.find_by_id_with_aggregates(customer_id, include_deleted=include_deleted)
         if customer:
-            # Use the schema to serialize the output
-            return success_response(customer_schema.dump(customer), message="Customer retrieved successfully.")
+            return success_response(customer.to_dict(), message="Customer details fetched successfully")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
@@ -130,7 +129,7 @@ def update_customer(customer_id):
                                   message=ERROR_MESSAGES["not_found"]["customer"], 
                                   status=404)
 
-        updated_.pycustomer = Customer.find_by_id(customer_id)
+        updated_customer = Customer.find_by_id(customer_id)
         # Use the schema to serialize the output
         return success_response(customer_schema.dump(updated_customer), message="Customer updated successfully.")
     except Exception as e:
