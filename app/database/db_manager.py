@@ -5,11 +5,10 @@ from datetime import datetime, date
 # --- Centralized Normalization Functions ---
 
 def normalize_value(value):
-    """Recursively normalize values for JSON serialization."""
+    """Normalize values that the default JSON encoder can't handle."""
     if isinstance(value, Decimal):
         return float(value)
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
+    # Datetime objects are handled by the serialization schema (Marshmallow)
     return value
 
 def normalize_row(row):
