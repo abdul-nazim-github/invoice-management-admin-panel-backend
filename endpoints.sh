@@ -166,3 +166,23 @@ echo "\n### Bulk Delete Invoices (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
     "ids": [1, 2]
 }' $BASE_URL/invoices/bulk-delete
+
+# -----------------------------
+# Pagination Examples for Customers
+# -----------------------------
+
+echo "\n### Get Customers - Page 2 (Default 20 per page) ###"
+curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/customers?page=2"
+
+
+echo "\n### Get Customers - Page 1, 5 per page ###"
+curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/customers?page=1&per_page=5"
+
+
+echo "\n### Search Customers with Pagination ###"
+curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/customers?q=New&page=1&per_page=10"
+
+
+echo "\n### Filter Customers by Status with Pagination ###"
+curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/customers?status=Pending&page=1"
+
