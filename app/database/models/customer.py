@@ -1,3 +1,4 @@
+
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
@@ -141,7 +142,7 @@ class Customer(BaseModel):
         """
         
         pagination_params = outer_params + [limit, offset]
-        rows = DBManager.execute_query(final_query, tuple(pagination_params))
+        rows = DBManager.execute_query(final_query, tuple(pagination_params), fetch='all')
         
         customers = [cls.from_row(row) for row in rows] if rows else []
 
