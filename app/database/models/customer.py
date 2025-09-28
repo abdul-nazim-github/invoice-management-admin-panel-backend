@@ -42,6 +42,27 @@ class Customer(BaseModel):
         return cls(**row)
 
     @classmethod
+    def create(cls, data):
+        """
+        Creates a new customer, filtering out any fields that don't belong in the table.
+        This prevents errors if extra data is passed in the request body.
+        """
+        allowed_fields = {
+            'full_name', 'email', 'phone', 'address', 'gst_number', 'status'
+        }
+        
+        filtered_data = {key: value for key, value in data.items() if key in allowed_fields}
+
+        if not filtered_data:
+            return None
+
+        columns = ", ".join(filtered_data.keys())
+        placeholders = ", ".join(["%s"] * len(filtered_data))
+        query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders})'
+        
+        return DBManager.execute_write_query(query, tuple(filtered_data.values()))
+
+    @classmethod
     def find_by_id(cls, id, include_deleted=False):
         """
         Overrides BaseModel.find_by_id to include the customer's payment status.
