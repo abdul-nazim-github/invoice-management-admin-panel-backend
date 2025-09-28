@@ -100,6 +100,10 @@ CREATE TABLE IF NOT EXISTS invoices (
   customer_id INT UNSIGNED NOT NULL,                -- Foreign key linking to the customer
   user_id INT UNSIGNED NOT NULL,                    -- Foreign key linking to the user who created the invoice
   due_date DATE,                           -- Date the payment is due
+  subtotal_amount DECIMAL(10,2) NOT NULL,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
+  tax_percent DECIMAL(5,2) DEFAULT 0,
+  tax_amount DECIMAL(10,2) NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL,     -- The final amount of the invoice
   status ENUM('Paid','Pending','Overdue') DEFAULT 'Pending', -- Current status of the invoice
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion

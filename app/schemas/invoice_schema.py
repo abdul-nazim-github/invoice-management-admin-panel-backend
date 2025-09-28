@@ -27,6 +27,11 @@ class InvoiceSchema(Schema):
         format='%Y-%m-%d',
         error_messages={"required": "Due date is required.", "invalid": "Invalid date format. Use YYYY-MM-DD."}
     )
+    subtotal_amount = fields.Float(dump_only=True)
+    discount_amount = fields.Float(validate=validate.Range(min=0, error="Discount amount must be a non-negative number."))
+    tax_percent = fields.Float(validate=validate.Range(min=0, error="Tax percent must be a non-negative number."))
+    tax_amount = fields.Float(dump_only=True)
+    total_amount = fields.Float(dump_only=True)
     status = fields.Str(
         validate=validate.OneOf(['pending', 'paid', 'cancelled'], error="Invalid status. Must be one of: pending, paid, cancelled.")
     )
@@ -35,6 +40,5 @@ class InvoiceSchema(Schema):
         required=True,
         validate=validate.Length(min=1, error="Invoice must have at least one item.")
     )
-    total_amount = fields.Float(dump_only=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)

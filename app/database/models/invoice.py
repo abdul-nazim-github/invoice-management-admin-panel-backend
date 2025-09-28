@@ -6,12 +6,16 @@ from datetime import date, datetime
 class Invoice(BaseModel):
     _table_name = 'invoices'
 
-    def __init__(self, id, invoice_number, customer_id, user_id, total_amount, status, due_date=None, **kwargs):
+    def __init__(self, id, invoice_number, customer_id, user_id, subtotal_amount, tax_amount, total_amount, status, due_date=None, tax_percent=0, discount_amount=0, **kwargs):
         self.id = id
         self.invoice_number = invoice_number
         self.customer_id = customer_id
         self.user_id = user_id
         self.due_date = due_date
+        self.subtotal_amount = subtotal_amount
+        self.discount_amount = discount_amount
+        self.tax_percent = tax_percent
+        self.tax_amount = tax_amount
         self.total_amount = total_amount
         self.status = status
         self.items = [] # To hold invoice items
@@ -26,6 +30,10 @@ class Invoice(BaseModel):
             'customer_id': self.customer_id,
             'user_id': self.user_id,
             'due_date': self.due_date.isoformat() if isinstance(self.due_date, date) else self.due_date,
+            'subtotal_amount': float(self.subtotal_amount),
+            'discount_amount': float(self.discount_amount),
+            'tax_percent': float(self.tax_percent),
+            'tax_amount': float(self.tax_amount),
             'total_amount': float(self.total_amount), # Cast DECIMAL to float
             'status': self.status,
             'items': self.items, # Include items in the dictionary
