@@ -33,7 +33,7 @@ class InvoiceSchema(Schema):
     tax_amount = fields.Float(dump_only=True)
     total_amount = fields.Float(dump_only=True)
     status = fields.Str(
-        validate=validate.OneOf(['pending', 'paid', 'cancelled'], error="Invalid status. Must be one of: pending, paid, cancelled.")
+        validate=validate.OneOf(['Pending', 'Paid', 'Overdue'], error="Invalid status. Must be one of: Pending, Paid, Overdue.")
     )
     items = fields.List(
         fields.Nested(InvoiceItemSchema),
