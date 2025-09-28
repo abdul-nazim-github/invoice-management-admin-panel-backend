@@ -63,7 +63,6 @@ def create_invoice():
 
         invoice_data = {
             'customer_id': validated_data['customer_id'],
-            'invoice_date': validated_data['invoice_date'],
             'due_date': validated_data['due_date'],
             'total_amount': total_amount,
             'status': validated_data.get('status', 'pending')

@@ -1,17 +1,16 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from app.database.base import get_db_connection
-from datetime import date
+from datetime import date, datetime
 
 class Invoice(BaseModel):
     _table_name = 'invoices'
 
-    def __init__(self, id, invoice_number, customer_id, user_id, invoice_date, total_amount, status, due_date=None, **kwargs):
+    def __init__(self, id, invoice_number, customer_id, user_id, total_amount, status, due_date=None, **kwargs):
         self.id = id
         self.invoice_number = invoice_number
         self.customer_id = customer_id
         self.user_id = user_id
-        self.invoice_date = invoice_date
         self.due_date = due_date
         self.total_amount = total_amount
         self.status = status
@@ -26,11 +25,12 @@ class Invoice(BaseModel):
             'invoice_number': self.invoice_number,
             'customer_id': self.customer_id,
             'user_id': self.user_id,
-            'invoice_date': self.invoice_date.isoformat() if isinstance(self.invoice_date, date) else self.invoice_date,
             'due_date': self.due_date.isoformat() if isinstance(self.due_date, date) else self.due_date,
             'total_amount': float(self.total_amount), # Cast DECIMAL to float
             'status': self.status,
-            'items': self.items # Include items in the dictionary
+            'items': self.items, # Include items in the dictionary
+            'created_at': self.created_at.isoformat() if hasattr(self, 'created_at') and isinstance(self.created_at, datetime) else None,
+            'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and isinstance(self.updated_at, datetime) else None
         }
         return invoice_dict
 

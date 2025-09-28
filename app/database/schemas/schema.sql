@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS products (
   stock INT DEFAULT 0,                     -- Current stock level
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of product creation
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   -- Indexes for faster queries
   INDEX idx_products_code_name (product_code, name),
@@ -98,19 +99,19 @@ CREATE TABLE IF NOT EXISTS invoices (
   invoice_number VARCHAR(50) UNIQUE NOT NULL, -- Unique number for the invoice
   customer_id INT UNSIGNED NOT NULL,                -- Foreign key linking to the customer
   user_id INT UNSIGNED NOT NULL,                    -- Foreign key linking to the user who created the invoice
-  invoice_date DATE NOT NULL,              -- Date the invoice was issued
   due_date DATE,                           -- Date the payment is due
   total_amount DECIMAL(10,2) NOT NULL,     -- The final amount of the invoice
   status ENUM('Paid','Pending','Overdue') DEFAULT 'Pending', -- Current status of the invoice
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of invoice creation
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   -- Foreign key constraints
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
 
   -- Indexes for faster queries
-  INDEX idx_invoices_status_date (status, invoice_date),
+  INDEX idx_invoices_status_date (status),
   INDEX idx_invoices_customer_id (customer_id),
   INDEX idx_invoices_user_id (user_id),
   INDEX idx_invoices_due_date (due_date),

@@ -22,11 +22,6 @@ class InvoiceSchema(Schema):
         required=True,
         validate=validate.Range(min=1, error="Customer ID must be a positive integer.")
     )
-    invoice_date = fields.Date(
-        required=True,
-        format='%Y-%m-%d',
-        error_messages={"required": "Invoice date is required.", "invalid": "Invalid date format. Use YYYY-MM-DD."}
-    )
     due_date = fields.Date(
         required=True,
         format='%Y-%m-%d',

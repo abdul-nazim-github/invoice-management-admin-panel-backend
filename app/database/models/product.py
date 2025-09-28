@@ -21,7 +21,9 @@ class Product(BaseModel):
             'name': self.name,
             'description': self.description,
             'price': float(self.price),  # Cast DECIMAL to float for JSON serialization
-            'stock': self.stock
+            'stock': self.stock,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     @classmethod
