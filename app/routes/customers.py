@@ -45,7 +45,7 @@ def create_customer():
             else:
                 return error_response(
                     'conflict_soft_deleted',
-                    message='A customer with this email was previously deleted. Do you want to restore them?',
+                    message='This email belongs to a deleted customer. Do you want to restore that record?'
                     details={'customer_id': str(existing_customer.id), 'email': existing_customer.email},
                     status=409
                 )
@@ -146,7 +146,7 @@ def update_customer(customer_id):
                 else:
                     return error_response(
                         'conflict_soft_deleted',
-                        message='A customer with this email was previously deleted. Do you want to restore them?',
+                        message='This email belongs to a deleted customer. Do you want to restore that record?',
                         details={'customer_id': str(existing_customer.id), 'email': existing_customer.email},
                         status=409
                     )
