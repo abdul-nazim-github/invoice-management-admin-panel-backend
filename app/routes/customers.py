@@ -57,13 +57,11 @@ def create_customer():
 def get_customers():
     page, per_page = get_pagination()
     q = request.args.get('q', None)
-    status = request.args.get('status', None)
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     
     try:
         customers, total = Customer.list_all(
             q=q, 
-            status=status, 
             offset=(page - 1) * per_page, 
             limit=per_page, 
             include_deleted=include_deleted
