@@ -4,7 +4,7 @@ from datetime import datetime, date
 
 # --- Centralized Normalization Functions ---
 
-def def normalize_value(value):
+def normalize_value(value):
     """Recursively normalize values for JSON serialization."""
     if isinstance(value, Decimal):
         # Convert Decimal to float for JSON numbers
@@ -16,6 +16,8 @@ def def normalize_value(value):
 def normalize_row(row):
     """Normalize all values in a DB row dictionary."""
     # Assumes row is a dictionary, as provided by DictCursor
+    if not row:
+        return None
     return {k: normalize_value(v) for k, v in row.items()}
 
 def normalize_rows(rows):
