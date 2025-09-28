@@ -20,8 +20,8 @@ class Customer(BaseModel):
         self.aggregates = getattr(self, 'aggregates', {})
 
     def to_dict(self):
-        created_at_iso = self.created_at.isoformat() if isinstance(self.created_at, (datetime, date)) else str(self.created_at)
-        updated_at_iso = self.updated_at.isoformat() if isinstance(self.updated_at, (datetime, date)) else str(self.updated_at)
+        created_at_iso = self.created_at.isoformat() if isinstance(self.created_at, (datetime, date)) else None
+        updated_at_iso = self.updated_at.isoformat() if isinstance(self.updated_at, (datetime, date)) else None
 
         return {
             'id': self.id,
@@ -158,10 +158,9 @@ class Customer(BaseModel):
                 c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status='pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
-                    WHEN SUM(CASE WHEN i.status='pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    WHEN SUM(CASE WHEN i.status='paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
-                    ELSE 'New'
+                    WHEN SUM(CASE WHEN i.status = 'Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                    ELSE 'Paid'
                 END AS payment_status,
                 COUNT(i.id) AS invoice_count
             FROM {cls._table_name} c
