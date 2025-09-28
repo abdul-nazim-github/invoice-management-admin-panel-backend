@@ -9,21 +9,6 @@ from app.utils.validation import validate_customer_data
 
 customers_blueprint = Blueprint('customers', __name__)
 
-@customers_blueprint.route('/customers/search', methods=['GET'])
-@jwt_required()
-def search_customers():
-    search_term = request.args.get('q')
-    if not search_term:
-        return error_response('validation_error', message="Search term 'q' is required.", status=400)
-
-    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
-
-    try:
-        customers = Customer.search(search_term, include_deleted=include_deleted)
-        return success_response([c.to_dict() for c in customers], message="Customers matching the search term retrieved successfully.")
-    except Exception as e:
-        return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
-
 @customers_blueprint.route('/customers', methods=['POST'])
 @jwt_required()
 @require_admin
@@ -71,10 +56,18 @@ def create_customer():
 @jwt_required()
 def get_customers():
     page, per_page = get_pagination()
+    q = request.args.get('q', None)
+    status = request.args.get('status', None)
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+    
     try:
-        # This now returns customers with their payment status
-        customers, total = Customer.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
+        customers, total = Customer.list_all(
+            q=q, 
+            status=status, 
+            offset=(page - 1) * per_page, 
+            limit=per_page, 
+            include_deleted=include_deleted
+        )
         return success_response({
             'customers': [c.to_dict() for c in customers],
             'total': total,
