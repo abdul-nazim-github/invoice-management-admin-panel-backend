@@ -29,22 +29,22 @@ class User(BaseModel):
     def find_by_username(cls, username, include_deleted=False):
         """Finds a user by their username."""
         db = cls._get_db_manager()
-        row = db.find_one_where("username = %s", (username,), include_deleted=include_deleted)
+        row = db.find_one_where("LOWER(username) = %s", (username.lower(),), include_deleted=include_deleted)
         return cls.from_row(row)
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):
         """Finds a user by their email address."""
         db = cls._get_db_manager()
-        row = db.find_one_where("email = %s", (email,), include_deleted=include_deleted)
+        row = db.find_one_where("LOWER(email) = %s", (email.lower(),), include_deleted=include_deleted)
         return cls.from_row(row)
 
     @classmethod
     def find_by_username_or_email(cls, login_identifier, include_deleted=False):
-        """Finds a user by either their username or email."""
+        """Finds a user by either their username or email using a case-insensitive search."""
         db = cls._get_db_manager()
-        # Use a case-insensitive search for the identifier
-        where_clause = "username ILIKE %s OR email ILIKE %s"
-        params = (login_identifier, login_identifier)
+        # Use LOWER() for case-insensitivity in MySQL/PostgreSQL instead of ILIKE
+        where_clause = "LOWER(username) = %s OR LOWER(email) = %s"
+        params = (login_identifier.lower(), login_identifier.lower())
         row = db.find_one_where(where_clause, params, include_deleted=include_deleted)
         return cls.from_row(row)
