@@ -1,13 +1,19 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
+from marshmallow import ValidationError
+
 from app.database.models.product import Product
+from app.schemas.product_schema import ProductSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
-from app.utils.validation import validate_product_data
 
 products_blueprint = Blueprint('products', __name__)
+
+# Instantiate schemas
+product_schema = ProductSchema()
+product_update_schema = ProductSchema(partial=True)
 
 @products_blueprint.route('/products/search', methods=['GET'])
 @jwt_required()
@@ -20,7 +26,8 @@ def search_products():
 
     try:
         products = Product.search(search_term, include_deleted=include_deleted)
-        return success_response([p.to_dict() for p in products], message="Products matching the search term retrieved successfully.")
+        serialized_products = product_schema.dump(products, many=True)
+        return success_response(serialized_products, message="Products matching the search term retrieved successfully.")
     except Exception as e:
         return error_response('server_error', message="An error occurred during the search.", details=str(e), status=500)
 
@@ -35,19 +42,20 @@ def create_product():
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    validation_errors = validate_product_data(data)
-    if validation_errors:
+    try:
+        validated_data = product_schema.load(data)
+    except ValidationError as err:
         return error_response('validation_error', 
                               message="The provided data is invalid.",
-                              details=validation_errors,
+                              details=err.messages,
                               status=400)
 
     try:
-        product_id = Product.create(data)
+        product_id = Product.create(validated_data)
         if product_id:
             product = Product.find_by_id(product_id)
             if product:
-                return success_response(product.to_dict(), message="Product created successfully.", status=201)
+                return success_response(product_schema.dump(product), message="Product created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_product"], 
                               status=500)
@@ -64,8 +72,9 @@ def get_products():
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
         products, total = Product.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
+        serialized_products = product_schema.dump(products, many=True)
         return success_response({
-            'products': [p.to_dict() for p in products],
+            'products': serialized_products,
             'total': total,
             'page': page,
             'per_page': per_page
@@ -83,7 +92,7 @@ def get_product(product_id):
     try:
         product = Product.find_by_id(product_id, include_deleted=include_deleted)
         if product:
-            return success_response(product.to_dict(), message="Product retrieved successfully.")
+            return success_response(product_schema.dump(product), message="Product retrieved successfully.")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["product"], 
                               status=404)
@@ -103,40 +112,44 @@ def update_product(product_id):
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
-    validation_errors = validate_product_data(data, is_update=True)
-    if validation_errors:
+    try:
+        validated_data = product_update_schema.load(data)
+    except ValidationError as err:
         return error_response('validation_error', 
                               message="The provided data is invalid.",
-                              details=validation_errors,
+                              details=err.messages,
                               status=400)
 
     try:
-        if not Product.update(product_id, data):
+        if not Product.update(product_id, validated_data):
             return error_response('not_found', 
                                   message=ERROR_MESSAGES["not_found"]["product"], 
                                   status=404)
 
         updated_product = Product.find_by_id(product_id)
-        return success_response(updated_product.to_dict(), message="Product updated successfully.")
+        return success_response(product_schema.dump(updated_product), message="Product updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_product"], 
                               details=str(e), 
                               status=500)
 
-@products_blueprint.route('/products/<int:product_id>', methods=['DELETE'])
+@products_blueprint.route('/products/bulk-delete', methods=['POST'])
 @jwt_required()
 @require_admin
-def delete_product(product_id):
-    try:
-        if not Product.soft_delete(product_id):
-            return error_response('not_found', 
-                                  message=ERROR_MESSAGES["not_found"]["product"], 
-                                  status=404)
+def bulk_delete_products():
+    data = request.get_json()
+    if not data or 'ids' not in data or not isinstance(data['ids'], list):
+        return error_response('validation_error', message="Invalid request. 'ids' must be a list of product IDs.", status=400)
 
-        return success_response(message="Product soft-deleted successfully.")
+    ids_to_delete = data['ids']
+    if not ids_to_delete:
+        return error_response('validation_error', message="The 'ids' list cannot be empty.", status=400)
+
+    try:
+        deleted_count = Product.bulk_soft_delete(ids_to_delete)
+        if deleted_count > 0:
+            return success_response(message=f"{deleted_count} product(s) soft-deleted successfully.")
+        return error_response('not_found', message="No matching products found for the provided IDs.", status=404)
     except Exception as e:
-        return error_response('server_error', 
-                              message=ERROR_MESSAGES["server_error"]["delete_product"], 
-                              details=str(e), 
-                              status=500)
+        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["delete_product"], details=str(e), status=500)
