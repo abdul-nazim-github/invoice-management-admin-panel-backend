@@ -5,9 +5,15 @@ class User(BaseModel):
     _table_name = 'users'
 
     def __init__(self, **kwargs):
-        # This constructor is used when creating instances from DB rows.
-        # The password hash is already handled.
         super().__init__(**kwargs)
+
+    def to_dict(self):
+        """
+        Overrides the base to_dict method to ensure the password hash is never exposed.
+        """
+        d = super().to_dict()
+        d.pop('password_hash', None)  # Remove the sensitive hash
+        return d
 
     # --- Password handling ---
     

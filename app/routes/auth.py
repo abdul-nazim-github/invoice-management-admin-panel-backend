@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt
+from pymysql.err import IntegrityError
 from app.database.models.user import User
 from app.database.token_blocklist import BLOCKLIST
 from app.utils.auth import require_admin
@@ -26,7 +27,6 @@ def sign_in():
     user = User.find_by_username_or_email(login_identifier)
 
     if user and user.check_password(password):
-        # Include the user's role in the JWT claims
         additional_claims = {"role": user.role}
         access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
         return jsonify(access_token=access_token), 200
@@ -43,13 +43,13 @@ def sign_out():
     BLOCKLIST.add(jti)
     return jsonify(message="Successfully signed out."), 200
 
-
 @auth_blueprint.route('/register', methods=['POST'])
 @jwt_required()
 @require_admin
 def register():
     """
     Registers a new user. This is an admin-only action.
+    Handles validation, duplicate checks, and potential race conditions.
     """
     data = request.get_json()
     if not data:
@@ -60,11 +60,21 @@ def register():
     if missing_fields:
         return error_response(type='validation_error', message=f"Missing required fields: {', '.join(missing_fields)}", status=400)
 
+    # Proactive checks for existing username or email
+    if User.find_by_username(data['username']):
+        return error_response(type='conflict', message="Username already exists.", status=409)
     if User.find_by_email(data['email']):
-        return error_response(type='conflict', message=ERROR_MESSAGES["conflict"]["user_exists"], status=409)
+        return error_response(type='conflict', message="Email already exists.", status=409)
 
     try:
         user = User.create(data)
+        if user is None:
+             return error_response(type='server_error', message=ERROR_MESSAGES["server_error"]["create_user"], status=500)
         return jsonify(user.to_dict()), 201
+        
+    except IntegrityError:
+        # This catches the race condition if a user is created between the check and the create call
+        return error_response(type='conflict', message="Username or email already exists.", status=409)
     except Exception as e:
-        return error_response(type='server_error', message=ERROR_MESSAGES["server_error"]["create_user"], status=500)
+        # Catch any other unexpected errors during user creation
+        return error_response(type='server_error', message=str(e), status=500)

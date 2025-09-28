@@ -20,6 +20,14 @@ class BaseModel:
             return float(value)
         return value
 
+    def to_dict(self):
+        """
+        Serializes the model instance to a dictionary.
+        Excludes attributes starting with an underscore.
+        Child models should override this to hide sensitive data.
+        """
+        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+
     @classmethod
     def _get_db_manager(cls):
         """Returns a memoized instance of the DBManager for the model's table."""
