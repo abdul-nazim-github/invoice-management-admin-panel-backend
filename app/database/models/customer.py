@@ -5,14 +5,13 @@ from decimal import Decimal
 class Customer(BaseModel):
     _table_name = 'customers'
 
-    def __init__(self, id, full_name, email, phone, address, gst_number, status, **kwargs):
+    def __init__(self, id, full_name, email, phone, address, gst_number, **kwargs):
         self.id = id
         self.full_name = full_name
         self.email = email
         self.phone = phone
         self.address = address
         self.gst_number = gst_number
-        self.status = status
         # Absorb any extra columns, like invoice_count or payment_status if passed directly
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -24,8 +23,7 @@ class Customer(BaseModel):
             'email': self.email,
             'phone': self.phone,
             'address': self.address,
-            'gst_number': self.gst_number,
-            'status': self.status
+            'gst_number': self.gst_number
         }
         # Add invoice_count and payment_status if they have been set on the instance
         if hasattr(self, 'invoice_count'):
@@ -48,7 +46,7 @@ class Customer(BaseModel):
         This prevents errors if extra data is passed in the request body.
         """
         allowed_fields = {
-            'full_name', 'email', 'phone', 'address', 'gst_number', 'status'
+            'full_name', 'email', 'phone', 'address', 'gst_number'
         }
         
         filtered_data = {key: value for key, value in data.items() if key in allowed_fields}
@@ -75,7 +73,7 @@ class Customer(BaseModel):
         """Finds a customer by their email address (without payment status)."""
         query = f"SELECT * FROM {cls._table_name} WHERE email = %s"
         if not include_deleted:
-            query += " AND status != 'deleted'"
+            query += " AND deleted_at IS NULL"
         
         row = DBManager.execute_query(query, (email,), fetch='one')
         # Using the simplified from_row which is fine
@@ -90,7 +88,7 @@ class Customer(BaseModel):
         params = []
 
         if not include_deleted:
-            where.append("c.status != 'deleted'")
+            where.append("c.deleted_at IS NULL")
 
         if customer_id:
             where.append("c.id = %s")
@@ -112,8 +110,7 @@ class Customer(BaseModel):
                 c.phone,
                 c.address,
                 c.gst_number,
-                c.created_at, 
-                c.status,
+                c.created_at,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
                     WHEN SUM(CASE WHEN i.status='pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
@@ -123,9 +120,9 @@ class Customer(BaseModel):
                 END AS payment_status,
                 COUNT(i.id) AS invoice_count
             FROM {cls._table_name} c
-            LEFT JOIN invoices i ON c.id = i.customer_id AND i.status != 'deleted'
+            LEFT JOIN invoices i ON c.id = i.customer_id AND i.deleted_at IS NULL
             {where_sql}
-            GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.status
+            GROUP BY c.id, c.full_name, c.email, c.phone, c.address, c.gst_number, c.created_at
         """
 
         outer_where = ""
@@ -164,7 +161,7 @@ class Customer(BaseModel):
             return 0
 
         placeholders = ', '.join(['%s'] * len(ids))
-        query = f"UPDATE {cls._table_name} SET status = 'deleted' WHERE id IN ({placeholders}) AND status != 'deleted'"
+        query = f"UPDATE {cls._table_name} SET deleted_at = NOW() WHERE id IN ({placeholders}) AND deleted_at IS NULL"
         
         DBManager.execute_write_query(query, tuple(ids))
         return len(ids)

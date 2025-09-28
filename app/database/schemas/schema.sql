@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS customers (
   phone VARCHAR(20),                       -- Customer's phone number
   address TEXT,                            -- Customer's physical address
   gst_number VARCHAR(50),                  -- Customer's GST identification number
-  status ENUM('active','inactive') DEFAULT 'active', -- Customer's status
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of customer creation
 
@@ -64,7 +63,6 @@ CREATE TABLE IF NOT EXISTS customers (
   INDEX idx_customers_email (email),
   INDEX idx_customers_phone (phone),
   INDEX idx_customers_gst_number (gst_number),
-  INDEX idx_customers_status (status),
   INDEX idx_customers_deleted_at (deleted_at)
 );
 
