@@ -8,6 +8,7 @@ from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
 from app.utils.pagination import get_pagination
+from app.utils.utils import generate_unique_product_code
 
 products_blueprint = Blueprint('products', __name__)
 
@@ -51,6 +52,10 @@ def create_product():
                               status=400)
 
     try:
+        # Generate the unique product code
+        product_code = generate_unique_product_code(validated_data['name'])
+        validated_data['product_code'] = product_code
+
         product_id = Product.create(validated_data)
         if product_id:
             product = Product.find_by_id(product_id)
@@ -113,6 +118,9 @@ def update_product(product_id):
                               status=400)
 
     try:
+        # Prevent product_code from being updated
+        if 'product_code' in data:
+            del data['product_code']
         validated_data = product_update_schema.load(data)
     except ValidationError as err:
         return error_response('validation_error', 
