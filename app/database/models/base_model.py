@@ -1,6 +1,16 @@
 from app.database.db_manager import DBManager
 from datetime import datetime, date
 from decimal import Decimal
+import json
+
+# Helper for custom JSON serialization
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 class BaseModel:
     """Base class for all models, providing common CRUD operations."""
@@ -8,25 +18,19 @@ class BaseModel:
     _db_manager = None
 
     def __init__(self, **kwargs):
-        # Dynamically set attributes for all columns in the kwargs
+        # Assign all keyword arguments directly to attributes.
+        # This keeps the original data types from the database (e.g., datetime objects).
         for key, value in kwargs.items():
-            setattr(self, key, self._format_value(key, value))
-
-    def _format_value(self, key, value):
-        """Helper to format values from the database correctly."""
-        if isinstance(value, (datetime, date)):
-            return value.isoformat()
-        if isinstance(value, Decimal):
-            return float(value)
-        return value
+            setattr(self, key, value)
 
     def to_dict(self):
         """
-        Serializes the model instance to a dictionary.
-        Excludes attributes starting with an underscore.
-        Child models should override this to hide sensitive data.
+        Serializes the model instance to a dictionary, correctly handling
+        special data types like datetimes and decimals for JSON conversion.
         """
-        return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+        d = {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+        # Use json.dumps with the custom encoder and then json.loads to get a clean dict
+        return json.loads(json.dumps(d, cls=CustomJsonEncoder))
 
     @classmethod
     def _get_db_manager(cls):
@@ -42,12 +46,12 @@ class BaseModel:
             return None
         return cls(**row)
 
-    # --- Generic CRUD Methods (Refactored) ---
+    # --- Generic CRUD Methods ---
 
     @classmethod
     def create(cls, data):
         """
-        Creates a new record. The model layer is now responsible for
+        Creates a new record. The model layer is responsible for
         the full create-then-fetch sequence.
         """
         db = cls._get_db_manager()
@@ -57,13 +61,11 @@ class BaseModel:
         if not sanitized_data:
             raise ValueError("No valid data provided for creation.")
 
-        # Step 1: Create the record and get the new ID from the DBManager
         new_id = db.create(sanitized_data)
         
         if not new_id:
             return None
 
-        # Step 2: Fetch the complete record using the standard find_by_id method
         return cls.find_by_id(new_id)
 
     @classmethod
@@ -83,7 +85,7 @@ class BaseModel:
     @classmethod
     def update(cls, record_id, data):
         """
-        Updates a record by its ID. The model layer is now responsible
+        Updates a record by its ID. The model layer is responsible
         for the full update-then-fetch sequence.
         """
         db = cls._get_db_manager()
@@ -93,10 +95,7 @@ class BaseModel:
         if not sanitized_data:
             return cls.find_by_id(record_id)
 
-        # Step 1: Update the record. This method returns nothing.
         db.update(record_id, sanitized_data)
-
-        # Step 2: Fetch the updated record using the standard find_by_id method
         return cls.find_by_id(record_id)
 
     @classmethod
