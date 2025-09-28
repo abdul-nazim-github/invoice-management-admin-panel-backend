@@ -8,14 +8,22 @@ class Customer(BaseModel):
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            # Convert date strings to datetime objects upon instantiation
+            if key in ('created_at', 'updated_at') and value and isinstance(value, str):
+                try:
+                    # Handle ISO format with or without 'T' separator
+                    setattr(self, key, datetime.fromisoformat(value.replace(' ', 'T')))
+                except (ValueError, TypeError):
+                    # If parsing fails, keep the original string
+                    setattr(self, key, value)
+            else:
+                setattr(self, key, value)
         
         self.invoices = getattr(self, 'invoices', [])
         self.aggregates = getattr(self, 'aggregates', {})
 
     def to_dict(self):
         """Converts the customer object to a dictionary with nested aggregates and invoices."""
-        # This method is primarily for the detailed view from find_by_id_with_aggregates
         return {
             'id': self.id,
             'full_name': self.name,
@@ -173,7 +181,7 @@ class Customer(BaseModel):
         return customers, total
 
     @classmethod
-    def bulk_soft_delete(cls, ids):
+    def bulk__soft_delete(cls, ids):
         if not ids:
             return 0
         placeholders = ', '.join(['%s'] * len(ids))
