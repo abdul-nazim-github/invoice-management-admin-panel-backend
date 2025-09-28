@@ -32,9 +32,9 @@ CREATE TABLE IF NOT EXISTS users (
   billing_state VARCHAR(120),
   billing_pin VARCHAR(20),
   billing_gst VARCHAR(50),                  -- User's GST number for billing
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of user creation
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
 
   -- Indexes for faster queries
   INDEX idx_users_email (email),
@@ -55,9 +55,9 @@ CREATE TABLE IF NOT EXISTS customers (
   phone VARCHAR(20),                       -- Customer's phone number
   address TEXT,                            -- Customer's physical address
   gst_number VARCHAR(50),                  -- Customer's GST identification number
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of customer creation
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
 
   -- Indexes for faster queries
   INDEX idx_customers_name (name),
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,                        -- Detailed description of the product
   price DECIMAL(10,2) NOT NULL,            -- Price of the product
   stock INT DEFAULT 0,                     -- Current stock level
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of product creation
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
 
   -- Indexes for faster queries
   INDEX idx_products_code_name (product_code, name),
@@ -106,9 +106,9 @@ CREATE TABLE IF NOT EXISTS invoices (
   tax_amount DECIMAL(10,2) NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL,     -- The final amount of the invoice
   status ENUM('Paid','Pending','Overdue') DEFAULT 'Pending', -- Current status of the invoice
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of invoice creation
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
 
   -- Foreign key constraints
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
@@ -134,8 +134,9 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   quantity INT NOT NULL,                   -- Quantity of the product sold
   price DECIMAL(10,2) NOT NULL,            -- Price per unit at the time of sale
   total DECIMAL(10,2) NOT NULL,            -- Total amount for this line item (quantity * price)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
-
   -- Foreign key constraints
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
@@ -157,9 +158,9 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_date DATE NOT NULL,              -- The date the payment was made
   method ENUM('cash','card','upi','bank_transfer') DEFAULT 'cash', -- Method of payment
   reference_no VARCHAR(100),               -- A reference number from the payment processor
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of payment record creation
-
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   -- Foreign key constraints
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
 
@@ -179,8 +180,8 @@ CREATE TABLE IF NOT EXISTS token_blacklist (
   id VARCHAR(36) PRIMARY KEY,                -- Unique identifier for the blacklisted token
   user_id INT UNSIGNED NOT NULL,                      -- The user associated with the token
   token VARCHAR(512) NOT NULL,               -- The blacklisted JWT token
-  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the token was blacklisted
+  deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
 
   -- Foreign key constraint
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

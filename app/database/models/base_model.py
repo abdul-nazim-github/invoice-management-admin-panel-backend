@@ -1,4 +1,3 @@
-
 from app.database.db_manager import DBManager
 
 class BaseModel:
@@ -37,9 +36,22 @@ class BaseModel:
     def update(cls, id, data):
         if not cls.find_by_id(id):
             return False
-        set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
+        
+        # Return early if there's no data to update
+        if not data:
+            return True
+
+        set_clause_parts = [f"{key} = %s" for key in data.keys()]
+        # Explicitly set updated_at to the current time on every update
+        set_clause_parts.append("updated_at = NOW()")
+        
+        set_clause = ", ".join(set_clause_parts)
+        
         query = f'UPDATE {cls._table_name} SET {set_clause} WHERE id = %s'
-        DBManager.execute_write_query(query, (*data.values(), id))
+        
+        params = list(data.values()) + [id]
+        
+        DBManager.execute_write_query(query, tuple(params))
         return True
 
     @classmethod
