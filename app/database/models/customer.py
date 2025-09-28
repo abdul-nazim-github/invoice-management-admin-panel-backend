@@ -9,42 +9,37 @@ class Customer(BaseModel):
         # Default values for attributes that might not be in every query
         self.invoices = getattr(self, 'invoices', [])
         self.aggregates = getattr(self, 'aggregates', {})
+        self.status = getattr(self, 'status', 'active') # Ensure status has a default
 
     def to_dict(self):
         """Serializes the Customer object to a dictionary."""
-        created_at_iso = self.created_at.isoformat() if hasattr(self, 'created_at') and isinstance(self.created_at, (datetime, date)) else None
-        updated_at_iso = self.updated_at.isoformat() if hasattr(self, 'updated_at') and isinstance(self.updated_at, (datetime, date)) else None
+        d = super().to_dict()
+        d.pop('invoices', None) # Don't include nested lists by default
+        d.pop('aggregates', None)
+        d['full_name'] = d.pop('name', None) # Rename for consistency
+        return d
 
-        return {
-            'id': self.id,
-            'full_name': getattr(self, 'name', None), # Use getattr for safety
-            'email': getattr(self, 'email', None),
-            'phone': getattr(self, 'phone', None),
-            'address': getattr(self, 'address', None),
-            'gst_number': getattr(self, 'gst_number', None),
-            'created_at': created_at_iso,
-            'updated_at': updated_at_iso,
-            'status': getattr(self, 'status', 'New'), # Default status to 'New'
-            'aggregates': self.aggregates
-        }
+    @classmethod
+    def create(cls, data):
+        """
+        Overrides the base create method to ensure a status is always set.
+        """
+        if 'status' not in data:
+            data['status'] = 'active'
+        return super().create(data)
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):
         """Finds a customer by email, case-insensitively."""
         db = cls._get_db_manager()
-        # Use LOWER() for case-insensitive search to be DB compatible
         row = db.find_one_where("LOWER(email) = %s", (email.lower(),), include_deleted=include_deleted)
         return cls.from_row(row)
 
     @classmethod
     def find_by_id_with_aggregates(cls, customer_id, include_deleted=False):
         """Retrieves a customer with their invoices and financial aggregates."""
-        db = cls._get_db_manager()
-
-        # This method requires complex, custom queries that don't fit the generic manager methods.
-        # We will need to implement generic query execution in the DBManager or handle it here.
-        # For now, this method will be stubbed out to prevent errors.
-        # TODO: Re-implement this method with a more robust query solution.
+        # TODO: This method needs to be re-implemented with proper invoice/payment queries.
+        # For now, it will just fetch the customer and return empty aggregates.
         customer = cls.find_by_id(customer_id, include_deleted)
         if customer:
             customer.aggregates = {
@@ -58,7 +53,6 @@ class Customer(BaseModel):
     @classmethod
     def list_all(cls, q=None, status=None, offset=0, limit=20, customer_id=None, include_deleted=False):
         """Lists all customers with filtering and pagination."""
-        # TODO: Re-implement this method with a more robust query solution.
         db = cls._get_db_manager()
         items, total = db.get_paginated(page=(offset // limit) + 1, per_page=limit, include_deleted=include_deleted)
         return [cls.from_row(i) for i in items], total
@@ -79,6 +73,5 @@ class Customer(BaseModel):
     def restore(cls, id):
         """Restores a soft-deleted customer."""
         # This requires a custom query not yet in DBManager.
-        # For now, this method is stubbed.
-        # TODO: Add an `undelele` or `restore` method to DBManager.
+        # TODO: Add an `undelete` or `restore` method to DBManager.
         return False

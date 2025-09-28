@@ -51,11 +51,10 @@ def create_customer():
                 )
 
     try:
-        customer_id = Customer.create(validated_data)
-        if customer_id:
-            customer = Customer.find_by_id_with_aggregates(customer_id)
-            if customer:
-                return success_response(customer_summary_schema.dump(customer), message="Customer created successfully.", status=201)
+        new_customer = Customer.create(validated_data)
+        if new_customer:
+            # The create method now returns a model instance. We can serialize it directly.
+            return success_response(customer_summary_schema.dump(new_customer), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
@@ -152,10 +151,9 @@ def update_customer(customer_id):
                     )
 
         # Proceed with the update.
-        Customer.update(customer_id, validated_data)
+        updated_customer = Customer.update(customer_id, validated_data)
 
         # Fetch the updated data and return it.
-        updated_customer = Customer.find_by_id_with_aggregates(customer_id)
         return success_response(customer_summary_schema.dump(updated_customer), message="Customer updated successfully.")
 
     except Exception as e:
