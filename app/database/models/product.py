@@ -18,10 +18,10 @@ class Product(BaseModel):
 
         # Ensure timestamps are datetime objects
         if hasattr(self, 'created_at') and self.created_at and isinstance(self.created_at, str):
-            self.created_at = datetime.strptime(self.created_at, '%Y-%m-%d %H:%M:%S')
+            self.created_at = datetime.fromisoformat(self.created_at)
         
         if hasattr(self, 'updated_at') and self.updated_at and isinstance(self.updated_at, str):
-            self.updated_at = datetime.strptime(self.updated_at, '%Y-%m-%d %H:%M:%S')
+            self.updated_at = datetime.fromisoformat(self.updated_at)
 
     def to_dict(self):
         return {
