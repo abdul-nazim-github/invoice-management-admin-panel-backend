@@ -23,19 +23,12 @@ class CustomerUpdateSchema(Schema):
     gst_number = fields.Str()
 
 class CustomerSummarySchema(CustomerSchema):
-    """Extends the base schema to include the read-only, formatted status field."""
-    status = fields.Method("capitalize_status", dump_only=True)
-
-    def capitalize_status(self, obj):
-        """Capitalizes the status field for display."""
-        if status := getattr(obj, 'status', None):
-            return status.capitalize()
-        return None
+    """Extends the base schema to include the read-only status field."""
+    status = fields.Str(dump_only=True)
 
 class CustomerDetailSchema(CustomerSummarySchema):
-    """Extends the summary schema to include aggregated data and invoices for detail views."""
+    """Extends the summary schema to include aggregated data for detail views."""
     aggregates = fields.Dict(dump_only=True)
-    invoices = fields.List(fields.Dict(), dump_only=True)
 
 class CustomerListSchema(Schema):
     """Schema for the list of customers with summary data."""
