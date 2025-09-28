@@ -9,7 +9,7 @@ class CustomerSchema(Schema):
     address = fields.Str(metadata={"description": "Physical address."})
     gst_number = fields.Str(metadata={"description": "GST identification number."})
     created_at = fields.DateTime(dump_only=True)
-    updated_at = fields.DateTime(dump_only=True, allow_none=True)
+    updated_at = an = fields.DateTime(dump_only=True, allow_none=True)
 
     class Meta:
         # Define the order of fields in the output
@@ -30,7 +30,7 @@ class CustomerListSchema(Schema):
 
 class CustomerDetailSchema(CustomerSchema):
     """Extends the base schema to include read-only aggregated data for detail views."""
-    status = fields.Str(dump_only=True)
+    status = fields.Str(dump_only=True, attribute='payment_status')
     aggregates = fields.Dict(dump_only=True)
 
 # Schema for bulk operations (e.g., deletion)
