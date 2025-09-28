@@ -44,8 +44,9 @@ def create_customer():
                 return error_response('conflict', message='A customer with this email address already exists.', status=409)
             else:
                 return error_response(
-                    'conflict',
-                    message='A soft-deleted customer with this email address already exists. Please use a different email.',
+                    'conflict_soft_deleted',
+                    message='A customer with this email was previously deleted. Do you want to restore them?',
+                    details={'email': existing_customer.email},
                     status=409
                 )
 
@@ -140,10 +141,15 @@ def update_customer(customer_id):
         if 'email' in validated_data and validated_data['email']:
             existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
             if existing_customer and str(existing_customer.id) != str(customer_id):
-                return error_response(
-                    'conflict',
-                    message='A customer with this email address already exists (active or deleted).'
-                )
+                if existing_customer.deleted_at is None:
+                    return error_response('conflict', message='A customer with this email address already exists.', status=409)
+                else:
+                    return error_response(
+                        'conflict_soft_deleted',
+                        message='A customer with this email was previously deleted. Do you want to restore them?',
+                        details={'customer_id': str(existing_customer.id), 'email': existing_customer.email},
+                        status=409
+                    )
 
         # Proceed with the update.
         Customer.update(customer_id, validated_data)
@@ -158,6 +164,33 @@ def update_customer(customer_id):
                               details=str(e), 
                               status=500)
 
+@customers_blueprint.route('/customers/<string:customer_id>/restore', methods=['POST'])
+@jwt_required()
+@require_admin
+def restore_customer(customer_id):
+    try:
+        # The restore method returns the number of rows affected.
+        restored_count = Customer.restore(customer_id)
+        if restored_count > 0:
+            restored_customer = Customer.find_by_id_with_aggregates(customer_id)
+            return success_response(
+                customer_summary_schema.dump(restored_customer),
+                message="Customer restored successfully."
+            )
+        else:
+            # This could happen if the customer was not actually soft-deleted.
+            return error_response(
+                'not_found', 
+                message="Customer not found or was not soft-deleted.", 
+                status=404
+            )
+    except Exception as e:
+        return error_response(
+            'server_error', 
+            message="An unexpected error occurred during customer restoration.",
+            details=str(e), 
+            status=500
+        )
 
 @customers_blueprint.route('/customers/bulk-delete', methods=['POST'])
 @jwt_required()

@@ -212,3 +212,8 @@ class Customer(BaseModel):
         query = f"UPDATE {cls._table_name} SET deleted_at = NOW() WHERE id IN ({placeholders}) AND deleted_at IS NULL"
         DBManager.execute_write_query(query, tuple(ids))
         return len(ids)
+
+    @classmethod
+    def restore(cls, id):
+        query = f"UPDATE {cls._table_name} SET deleted_at = NULL, updated_at = NOW() WHERE id = %s AND deleted_at IS NOT NULL"
+        return DBManager.execute_write_query(query, (id,))
