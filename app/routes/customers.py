@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from marshmallow import ValidationError
 
 from app.database.models.customer import Customer
-from app.schemas.customer_schema import CustomerSchema, CustomerDetailSchema
+from app.schemas.customer_schema import CustomerSchema, CustomerSummarySchema, CustomerDetailSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
 from app.utils.auth import require_admin
@@ -13,8 +13,9 @@ customers_blueprint = Blueprint('customers', __name__)
 
 # Instantiate schemas
 customer_schema = CustomerSchema()
+customer_summary_schema = CustomerSummarySchema()
 customer_detail_schema = CustomerDetailSchema()
-customer_update_schema = CustomerSchema(partial=True) # For PUT, allow partial updates
+customer_update_schema = CustomerSchema(partial=True)
 
 @customers_blueprint.route('/customers', methods=['POST'])
 @jwt_required()
@@ -27,7 +28,6 @@ def create_customer():
                               status=400)
 
     try:
-        # Validate and deserialize the request data
         validated_data = customer_schema.load(data)
     except ValidationError as err:
         return error_response(
@@ -37,7 +37,6 @@ def create_customer():
             status=400
         )
 
-    # Check for existing customer with the same email
     if 'email' in validated_data and validated_data['email']:
         if Customer.find_by_email(validated_data['email']):
             return error_response('conflict', message='A customer with this email address already exists.', status=409)
@@ -47,8 +46,8 @@ def create_customer():
         if customer_id:
             customer = Customer.find_by_id_with_aggregates(customer_id)
             if customer:
-                # Use the detail schema to serialize the output, which includes the 'status'
-                return success_response(customer_detail_schema.dump(customer), message="Customer created successfully.", status=201)
+                # Use the summary schema, which excludes aggregates
+                return success_response(customer_summary_schema.dump(customer), message="Customer created successfully.", status=201)
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
@@ -74,8 +73,8 @@ def get_customers():
             limit=per_page, 
             include_deleted=include_deleted
         )
-        # Use the detail schema to serialize the output, ensuring 'status' is included
-        serialized_customers = customer_detail_schema.dump(customers, many=True)
+        # Use the summary schema for the list view
+        serialized_customers = customer_summary_schema.dump(customers, many=True)
         return success_response({
             'customers': serialized_customers,
             'total': total,
@@ -95,8 +94,8 @@ def get_customer(customer_id):
     try:
         customer = Customer.find_by_id_with_aggregates(customer_id, include_deleted=include_deleted)
         if customer:
-            # The to_dict() method on the model now includes the status and aggregates
-            return success_response(customer.to_dict(), message="Customer details fetched successfully")
+            # Use the full detail schema for the get by ID view
+            return success_response(customer_detail_schema.dump(customer), message="Customer details fetched successfully")
         return error_response('not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
@@ -117,7 +116,6 @@ def update_customer(customer_id):
                               status=400)
 
     try:
-        # Validate and deserialize the request data for update (allows partial data)
         validated_data = customer_update_schema.load(data)
     except ValidationError as err:
         return error_response(
@@ -134,8 +132,8 @@ def update_customer(customer_id):
                                   status=404)
 
         updated_customer = Customer.find_by_id_with_aggregates(customer_id)
-        # Use the detail schema to serialize the output
-        return success_response(customer_detail_schema.dump(updated_customer), message="Customer updated successfully.")
+        # Use the summary schema for the update response
+        return success_response(customer_summary_schema.dump(updated_customer), message="Customer updated successfully.")
     except Exception as e:
         return error_response('server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 

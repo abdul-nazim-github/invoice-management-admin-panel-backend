@@ -12,7 +12,6 @@ class CustomerSchema(Schema):
     updated_at = fields.DateTime(dump_only=True, allow_none=True)
 
     class Meta:
-        # Define the order of fields in the output
         ordered = True
 
 class CustomerUpdateSchema(Schema):
@@ -23,16 +22,19 @@ class CustomerUpdateSchema(Schema):
     address = fields.Str()
     gst_number = fields.Str()
 
-class CustomerListSchema(Schema):
-    """Schema for the list of customers with aggregated data."""
-    items = fields.List(fields.Nested(lambda: CustomerDetailSchema()))
-    total = fields.Int()
-
-class CustomerDetailSchema(CustomerSchema):
-    """Extends the base schema to include read-only aggregated data for detail views."""
+class CustomerSummarySchema(CustomerSchema):
+    """Extends the base schema to include the read-only status field."""
     status = fields.Str(dump_only=True)
+
+class CustomerDetailSchema(CustomerSummarySchema):
+    """Extends the summary schema to include aggregated data for detail views."""
     aggregates = fields.Dict(dump_only=True)
 
-# Schema for bulk operations (e.g., deletion)
+class CustomerListSchema(Schema):
+    """Schema for the list of customers with summary data."""
+    items = fields.List(fields.Nested(lambda: CustomerSummarySchema()))
+    total = fields.Int()
+
 class BulkDeleteSchema(Schema):
+    """Schema for bulk operations (e.g., deletion)."""
     ids = fields.List(fields.Str(), required=True)
