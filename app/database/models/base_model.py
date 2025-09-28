@@ -34,27 +34,29 @@ class BaseModel:
             return None
         return cls(**row)
 
-    # --- Generic CRUD Methods ---
+    # --- Generic CRUD Methods (Refactored) ---
 
     @classmethod
     def create(cls, data):
         """
-        Creates a new record, but first filters the data to ensure
-        only valid columns are passed to the database.
+        Creates a new record. The model layer is now responsible for
+        the full create-then-fetch sequence.
         """
         db = cls._get_db_manager()
-        
-        # Get the actual columns for the table
         table_columns = db.get_table_columns()
-        
-        # Filter the input data to only include keys that are actual columns
         sanitized_data = {key: data[key] for key in data if key in table_columns}
         
         if not sanitized_data:
             raise ValueError("No valid data provided for creation.")
 
-        new_row = db.create(sanitized_data)
-        return cls.from_row(new_row)
+        # Step 1: Create the record and get the new ID from the DBManager
+        new_id = db.create(sanitized_data)
+        
+        if not new_id:
+            return None
+
+        # Step 2: Fetch the complete record using the standard find_by_id method
+        return cls.find_by_id(new_id)
 
     @classmethod
     def find_by_id(cls, record_id, include_deleted=False):
@@ -72,10 +74,22 @@ class BaseModel:
 
     @classmethod
     def update(cls, record_id, data):
-        """Updates a record by its ID."""
+        """
+        Updates a record by its ID. The model layer is now responsible
+        for the full update-then-fetch sequence.
+        """
         db = cls._get_db_manager()
-        updated_row = db.update(record_id, data)
-        return cls.from_row(updated_row)
+        table_columns = db.get_table_columns()
+        sanitized_data = {key: data[key] for key in data if key in table_columns and key != 'id'}
+
+        if not sanitized_data:
+            return cls.find_by_id(record_id)
+
+        # Step 1: Update the record. This method returns nothing.
+        db.update(record_id, sanitized_data)
+
+        # Step 2: Fetch the updated record using the standard find_by_id method
+        return cls.find_by_id(record_id)
 
     @classmethod
     def delete(cls, record_id, soft_delete=True):

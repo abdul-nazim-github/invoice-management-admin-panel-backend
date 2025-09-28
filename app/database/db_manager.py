@@ -22,7 +22,7 @@ def normalize_rows(rows):
     """Normalize a list of DB row dictionaries."""
     return [normalize_row(r) for r in rows]
 
-# --- DBManager Class (Definitive Fix) ---
+# --- DBManager Class (Refactored for Separation of Concerns) ---
 
 class DBManager:
     """A class to simplify and centralize database interactions."""
@@ -39,7 +39,21 @@ class DBManager:
         finally:
             conn.close()
 
-    # --- Read Operations (No changes needed here) ---
+    # --- Read Operations ---
+
+    def get_all(self, include_deleted=False):
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                query = f"SELECT * FROM {self._table_name}"
+                if not include_deleted and 'is_deleted' in self.get_table_columns():
+                    query += " WHERE is_deleted = FALSE"
+                query += " ORDER BY created_at DESC"
+                cursor.execute(query)
+                rows = cursor.fetchall()
+                return normalize_rows(rows)
+        finally:
+            conn.close()
 
     def get_by_id(self, record_id, include_deleted=False):
         conn = get_db_connection()
@@ -60,20 +74,56 @@ class DBManager:
         try:
             with conn.cursor() as cursor:
                 query = f"SELECT * FROM {self._table_name} WHERE {where_clause}"
+                final_params = list(params)
                 if not include_deleted and 'is_deleted' in self.get_table_columns():
                     query += " AND is_deleted = FALSE"
-                cursor.execute(query, tuple(params))
+                cursor.execute(query, tuple(final_params))
                 row = cursor.fetchone()
                 return normalize_row(row)
         finally:
             conn.close()
-            
-    # Other read operations (get_all, search, etc.) are omitted for brevity
-    # but remain unchanged.
 
-    # --- Write Operations (Corrected with simple, robust transaction pattern) ---
+    def search(self, search_term, search_fields, include_deleted=False):
+        if not search_fields:
+            return []
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                where_clauses = [f"LOWER({field}) LIKE %s" for field in search_fields]
+                query = f"SELECT * FROM {self._table_name} WHERE {' OR '.join(where_clauses)}"
+                params = [f"%{search_term.lower()}%"] * len(search_fields)
+                if not include_deleted and 'is_deleted' in self.get_table_columns():
+                    query += " AND is_deleted = FALSE"
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
+                return normalize_rows(rows)
+        finally:
+            conn.close()
+
+    def get_paginated(self, page=1, per_page=10, include_deleted=False):
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                offset = (page - 1) * per_page
+                count_query = f"SELECT COUNT(*) as total FROM {self._table_name}"
+                if not include_deleted and 'is_deleted' in self.get_table_columns():
+                    count_query += " WHERE is_deleted = FALSE"
+                cursor.execute(count_query)
+                total = cursor.fetchone()['total']
+                data_query = f"SELECT * FROM {self._table_name}"
+                if not include_deleted and 'is_deleted' in self.get_table_columns():
+                    data_query += " WHERE is_deleted = FALSE"
+                data_query += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+                cursor.execute(data_query, (per_page, offset))
+                rows = cursor.fetchall()
+                return normalize_rows(rows), total
+        finally:
+            conn.close()
+            
+    # --- Write Operations (Focused on a single task) ---
 
     def create(self, data):
+        """Executes an INSERT statement and returns the new record's ID."""
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
@@ -82,19 +132,18 @@ class DBManager:
             query = f"INSERT INTO {self._table_name} ({columns}) VALUES ({placeholders})"
             cursor.execute(query, tuple(data.values()))
             new_id = cursor.lastrowid
-            conn.commit()  # The transaction is now saved.
+            conn.commit()
+            return new_id
         except Exception as e:
             conn.rollback()
             raise e
         finally:
             conn.close()
-        
-        # After the transaction is committed and connection closed, fetch the new record.
-        return self.get_by_id(new_id)
 
     def update(self, record_id, data):
+        """Executes an UPDATE statement. Returns nothing."""
         if not data:
-            return self.get_by_id(record_id)
+            return
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
@@ -105,17 +154,15 @@ class DBManager:
             query = f"UPDATE {self._table_name} SET {set_clause} WHERE id = %s"
             params = list(data.values()) + [record_id]
             cursor.execute(query, tuple(params))
-            conn.commit() # The transaction is now saved.
+            conn.commit()
         except Exception as e:
             conn.rollback()
             raise e
         finally:
             conn.close()
 
-        # After the transaction, fetch the updated record.
-        return self.get_by_id(record_id)
-
     def delete(self, record_id, soft_delete=True):
+        """Executes a DELETE or soft-delete UPDATE. Returns True on success."""
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
