@@ -33,7 +33,6 @@ class Customer(BaseModel):
             'created_at': created_at_iso,
             'updated_at': updated_at_iso,
             'status': getattr(self, 'payment_status', None),
-            'invoice_count': getattr(self, 'invoice_count', 0),
             'aggregates': self.aggregates
         }
 
@@ -75,7 +74,6 @@ class Customer(BaseModel):
         customer_query = f"""
             SELECT
                 c.*,
-                COUNT(i.id) AS invoice_count,
                 COALESCE(SUM(i.total_amount), 0) AS total_billed,
                 CASE
                     WHEN COUNT(i.id) = 0 THEN 'New'
@@ -161,8 +159,7 @@ class Customer(BaseModel):
                     WHEN SUM(CASE WHEN i.status = 'Pending' AND i.due_date < NOW() THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
                     ELSE 'Paid'
-                END AS payment_status,
-                COUNT(i.id) AS invoice_count
+                END AS payment_status
             FROM {cls._table_name} c
             LEFT JOIN invoices i ON c.id = i.customer_id AND i.deleted_at IS NULL
             {where_sql}
