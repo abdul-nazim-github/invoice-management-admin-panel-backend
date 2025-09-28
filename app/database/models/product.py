@@ -3,14 +3,13 @@ from .base_model import BaseModel
 class Product(BaseModel):
     _table_name = 'products'
 
-    def __init__(self, id, product_code, name, description, price, stock, status, **kwargs):
+    def __init__(self, id, product_code, name, description, price, stock, **kwargs):
         self.id = id
         self.product_code = product_code
         self.name = name
         self.description = description
         self.price = price
         self.stock = stock
-        self.status = status
         # Absorb any extra columns that might be in the database row
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -22,8 +21,7 @@ class Product(BaseModel):
             'name': self.name,
             'description': self.description,
             'price': float(self.price),  # Cast DECIMAL to float for JSON serialization
-            'stock': self.stock,
-            'status': self.status
+            'stock': self.stock
         }
 
     @classmethod

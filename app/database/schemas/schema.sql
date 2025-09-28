@@ -78,14 +78,12 @@ CREATE TABLE IF NOT EXISTS products (
   description TEXT,                        -- Detailed description of the product
   price DECIMAL(10,2) NOT NULL,            -- Price of the product
   stock INT DEFAULT 0,                     -- Current stock level
-  status ENUM('active','inactive') DEFAULT 'active', -- Product availability status
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of product creation
 
   -- Indexes for faster queries
   INDEX idx_products_code_name (product_code, name),
   INDEX idx_products_name (name),
-  INDEX idx_products_status (status),
   INDEX idx_products_price (price),
   INDEX idx_products_stock (stock),
   INDEX idx_products_deleted_at (deleted_at)
