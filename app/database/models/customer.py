@@ -1,6 +1,7 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
+from datetime import datetime
 
 class Customer(BaseModel):
     _table_name = 'customers'
@@ -12,8 +13,24 @@ class Customer(BaseModel):
         self.phone = phone
         self.address = address
         self.gst_number = gst_number
-        self.created_at = created_at
-        self.updated_at = updated_at
+        
+        # Convert date strings to datetime objects if they are strings
+        if created_at and isinstance(created_at, str):
+            try:
+                self.created_at = datetime.fromisoformat(created_at.replace(' ', 'T'))
+            except ValueError:
+                self.created_at = created_at # Keep original if parsing fails
+        else:
+            self.created_at = created_at
+
+        if updated_at and isinstance(updated_at, str):
+            try:
+                self.updated_at = datetime.fromisoformat(updated_at.replace(' ', 'T'))
+            except ValueError:
+                self.updated_at = updated_at # Keep original if parsing fails
+        else:
+            self.updated_at = updated_at
+
         # Absorb any extra columns, like invoice_count or payment_status if passed directly
         for key, value in kwargs.items():
             setattr(self, key, value)
