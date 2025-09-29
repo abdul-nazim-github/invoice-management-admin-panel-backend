@@ -1,4 +1,3 @@
-import inflection
 from ..database.db_manager import DBManager
 from datetime import datetime, date
 
@@ -35,9 +34,6 @@ class BaseModel:
         """Creates a model instance from a database row dictionary."""
         if not row:
             return None
-        # Convert snake_case from DB to camelCase for the model
-        # This part of the original implementation was flawed and is removed in later versions
-        # For this reverted state, we will assume direct attribute mapping
         return cls(**row)
 
     @classmethod
