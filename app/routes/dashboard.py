@@ -22,7 +22,7 @@ def get_stats():
     combined_stats = {
         **dashboard_stats,
         "sales_performance": sales_performance,
-        "latest_invoices": latest_invoices
+        "invoices": latest_invoices
     }
 
     return success_response(result=combined_stats, message="Dashboard stats retrieved successfully.")
