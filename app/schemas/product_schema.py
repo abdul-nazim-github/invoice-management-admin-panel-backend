@@ -1,5 +1,6 @@
 
 from marshmallow import Schema, fields, validate
+from decimal import ROUND_HALF_UP
 
 class ProductSchema(Schema):
     """
@@ -16,7 +17,8 @@ class ProductSchema(Schema):
     price = fields.Decimal(
         required=True,
         validate=validate.Range(min=0, error="Price must be a non-negative number."),
-        as_string=False
+        places=2,  # Quantize to 2 decimal places on load.
+        rounding=ROUND_HALF_UP # Use standard rounding.
     )
     stock = fields.Int(
         required=True,
