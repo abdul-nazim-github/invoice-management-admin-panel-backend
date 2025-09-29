@@ -23,7 +23,6 @@ class BaseModel:
             if isinstance(value, (datetime, date)):
                 output[key] = value.isoformat()
             elif isinstance(value, Decimal):
-                # Convert Decimal to string to ensure precision is not lost
                 output[key] = str(value)
             else:
                 output[key] = value
@@ -49,9 +48,11 @@ class BaseModel:
 
     @classmethod
     def create(cls, data):
+        """Creates a new record and returns the full model instance."""
         db = cls._get_db_manager()
         record_id = db.create(data)
-        return record_id
+        # Fetch and return the newly created object, not just the ID
+        return cls.find_by_id(record_id)
 
     @classmethod
     def update(cls, record_id, data):
