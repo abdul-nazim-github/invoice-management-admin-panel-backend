@@ -47,8 +47,8 @@ class User(BaseModel):
         query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)'
         user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role))
         
-        # After creating, fetch the full user object. find_by_id now returns a User instance directly.
-        return cls.find_by_id(user_id)
+        # Return the ID directly. The route will be responsible for fetching.
+        return user_id
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):
