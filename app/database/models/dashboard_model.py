@@ -170,3 +170,40 @@ def get_sales_performance() -> List[Dict[str, Any]]:
             return results
     finally:
         conn.close()
+
+def get_latest_invoices() -> List[Dict[str, Any]]:
+    """
+    Fetches the 10 most recent invoices along with customer names.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    i.id, 
+                    i.total_amount, 
+                    i.status,
+                    c.name as customer_name,
+                    i.created_at
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.deleted_at IS NULL
+                ORDER BY i.created_at DESC
+                LIMIT 10
+                """
+            )
+            invoices = cur.fetchall()
+            # Manually converting to a list of dicts with correct types
+            result = []
+            for inv in invoices:
+                result.append({
+                    "id": inv["id"],
+                    "total_amount": Decimal(inv["total_amount"]),
+                    "status": inv["status"],
+                    "customer_name": inv["customer_name"],
+                    "created_at": inv["created_at"].isoformat()
+                })
+            return result
+    finally:
+        conn.close()

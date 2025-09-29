@@ -1,7 +1,7 @@
 # app/routes/dashboard.py
 from flask import Blueprint
 from flask_jwt_extended import jwt_required
-from app.database.models.dashboard_model import get_dashboard_stats, get_sales_performance
+from app.database.models.dashboard_model import get_dashboard_stats, get_sales_performance, get_latest_invoices
 from app.utils.response import success_response
 from app.utils.auth import require_admin
 
@@ -17,10 +17,12 @@ def get_stats():
     """
     dashboard_stats = get_dashboard_stats()
     sales_performance = get_sales_performance()
+    latest_invoices = get_latest_invoices()
 
     combined_stats = {
         **dashboard_stats,
         "sales_performance": sales_performance,
+        "latest_invoices": latest_invoices
     }
 
     return success_response(result=combined_stats, message="Dashboard stats retrieved successfully.")
