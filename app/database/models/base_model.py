@@ -1,25 +1,30 @@
 
 from app.database.db_manager import DBManager
 from datetime import datetime
+from decimal import Decimal
 
 class BaseModel:
     _table_name = None
 
     def __init__(self, **kwargs):
         """
-        Initializes the model instance by dynamically setting attributes for each
-        key-value pair in kwargs. It specifically handles converting date/time
-        strings for 'created_at' and 'updated_at' into datetime objects.
+        Initializes the model instance by dynamically setting attributes. It
+        handles the conversion of date/time strings and decimal strings to
+        their appropriate Python types.
         """
         for key, value in kwargs.items():
             if key in ('created_at', 'updated_at', 'deleted_at') and isinstance(value, str):
-                # Attempt to parse the string into a datetime object.
-                # This handles cases where the DB driver returns strings.
                 try:
                     value = datetime.fromisoformat(value)
                 except (ValueError, TypeError):
-                    # If parsing fails, leave it as is or log an error.
-                    # For now, we proceed, but this indicates a data format issue.
+                    # In case of a parsing error, leave the original value
+                    pass
+            elif key == 'price' and value is not None:
+                # Ensure price is always a Decimal for precision
+                try:
+                    value = Decimal(value)
+                except (ValueError, TypeError):
+                    # In case of a conversion error, leave the original value
                     pass
             setattr(self, key, value)
 
