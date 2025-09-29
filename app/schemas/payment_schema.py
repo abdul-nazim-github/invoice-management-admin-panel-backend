@@ -2,7 +2,7 @@ from marshmallow import Schema, fields, validate
 
 class PaymentSchema(Schema):
     """
-    Marshmallow schema for validating payment data.
+    Marshmallow schema for validating payment data. 
     """
     id = fields.Int(dump_only=True)
     invoice_id = fields.Int(
