@@ -1,7 +1,17 @@
+
 from app.database.db_manager import DBManager
 
 class BaseModel:
     _table_name = None
+
+    def __init__(self, **kwargs):
+        """
+        Initializes the model instance by dynamically setting attributes for each
+        key-value pair in kwargs. This allows creating a model instance from a
+        dictionary, such as a database row.
+        """
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     @classmethod
     def _get_base_query(cls, include_deleted=False):
