@@ -1,22 +1,20 @@
 # app/routes/dashboard.py
-from flask import Blueprint, jsonify
+from flask import Blueprint
+from flask_jwt_extended import jwt_required
 from app.database.models.dashboard_model import get_dashboard_stats, get_sales_performance
 from app.utils.response import success_response
-from app.utils.auth import token_required
+from app.utils.auth import require_admin
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
 
 @dashboard_bp.route('/dashboard/stats', methods=['GET'])
-@token_required
-def get_stats(current_user):
+@jwt_required()
+@require_admin
+def get_stats():
     """
     Endpoint to get dashboard statistics.
-    Accessible only by authenticated users.
+    Accessible only by authenticated admins.
     """
-    # You can add role checks here if needed, e.g.:
-    # if current_user['role'] != 'admin':
-    #     return error_response("unauthorized", "Admin access required", status=403)
-
     dashboard_stats = get_dashboard_stats()
     sales_performance = get_sales_performance()
 
