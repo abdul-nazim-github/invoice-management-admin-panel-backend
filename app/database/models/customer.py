@@ -6,40 +6,32 @@ class Customer(BaseModel):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Default values for attributes that might not be in every query
         self.invoices = getattr(self, 'invoices', [])
         self.aggregates = getattr(self, 'aggregates', {})
-        # A new customer is 'new' until they have invoice activity.
         self.status = getattr(self, 'status', 'new') 
 
     def to_dict(self):
-        """Serializes the Customer object to a dictionary."""
         d = super().to_dict()
-        d.pop('invoices', None) # Don't include nested lists by default
+        d.pop('invoices', None)
         d.pop('aggregates', None)
-        d['full_name'] = d.pop('name', None) # Rename for consistency
+        d['full_name'] = d.pop('name', None)
         return d
 
     @classmethod
     def create(cls, data):
         """
-        Overrides the base create method to set the initial status to 'new'.
+        Overrides the base create method.
         """
-        if 'status' not in data:
-            data['status'] = 'new'
         return super().create(data)
 
     @classmethod
     def find_by_email(cls, email, include_deleted=False):
-        """Finds a customer by email, case-insensitively."""
         db = cls._get_db_manager()
         row = db.find_one_where("LOWER(email) = %s", (email.lower(),), include_deleted=include_deleted)
         return cls.from_row(row)
 
     @classmethod
     def find_by_id_with_aggregates(cls, customer_id, include_deleted=False):
-        """Retrieves a customer with their invoices and financial aggregates."""
-        # This method is not implemented correctly in this reverted state.
         customer = cls.find_by_id(customer_id, include_deleted)
         if customer:
             customer.aggregates = {
@@ -52,14 +44,12 @@ class Customer(BaseModel):
 
     @classmethod
     def list_all(cls, q=None, status=None, offset=0, limit=20, customer_id=None, include_deleted=False):
-        """Lists all customers with filtering and pagination."""
         db = cls._get_db_manager()
         items, total = db.get_paginated(page=(offset // limit) + 1, per_page=limit, include_deleted=include_deleted)
         return [cls.from_row(i) for i in items], total
 
     @classmethod
     def bulk_soft_delete(cls, ids):
-        """Soft deletes multiple customers by their IDs."""
         if not ids:
             return 0
         db = cls._get_db_manager()
@@ -71,6 +61,4 @@ class Customer(BaseModel):
 
     @classmethod
     def restore(cls, id):
-        """Restores a soft-deleted customer."""
-        # This functionality is not implemented in this reverted state.
         return False
