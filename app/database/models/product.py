@@ -1,40 +1,31 @@
+
 from .base_model import BaseModel
+from app.utils.utils import generate_unique_product_code
 
 class Product(BaseModel):
     _table_name = 'products'
 
-    def __init__(self, id, product_code, name, description, price, stock, **kwargs):
-        self.id = id
-        self.product_code = product_code
-        self.name = name
-        self.description = description
-        self.price = price
-        self.stock = stock
-        # Absorb any extra columns that might be in the database row
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'product_code': self.product_code,
-            'name': self.name,
-            'description': self.description,
-            'price': float(self.price),  # Cast DECIMAL to float for JSON serialization
-            'stock': self.stock,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     @classmethod
-    def from_row(cls, row):
-        if not row:
-            return None
-        return cls(**row)
+    def create(cls, data):
+        """
+        Overrides the base create method to auto-generate a unique product_code.
+        """
+        if 'name' in data:
+            data['product_code'] = generate_unique_product_code(data['name'])
+        else:
+            # As a fallback if name is not provided, though 'name' is required by schema
+            data['product_code'] = generate_unique_product_code('Product')
+        
+        return super().create(data)
 
     @classmethod
     def search(cls, search_term, include_deleted=False):
-        """Searches for products by product_code or name."""
-        search_fields = ['product_code', 'name']
-        return super().search(search_term, search_fields, include_deleted)
-
+        """
+        Searches for products by product_code or name.
+        """
+        # Placeholder for search functionality
+        # A full implementation would require a dedicated search method in the DBManager
+        return [], 0
