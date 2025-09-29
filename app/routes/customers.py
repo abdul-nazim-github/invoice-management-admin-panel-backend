@@ -82,12 +82,12 @@ def get_customers():
             include_deleted=include_deleted
         )
         serialized_customers = customer_summary_schema.dump(customers, many=True)
-        return success_response({
-            'customers': serialized_customers,
+        meta_data = {
             'total': total,
             'page': page,
             'per_page': per_page
-        }, message="Customers retrieved successfully.")
+        }
+        return success_response(result=serialized_customers, meta=meta_data, message="Customers retrieved successfully.")
     except Exception as e:
         return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
