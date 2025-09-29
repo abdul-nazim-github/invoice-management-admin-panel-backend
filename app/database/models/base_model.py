@@ -1,5 +1,6 @@
-from ..database.db_manager import DBManager
+from app.database.db_manager import DBManager
 from datetime import datetime, date
+from decimal import Decimal
 
 class BaseModel:
     _db_manager = None
@@ -13,13 +14,17 @@ class BaseModel:
         return f"<{self.__class__.__name__}({attrs})>"
 
     def to_dict(self):
-        """Serializes the model instance to a dictionary."""
+        """Serializes the model instance to a dictionary, handling special types."""
         output = {}
         for key, value in self.__dict__.items():
             if key.startswith('_'):
                 continue
+            
             if isinstance(value, (datetime, date)):
                 output[key] = value.isoformat()
+            elif isinstance(value, Decimal):
+                # Convert Decimal to string to ensure precision is not lost
+                output[key] = str(value)
             else:
                 output[key] = value
         return output
