@@ -9,7 +9,8 @@ class PaymentSchema(Schema):
         required=True,
         validate=validate.Range(min=1, error="Invoice ID must be a positive integer.")
     )
-    amount = fields.Float(
+    amount = fields.Decimal(
+        as_string=False,
         required=True,
         validate=validate.Range(min=0.01, error="Payment amount must be positive.")
     )

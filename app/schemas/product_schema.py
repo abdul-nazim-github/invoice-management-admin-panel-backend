@@ -15,8 +15,8 @@ class ProductSchema(Schema):
     description = fields.Str(required=False, allow_none=True) # Description can be optional
     price = fields.Decimal(
         required=True,
-        as_string=True, # Recommended for precision
-        validate=validate.Range(min=0, error="Price must be a non-negative number.")
+        validate=validate.Range(min=0, error="Price must be a non-negative number."),
+        as_string=False
     )
     stock = fields.Int(
         required=True,
