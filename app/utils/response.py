@@ -1,4 +1,5 @@
-from flask import current_app, jsonify
+
+from flask import current_app
 import json
 from decimal import Decimal
 from datetime import datetime
@@ -9,13 +10,16 @@ class CustomJSONEncoder(json.JSONEncoder):
     """
     def default(self, obj):
         if isinstance(obj, Decimal):
-            # If the number is a whole number, convert to int, otherwise convert to float
+            # If the number is a whole number, return it as an integer.
             if obj == obj.to_integral_value():
                 return int(obj)
+            # Otherwise, convert to a formatted string to preserve trailing zeros.
+            # This is the industry-standard and ONLY way to guarantee precision.
             else:
-                return float(obj)
+                return "{:.2f}".format(obj)
+
         if isinstance(obj, datetime):
-            # Convert datetime to ISO 8601 string format
+            # Convert datetime to ISO 8601 string format.
             return obj.isoformat()
         return super().default(obj)
 
