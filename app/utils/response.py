@@ -1,9 +1,24 @@
 from flask import current_app, jsonify
 import json
+from decimal import Decimal
+from datetime import datetime
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder to handle special data types like Decimal and datetime.
+    """
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            # Convert Decimal to float for JSON serialization
+            return float(obj)
+        if isinstance(obj, datetime):
+            # Convert datetime to ISO 8601 string format
+            return obj.isoformat()
+        return super().default(obj)
 
 def success_response(result=None, message="Success", meta=None, status=200):
     """
-    Creates a standardized success JSON response.
+    Creates a standardized success JSON response using the custom encoder.
     """
     return (
         current_app.response_class(
@@ -13,6 +28,7 @@ def success_response(result=None, message="Success", meta=None, status=200):
                     "message": message,
                     "data": {"results": result or [], "meta": meta or {}},
                 },
+                cls=CustomJSONEncoder  # Use the custom encoder
             ),
             status=status,
             mimetype="application/json",
@@ -20,42 +36,24 @@ def success_response(result=None, message="Success", meta=None, status=200):
         status,
     )
 
-def error_response(type="server_error", message=None, details=None, status=400):
+def error_response(error_code="bad_request", message="An error occurred.", details=None, status=400):
     """
-    Creates a standardized, UI-friendly error JSON response.
+    Creates a standardized error JSON response.
     """
-    # Centralized mapping of error types to user-friendly messages for fallback
-    error_messages = {
-        "validation_error": "Invalid input provided. Please check the details.",
-        "not_found": "The requested resource could not be found.",
-        "unauthorized": "Authentication credentials were not provided or were invalid.",
-        "forbidden": "You do not have permission to perform this action.",
-        "server_error": "An unexpected error occurred on our end. Please try again later.",
-    }
-
-    # Use the specific message if provided, otherwise fallback to the type-based message
-    response_message = message or error_messages.get(type, "An unknown error occurred.")
-    
-    # For server errors in non-debug mode, do not send back detailed implementation errors.
-    if type == "server_error" and not current_app.debug:
-        response_message = "An unexpected error occurred on our end. Please try again later."
-        details = None # Don't leak details
-
-    response_data = {
-        "success": False,
-        "message": response_message,
-    }
-    
-    # Only include details if they are present and not empty
-    if details:
-        response_data["details"] = details
-
     return (
-        jsonify(response_data),
+        current_app.response_class(
+            response=json.dumps(
+                {
+                    "success": False,
+                    "error": {
+                        "code": error_code,
+                        "message": message,
+                        "details": details or {},
+                    },
+                }
+            ),
+            status=status,
+            mimetype="application/json",
+        ),
         status,
     )
-
-def normalize_row(row):
-    if row is None:
-        return None
-    return dict(row)
