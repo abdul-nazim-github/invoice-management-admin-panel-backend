@@ -9,6 +9,13 @@ class Product(BaseModel):
         super().__init__(**kwargs)
 
     @classmethod
+    def from_row(cls, row):
+        """
+        Creates a Product instance from a database row.
+        """
+        return cls(**row)
+
+    @classmethod
     def create(cls, data):
         """
         Overrides the base create method to auto-generate a unique product_code.
