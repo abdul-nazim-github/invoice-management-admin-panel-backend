@@ -166,3 +166,9 @@ echo "\n### Bulk Delete Invoices (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
     "ids": [1, 2]
 }' $BASE_URL/invoices/bulk-delete
+
+# -----------------
+# Dashboard Endpoints
+# -----------------
+echo "\n### Get Dashboard Stats (Requires Admin Token) ###"
+curl -X GET -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" $BASE_URL/dashboard/stats
