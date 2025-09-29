@@ -73,12 +73,12 @@ def get_products():
     try:
         products, total = Product.find_with_pagination_and_count(page=page, per_page=per_page, include_deleted=include_deleted)
         serialized_products = product_schema.dump(products, many=True)
-        return success_response({
-            'products': serialized_products,
+        meta_data = {
             'total': total,
             'page': page,
             'per_page': per_page
-        }, message="Products retrieved successfully.")
+        }
+        return success_response(result=serialized_products, meta=meta_data, message="Products retrieved successfully.")
     except Exception as e:
         return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_product"], 
