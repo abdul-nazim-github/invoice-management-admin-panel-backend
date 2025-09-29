@@ -21,12 +21,12 @@ invoice_update_schema = InvoiceSchema(partial=True)
 def create_invoice():
     data = request.get_json()
     if not data:
-        return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
+        return error_response(error_code='validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
     try:
         validated_data = invoice_schema.load(data)
     except ValidationError as err:
-        return error_response('validation_error', message="The provided data is invalid.", details=err.messages, status=400)
+        return error_response(error_code='validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
         current_user_id = get_jwt_identity()
@@ -34,7 +34,7 @@ def create_invoice():
         for item in validated_data['items']:
             product = Product.find_by_id(item['product_id'])
             if not product:
-                return error_response('not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
+                return error_response(error_code='not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
             subtotal_amount += product.price * item['quantity']
         
         tax_percent = validated_data.get('tax_percent', 0)
@@ -57,7 +57,7 @@ def create_invoice():
 
         invoice_id = Invoice.create(invoice_data)
         if not invoice_id:
-            return error_response('server_error', message="Failed to create the invoice record.", status=500)
+            return error_response(error_code='server_error', message="Failed to create the invoice record.", status=500)
 
         for item in validated_data['items']:
             Invoice.add_item(invoice_id, item['product_id'], item['quantity'])
@@ -66,7 +66,7 @@ def create_invoice():
         return success_response(new_invoice.to_dict(), message="Invoice created successfully.", status=201)
             
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["create_invoice"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["create_invoice"], details=str(e), status=500)
 
 @invoices_blueprint.route('/invoices', methods=['GET'])
 @jwt_required()
@@ -88,7 +88,7 @@ def get_invoices():
             'per_page': per_page
         }, message="Invoices retrieved successfully.")
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['GET'])
 @jwt_required()
@@ -98,9 +98,9 @@ def get_invoice(invoice_id):
         invoice = Invoice.find_by_id(invoice_id, include_deleted=include_deleted)
         if invoice:
             return success_response(invoice.to_dict(), message="Invoice retrieved successfully.")
-        return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
+        return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
 
 @invoices_blueprint.route('/invoices/<int:invoice_id>', methods=['PUT'])
 @jwt_required()
@@ -108,21 +108,21 @@ def get_invoice(invoice_id):
 def update_invoice(invoice_id):
     data = request.get_json()
     if not data:
-        return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
+        return error_response(error_code='validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
     try:
         validated_data = invoice_update_schema.load(data)
     except ValidationError as err:
-        return error_response('validation_error', message="The provided data is invalid.", details=err.messages, status=400)
+        return error_response(error_code='validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
         if not Invoice.update(invoice_id, validated_data):
-            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
+            return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
 
         updated_invoice = Invoice.find_by_id(invoice_id)
         return success_response(updated_invoice.to_dict(), message="Invoice updated successfully.")
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["update_invoice"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["update_invoice"], details=str(e), status=500)
 
 @invoices_blueprint.route('/invoices/bulk-delete', methods=['POST'])
 @jwt_required()
@@ -130,16 +130,16 @@ def update_invoice(invoice_id):
 def bulk_delete_invoices():
     data = request.get_json()
     if not data or 'ids' not in data or not isinstance(data['ids'], list):
-        return error_response('validation_error', message="Invalid request. 'ids' must be a list of invoice IDs.", status=400)
+        return error_response(error_code='validation_error', message="Invalid request. 'ids' must be a list of invoice IDs.", status=400)
 
     ids_to_delete = data['ids']
     if not ids_to_delete:
-        return error_response('validation_error', message="The 'ids' list cannot be empty.", status=400)
+        return error_response(error_code='validation_error', message="The 'ids' list cannot be empty.", status=400)
 
     try:
         deleted_count = Invoice.bulk_soft_delete(ids_to_delete)
         if deleted_count > 0:
             return success_response(message=f"{deleted_count} invoice(s) soft-deleted successfully.")
-        return error_response('not_found', message="No matching invoices found for the provided IDs.", status=404)
+        return error_response(error_code='not_found', message="No matching invoices found for the provided IDs.", status=404)
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["delete_invoice"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["delete_invoice"], details=str(e), status=500)

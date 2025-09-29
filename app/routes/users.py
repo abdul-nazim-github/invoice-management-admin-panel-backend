@@ -15,7 +15,7 @@ def get_current_user_profile():
     user = User.find_by_id(current_user_id)
     if user:
         return success_response(user.to_dict(), message="User profile retrieved successfully")
-    return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
+    return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
 @users_blueprint.route('/users', methods=['GET'])
 @jwt_required()
@@ -32,7 +32,7 @@ def get_users():
             'per_page': per_page
         }, message="Users retrieved successfully")
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
 
 @users_blueprint.route('/users/<int:user_id>', methods=['GET'])
 @jwt_required()
@@ -41,17 +41,17 @@ def get_user(user_id):
     user = User.find_by_id(current_user_id)
 
     # A user can get their own info, or an admin can get any user's info
-    if not (user.is_admin or current_user_id == user_id):
-        return error_response('forbidden', message=ERROR_MESSAGES["forbidden"], status=403)
+    if not (user.is_admin or str(current_user_id) == str(user_id)):
+        return error_response(error_code='forbidden', message=ERROR_MESSAGES["forbidden"], status=403)
 
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
     try:
-        user = User.find_by_id(user_id, include_deleted=include_deleted)
-        if user:
-            return success_response(user.to_dict(), message="User retrieved successfully")
-        return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
+        target_user = User.find_by_id(user_id, include_deleted=include_deleted)
+        if target_user:
+            return success_response(target_user.to_dict(), message="User retrieved successfully")
+        return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["fetch_user"], details=str(e), status=500)
 
 @users_blueprint.route('/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
@@ -60,21 +60,21 @@ def update_user(user_id):
     user = User.find_by_id(current_user_id)
     
     # A user can update their own info, or an admin can update any user's info
-    if not (user.is_admin or current_user_id == user_id):
-        return error_response('forbidden', message=ERROR_MESSAGES["forbidden"], status=403)
+    if not (user.is_admin or str(current_user_id) == str(user_id)):
+        return error_response(error_code='forbidden', message=ERROR_MESSAGES["forbidden"], status=403)
         
     data = request.get_json()
     if not data:
-        return error_response('validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
+        return error_response(error_code='validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
     try:
         if not User.update(user_id, data):
-            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
+            return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
         updated_user = User.find_by_id(user_id)
         return success_response(updated_user.to_dict(), message="User updated successfully")
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["update_user"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["update_user"], details=str(e), status=500)
 
 @users_blueprint.route('/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
@@ -82,8 +82,8 @@ def update_user(user_id):
 def delete_user(user_id):
     try:
         if not User.soft_delete(user_id):
-            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
+            return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["user"], status=404)
 
         return success_response(message="User soft-deleted successfully")
     except Exception as e:
-        return error_response('server_error', message=ERROR_MESSAGES["server_error"]["delete_user"], details=str(e), status=500)
+        return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["delete_user"], details=str(e), status=500)

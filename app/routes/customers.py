@@ -23,7 +23,7 @@ customer_update_schema = CustomerUpdateSchema()
 def create_customer():
     data = request.get_json()
     if not data:
-        return error_response('validation_error', 
+        return error_response(error_code='validation_error', 
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
@@ -31,7 +31,7 @@ def create_customer():
         validated_data = customer_schema.load(data)
     except ValidationError as err:
         return error_response(
-            'validation_error',
+            error_code='validation_error',
             message="The provided data is invalid.",
             details=err.messages,
             status=400
@@ -41,10 +41,10 @@ def create_customer():
         existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
         if existing_customer:
             if existing_customer.deleted_at is None:
-                return error_response('conflict', message='A customer with this email address already exists.', status=409)
+                return error_response(error_code='conflict', message='A customer with this email address already exists.', status=409)
             else:
                 return error_response(
-                    'conflict_soft_deleted',
+                    error_code='conflict_soft_deleted',
                     message='A customer with this email was previously deleted. Do you want to restore them?',
                     details={'email': existing_customer.email},
                     status=409
@@ -56,11 +56,11 @@ def create_customer():
             customer = Customer.find_by_id_with_aggregates(customer_id)
             if customer:
                 return success_response(customer_summary_schema.dump(customer), message="Customer created successfully.", status=201)
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               status=500)
     except Exception as e:
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["create_customer"], 
                               details=str(e), 
                               status=500)
@@ -89,7 +89,7 @@ def get_customers():
             'per_page': per_page
         }, message="Customers retrieved successfully.")
     except Exception as e:
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
                               details=str(e), 
                               status=500)
@@ -102,11 +102,11 @@ def get_customer(customer_id):
         customer = Customer.find_by_id_with_aggregates(customer_id, include_deleted=include_deleted)
         if customer:
             return success_response(customer_detail_schema.dump(customer), message="Customer details fetched successfully")
-        return error_response('not_found', 
+        return error_response(error_code='not_found', 
                               message=ERROR_MESSAGES["not_found"]["customer"], 
                               status=404)
     except Exception as e:
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["fetch_customer"], 
                               details=str(e), 
                               status=500)
@@ -117,7 +117,7 @@ def get_customer(customer_id):
 def update_customer(customer_id):
     data = request.get_json()
     if not data:
-        return error_response('validation_error', 
+        return error_response(error_code='validation_error', 
                               message=ERROR_MESSAGES["validation"]["request_body_empty"], 
                               status=400)
 
@@ -125,7 +125,7 @@ def update_customer(customer_id):
         validated_data = customer_update_schema.load(data)
     except ValidationError as err:
         return error_response(
-            'validation_error',
+            error_code='validation_error',
             message="The provided data is invalid.",
             details=err.messages,
             status=400
@@ -135,17 +135,17 @@ def update_customer(customer_id):
         # First, ensure the customer exists.
         customer_to_update = Customer.find_by_id(customer_id)
         if not customer_to_update:
-            return error_response('not_found', message=ERROR_MESSAGES["not_found"]["customer"], status=404)
+            return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["customer"], status=404)
 
         # If email is being updated, check for conflicts.
         if 'email' in validated_data and validated_data['email']:
             existing_customer = Customer.find_by_email(validated_data['email'], include_deleted=True)
             if existing_customer and str(existing_customer.id) != str(customer_id):
                 if existing_customer.deleted_at is None:
-                    return error_response('conflict', message='A customer with this email address already exists.', status=409)
+                    return error_response(error_code='conflict', message='A customer with this email address already exists.', status=409)
                 else:
                     return error_response(
-                        'conflict_soft_deleted',
+                        error_code='conflict_soft_deleted',
                         message='A customer with this email was previously deleted. Do you want to restore them?',
                         details={'customer_id': str(existing_customer.id), 'email': existing_customer.email},
                         status=409
@@ -159,7 +159,7 @@ def update_customer(customer_id):
         return success_response(customer_summary_schema.dump(updated_customer), message="Customer updated successfully.")
 
     except Exception as e:
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["update_customer"], 
                               details=str(e), 
                               status=500)
@@ -180,13 +180,13 @@ def restore_customer(customer_id):
         else:
             # This could happen if the customer was not actually soft-deleted.
             return error_response(
-                'not_found', 
+                error_code='not_found', 
                 message="Customer not found or was not soft-deleted.", 
                 status=404
             )
     except Exception as e:
         return error_response(
-            'server_error', 
+            error_code='server_error', 
             message="An unexpected error occurred during customer restoration.",
             details=str(e), 
             status=500
@@ -198,13 +198,13 @@ def restore_customer(customer_id):
 def bulk_delete_customers():
     data = request.get_json()
     if not data or 'ids' not in data or not isinstance(data['ids'], list):
-        return error_response('validation_error', 
+        return error_response(error_code='validation_error', 
                               message="Invalid request. 'ids' must be a list of customer IDs.",
                               status=400)
 
     ids_to_delete = data['ids']
     if not ids_to_delete:
-        return error_response('validation_error', 
+        return error_response(error_code='validation_error', 
                               message="The 'ids' list cannot be empty.",
                               status=400)
 
@@ -212,11 +212,11 @@ def bulk_delete_customers():
         deleted_count = Customer.bulk_soft_delete(ids_to_delete)
         if deleted_count > 0:
             return success_response(message=f"{deleted_count} customer(s) soft-deleted successfully.")
-        return error_response('not_found', 
+        return error_response(error_code='not_found', 
                               message="No matching customers found for the provided IDs.", 
                               status=404)
     except Exception as e:
-        return error_response('server_error', 
+        return error_response(error_code='server_error', 
                               message=ERROR_MESSAGES["server_error"]["delete_customer"], 
                               details=str(e), 
                               status=500)
