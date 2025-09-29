@@ -9,8 +9,11 @@ class CustomJSONEncoder(json.JSONEncoder):
     """
     def default(self, obj):
         if isinstance(obj, Decimal):
-            # Convert Decimal to float for JSON serialization
-            return float(obj)
+            # If the number is a whole number, convert to int, otherwise convert to float
+            if obj == obj.to_integral_value():
+                return int(obj)
+            else:
+                return float(obj)
         if isinstance(obj, datetime):
             # Convert datetime to ISO 8601 string format
             return obj.isoformat()
