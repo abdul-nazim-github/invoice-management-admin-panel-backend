@@ -1,5 +1,6 @@
 
 from app.database.db_manager import DBManager
+from datetime import datetime
 
 class BaseModel:
     _table_name = None
@@ -7,10 +8,19 @@ class BaseModel:
     def __init__(self, **kwargs):
         """
         Initializes the model instance by dynamically setting attributes for each
-        key-value pair in kwargs. This allows creating a model instance from a
-        dictionary, such as a database row.
+        key-value pair in kwargs. It specifically handles converting date/time
+        strings for 'created_at' and 'updated_at' into datetime objects.
         """
         for key, value in kwargs.items():
+            if key in ('created_at', 'updated_at', 'deleted_at') and isinstance(value, str):
+                # Attempt to parse the string into a datetime object.
+                # This handles cases where the DB driver returns strings.
+                try:
+                    value = datetime.fromisoformat(value)
+                except (ValueError, TypeError):
+                    # If parsing fails, leave it as is or log an error.
+                    # For now, we proceed, but this indicates a data format issue.
+                    pass
             setattr(self, key, value)
 
     @classmethod
@@ -47,12 +57,10 @@ class BaseModel:
         if not cls.find_by_id(id):
             return False
         
-        # Return early if there's no data to update
         if not data:
             return True
 
         set_clause_parts = [f"{key} = %s" for key in data.keys()]
-        # Explicitly set updated_at to the current time on every update
         set_clause_parts.append("updated_at = NOW()")
         
         set_clause = ", ".join(set_clause_parts)
