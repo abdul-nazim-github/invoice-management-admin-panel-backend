@@ -49,7 +49,16 @@ def get_invoice(invoice_id):
         if not invoice:
             return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
 
-        return success_response(result=invoice.to_dict(), status=200)
+        customer = Customer.find_by_id(invoice.customer_id)
+        invoice_items = InvoiceItem.find_by_invoice_id(invoice_id)
+        payments = Payment.find_by_invoice_id(invoice_id)
+
+        invoice_data = invoice.to_dict()
+        invoice_data['customer'] = customer.to_dict() if customer else None
+        invoice_data['items'] = [item.to_dict() for item in invoice_items]
+        invoice_data['payments'] = [payment.to_dict() for payment in payments]
+
+        return success_response(result=invoice_data, status=200)
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while fetching the invoice.', details=str(e), status=500)
