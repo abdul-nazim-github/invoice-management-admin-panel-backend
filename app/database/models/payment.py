@@ -1,39 +1,41 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
+from decimal import Decimal
 
 class Payment(BaseModel):
     _table_name = 'payments'
 
-    def __init__(self, id, invoice_id, amount, payment_date, method, reference_no=None, **kwargs):
-        self.id = id
-        self.invoice_id = invoice_id
-        self.amount = amount
-        self.payment_date = payment_date
-        self.method = method
-        self.reference_no = reference_no
-        # Absorb any extra columns
+    def __init__(self, **kwargs):
+        super().__init__()
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'invoice_id': self.invoice_id,
-            'amount': str(self.amount),
-            'payment_date': self.payment_date.isoformat(),
-            'method': self.method,
-            'reference_no': self.reference_no
-        }
-
     @classmethod
     def from_row(cls, row):
-        if not row:
-            return None
-        return cls(**row)
+        return cls(**row) if row else None
 
     @classmethod
-    def search(cls, search_term, include_deleted=False):
-        """Searches for payments by reference_no or method."""
-        search_fields = ['reference_no', 'method']
-        return super().search(search_term, search_fields, include_deleted)
+    def record_payment(cls, invoice_id, amount, method, reference_no=None):
+        # Ensure amount is a Decimal with two places
+        amount_decimal = Decimal(amount).quantize(Decimal('0.00'))
 
+        query = """
+            INSERT INTO payments (invoice_id, amount, method, reference_no) 
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """
+        params = (invoice_id, amount_decimal, method, reference_no)
+        result = DBManager.execute_write_query(query, params, fetch='one')
+        return result['id'] if result else None
+
+    @classmethod
+    def find_by_id(cls, payment_id):
+        query = f"SELECT * FROM {cls._table_name} WHERE id = %s"
+        row = DBManager.execute_query(query, (payment_id,), fetch='one')
+        return cls.from_row(row)
+
+    @classmethod
+    def find_by_invoice_id(cls, invoice_id):
+        query = f"SELECT * FROM {cls._table_name} WHERE invoice_id = %s ORDER BY payment_date DESC"
+        rows = DBManager.execute_query(query, (invoice_id,), fetch='all')
+        return [cls.from_row(row) for row in rows] if rows else []

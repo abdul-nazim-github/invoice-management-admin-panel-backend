@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from app.database.models.invoice import Invoice
 from app.database.models.product import Product
+from app.database.models.payment import Payment  # Import the Payment model
 from app.schemas.invoice_schema import InvoiceSchema
 from app.utils.response import success_response, error_response
 from app.utils.error_messages import ERROR_MESSAGES
@@ -32,20 +33,16 @@ def create_invoice():
     try:
         current_user_id = get_jwt_identity()
         
-        # Use Decimal for all financial calculations
         subtotal_amount = Decimal('0.00')
         for item in validated_data['items']:
             product = Product.find_by_id(item['product_id'])
             if not product:
                 return error_response(error_code='not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
-            # Ensure product.price is a Decimal
             subtotal_amount += Decimal(product.price) * Decimal(item['quantity'])
 
-        # Get Decimal values from validated data, providing default
         tax_percent = Decimal(validated_data.get('tax_percent', '0.00'))
         discount_amount = Decimal(validated_data.get('discount_amount', '0.00'))
 
-        # Perform calculations with Decimal
         taxable_amount = subtotal_amount - discount_amount
         tax_amount = (taxable_amount * (tax_percent / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         total_amount = taxable_amount + tax_amount
@@ -62,7 +59,6 @@ def create_invoice():
             'status': validated_data.get('status', 'Pending')
         }
 
-        # The Invoice model will handle quantization before DB insertion
         invoice_id = Invoice.create(invoice_data)
         if not invoice_id:
             return error_response(error_code='server_error', message="Failed to create the invoice record.", status=500)
@@ -70,13 +66,26 @@ def create_invoice():
         for item in validated_data['items']:
             Invoice.add_item(invoice_id, item['product_id'], item['quantity'])
 
+        # Handle initial payment if provided
+        if 'initial_payment' in validated_data and validated_data['initial_payment']:
+            payment_data = validated_data['initial_payment']
+            Payment.record_payment(
+                invoice_id=invoice_id,
+                amount=payment_data['amount'],
+                method=payment_data['method'],
+                reference_no=payment_data.get('reference_no')
+            )
+            # Optionally, update invoice status if fully paid
+            if payment_data['amount'] >= total_amount:
+                Invoice.update_status(invoice_id, 'Paid')
+            
         new_invoice = Invoice.find_by_id(invoice_id)
-        # Use the schema to dump the data for a consistent response format
         return success_response(invoice_schema.dump(new_invoice), message="Invoice created successfully.", status=201)
             
     except Exception as e:
         return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["create_invoice"], details=str(e), status=500)
 
+# ... (The rest of the file remains the same) ...
 @invoices_blueprint.route('/invoices', methods=['GET'])
 @jwt_required()
 def get_invoices():

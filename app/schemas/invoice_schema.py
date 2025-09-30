@@ -14,9 +14,25 @@ class InvoiceItemSchema(Schema):
         validate=validate.Range(min=1, error="Quantity must be at least 1.")
     )
 
+class InitialPaymentSchema(Schema):
+    """
+    Schema for an initial payment made during invoice creation. This is load-only.
+    """
+    amount = fields.Decimal(
+        places=2,
+        rounding=ROUND_HALF_UP,
+        required=True,
+        validate=validate.Range(min=0.01, error="Initial payment amount must be positive.")
+    )
+    method = fields.Str(
+        validate=validate.OneOf(['cash', 'card', 'upi', 'bank_transfer'], error="Invalid payment method."),
+        load_default='cash'
+    )
+    reference_no = fields.Str(allow_none=True)
+
 class InvoiceSchema(Schema):
     """
-    Marshmallow schema for validating invoice data.
+    Marshmallow schema for validating and serializing invoice data.
     """
     id = fields.Int(dump_only=True)
     customer_id = fields.Int(
@@ -28,10 +44,8 @@ class InvoiceSchema(Schema):
         format='%Y-%m-%d',
         error_messages={"required": "Due date is required.", "invalid": "Invalid date format. Use YYYY-MM-DD."}
     )
-    # dump_only fields are calculated and not loaded, so no precision fix needed here.
     subtotal_amount = fields.Decimal(as_string=True, dump_only=True)
     
-    # Fix precision on loaded decimal fields
     discount_amount = fields.Decimal(
         places=2, 
         rounding=ROUND_HALF_UP, 
@@ -43,7 +57,6 @@ class InvoiceSchema(Schema):
         validate=validate.Range(min=0, error="Tax percent must be a non-negative number.")
     )
     
-    # dump_only fields are calculated and not loaded, so no precision fix needed here.
     tax_amount = fields.Decimal(as_string=True, dump_only=True)
     total_amount = fields.Decimal(as_string=True, dump_only=True)
     amount_paid = fields.Decimal(as_string=True, dump_only=True)
@@ -56,5 +69,9 @@ class InvoiceSchema(Schema):
         required=True,
         validate=validate.Length(min=1, error="Invoice must have at least one item.")
     )
+    
+    # For receiving an initial payment during creation
+    initial_payment = fields.Nested(InitialPaymentSchema, required=False, load_only=True)
+    
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)

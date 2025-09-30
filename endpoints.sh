@@ -155,6 +155,23 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 }' "$BASE_URL/invoices/"
 
 
+echo "\n### Create an Invoice with an Initial Partial Payment (Requires Admin Token) ###"
+# NOTE: This will create an invoice and record a payment simultaneously.
+# The 'amount_paid' will be updated, and the status will remain 'Pending' if not fully paid.
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
+    "customer_id": 1,
+    "due_date": "2024-09-30",
+    "items": [
+        {"product_id": 1, "quantity": 10} 
+    ],
+    "initial_payment": {
+        "amount": 50.00,
+        "method": "upi",
+        "reference_no": "UPI-initial-payment-123"
+    }
+}' "$BASE_URL/invoices/"
+
+
 echo "\n### Get All Invoices (Requires User Token) ###"
 # NOTE: The response now includes the 'amount_paid' for each invoice.
 curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/invoices/"
