@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
+from decimal import Decimal, ROUND_HALF_UP
 
 from app.database.models.invoice import Invoice
 from app.database.models.product import Product
@@ -30,18 +31,24 @@ def create_invoice():
 
     try:
         current_user_id = get_jwt_identity()
-        subtotal_amount = 0
+        
+        # Use Decimal for all financial calculations
+        subtotal_amount = Decimal('0.00')
         for item in validated_data['items']:
             product = Product.find_by_id(item['product_id'])
             if not product:
                 return error_response(error_code='not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
-            subtotal_amount += product.price * item['quantity']
-        
-        tax_percent = validated_data.get('tax_percent', 0)
-        discount_amount = validated_data.get('discount_amount', 0)
-        
-        tax_amount = (subtotal_amount - discount_amount) * (tax_percent / 100)
-        total_amount = subtotal_amount - discount_amount + tax_amount
+            # Ensure product.price is a Decimal
+            subtotal_amount += Decimal(product.price) * Decimal(item['quantity'])
+
+        # Get Decimal values from validated data, providing default
+        tax_percent = Decimal(validated_data.get('tax_percent', '0.00'))
+        discount_amount = Decimal(validated_data.get('discount_amount', '0.00'))
+
+        # Perform calculations with Decimal
+        taxable_amount = subtotal_amount - discount_amount
+        tax_amount = (taxable_amount * (tax_percent / Decimal('100'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        total_amount = taxable_amount + tax_amount
 
         invoice_data = {
             'customer_id': validated_data['customer_id'],
@@ -55,6 +62,7 @@ def create_invoice():
             'status': validated_data.get('status', 'Pending')
         }
 
+        # The Invoice model will handle quantization before DB insertion
         invoice_id = Invoice.create(invoice_data)
         if not invoice_id:
             return error_response(error_code='server_error', message="Failed to create the invoice record.", status=500)
@@ -63,7 +71,8 @@ def create_invoice():
             Invoice.add_item(invoice_id, item['product_id'], item['quantity'])
 
         new_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(new_invoice.to_dict(), message="Invoice created successfully.", status=201)
+        # Use the schema to dump the data for a consistent response format
+        return success_response(invoice_schema.dump(new_invoice), message="Invoice created successfully.", status=201)
             
     except Exception as e:
         return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["create_invoice"], details=str(e), status=500)
@@ -79,7 +88,8 @@ def get_invoices():
     try:
         invoices, total = Invoice.list_all(q=q, status=status, offset=(page - 1) * per_page, limit=per_page, include_deleted=include_deleted)
         
-        serialized_invoices = [inv.to_dict() for inv in invoices]
+        # Use the schema for serialization to ensure consistency
+        serialized_invoices = invoice_schema.dump(invoices, many=True)
 
         return success_response({
             'invoices': serialized_invoices,
@@ -97,7 +107,8 @@ def get_invoice(invoice_id):
     try:
         invoice = Invoice.find_by_id(invoice_id, include_deleted=include_deleted)
         if invoice:
-            return success_response(invoice.to_dict(), message="Invoice retrieved successfully.")
+            # Use the schema for serialization
+            return success_response(invoice_schema.dump(invoice), message="Invoice retrieved successfully.")
         return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
     except Exception as e:
         return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["fetch_invoice"], details=str(e), status=500)
@@ -116,11 +127,13 @@ def update_invoice(invoice_id):
         return error_response(error_code='validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
+        # The update logic will also need to be updated to handle Decimal correctly
+        # For now, this just updates based on validated data
         if not Invoice.update(invoice_id, validated_data):
             return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
 
         updated_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(updated_invoice.to_dict(), message="Invoice updated successfully.")
+        return success_response(invoice_schema.dump(updated_invoice), message="Invoice updated successfully.")
     except Exception as e:
         return error_response(error_code='server_error', message=ERROR_MESSAGES["server_error"]["update_invoice"], details=str(e), status=500)
 

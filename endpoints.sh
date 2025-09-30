@@ -98,12 +98,11 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 # -----------------
 echo "\n### Create a New Product (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "product_code": "PROD-001",
-    "name": "New Product",
-    "description": "A shiny new product",
-    "price": 19.99,
-    "stock": 100
-}' $BASE_URL/products/
+    "name": "Precision Screwdriver",
+    "description": "A high-quality precision screwdriver for delicate tasks.",
+    "price": 24.30,
+    "stock": 150
+}' $BASE_URL/products
 
 
 echo "\n### Get All Products (Requires User Token) ###"
@@ -116,7 +115,7 @@ curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" $BASE_URL/products/1
 
 echo "\n### Update a Product (Requires Admin Token) ###"
 curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "price": 24.99
+    "price": 25.50
 }' $BASE_URL/products/1
 
 
@@ -132,12 +131,25 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 echo "\n### Create a New Invoice (Requires Admin Token) ###"
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
     "customer_id": 1,
-    "invoice_date": "2024-08-15",
     "due_date": "2024-09-15",
     "items": [
+        {"product_id": 1, "quantity": 3}
+    ],
+    "status": "Pending"
+}' $BASE_URL/invoices
+
+
+echo "\n### Create a New Invoice with Precision Discount and Tax (Requires Admin Token) ###"
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
+    "customer_id": 1,
+    "due_date": "2024-09-20",
+    "items": [
         {"product_id": 1, "quantity": 2}
-    ]
-}' $BASE_URL/invoices/
+    ],
+    "discount_amount": 5.50,
+    "tax_percent": 8.20,
+    "status": "Pending"
+}' $BASE_URL/invoices
 
 
 echo "\n### Get All Invoices (Requires User Token) ###"

@@ -1,6 +1,7 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from datetime import datetime
+from decimal import Decimal
 
 class Invoice(BaseModel):
     _table_name = 'invoices'
@@ -29,13 +30,27 @@ class Invoice(BaseModel):
 
     @classmethod
     def create(cls, data):
-        query = "INSERT INTO invoices (customer_id, invoice_number, issue_date, due_date, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s)"
-        params = (data['customer_id'], data['invoice_number'], data['issue_date'], data['due_date'], data['total_amount'], data.get('status', 'Pending'))
-        return DBManager.execute_write_query(query, params)
+        # Quantize decimal fields before insertion
+        for field in ['subtotal_amount', 'discount_amount', 'tax_amount', 'total_amount']:
+            if field in data and data[field] is not None:
+                data[field] = Decimal(data[field]).quantize(Decimal('0.00'))
+
+        query = "INSERT INTO invoices (customer_id, user_id, due_date, subtotal_amount, discount_amount, tax_percent, tax_amount, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+        params = (data['customer_id'], data['user_id'], data['due_date'], data['subtotal_amount'], data['discount_amount'], data['tax_percent'], data['tax_amount'], data['total_amount'], data.get('status', 'Pending'))
+        result = DBManager.execute_write_query(query, params, fetch='one')
+        return result['id'] if result else None
 
     @classmethod
-    def find_by_id(cls, invoice_id):
-        query = "SELECT * FROM invoices WHERE id = %s AND deleted_at IS NULL"
+    def add_item(cls, invoice_id, product_id, quantity):
+        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity) VALUES (%s, %s, %s)"
+        params = (invoice_id, product_id, quantity)
+        DBManager.execute_write_query(query, params)
+
+    @classmethod
+    def find_by_id(cls, invoice_id, include_deleted=False):
+        query = f"SELECT * FROM {cls._table_name} WHERE id = %s"
+        if not include_deleted:
+            query += " AND deleted_at IS NULL"
         row = DBManager.execute_query(query, (invoice_id,), fetch='one')
         return cls.from_row(row)
 
@@ -46,8 +61,11 @@ class Invoice(BaseModel):
         return cls.from_row(row)
 
     @classmethod
-    def list_all(cls, customer_id=None, status=None, offset=0, limit=10, q=None):
-        where = ["i.deleted_at IS NULL"]
+    def list_all(cls, customer_id=None, status=None, offset=0, limit=10, q=None, include_deleted=False):
+        where = []
+        if not include_deleted:
+            where.append("i.deleted_at IS NULL")
+
         params = []
         query_base = """ 
             SELECT i.*, c.name as customer_name, 
@@ -77,9 +95,11 @@ class Invoice(BaseModel):
         rows = DBManager.execute_query(final_query, tuple(params), fetch='all')
         invoices = [cls.from_row(row) for row in rows] if rows else []
 
+        # Build the count query
+        count_query_params = tuple(params[:-2]) # remove limit and offset
         count_query = "SELECT COUNT(DISTINCT i.id) as total FROM invoices i JOIN customers c ON i.customer_id = c.id" + where_sql
-        count_params = tuple(params[:-2]) # remove limit and offset
-        count_result = DBManager.execute_query(count_query, count_params, fetch='one')
+        
+        count_result = DBManager.execute_query(count_query, count_query_params, fetch='one')
         total = count_result['total'] if count_result else 0
 
         return invoices, total
@@ -97,55 +117,3 @@ class Invoice(BaseModel):
         query = f"UPDATE {cls._table_name} SET deleted_at = NOW() WHERE id IN ({placeholders}) AND deleted_at IS NULL"
         DBManager.execute_write_query(query, tuple(ids))
         return len(ids)
-
-class Payment(BaseModel):
-    _table_name = 'payments'
-
-    def __init__(self, **kwargs):
-        super().__init__()
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    @classmethod
-    def from_row(cls, row):
-        return cls(**row) if row else None
-
-    @classmethod
-    def record_payment(cls, payment_data):
-        conn = DBManager.get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                
-                # Check if invoice exists
-                cursor.execute("SELECT total_amount FROM invoices WHERE id = %s", (payment_data['invoice_id'],))
-                invoice_row = cursor.fetchone()
-                if not invoice_row:
-                    raise ValueError("Invoice not found")
-                invoice_total = invoice_row[0]
-
-                # Insert payment
-                query = "INSERT INTO payments (invoice_id, amount, payment_date, payment_method, notes) VALUES (%s, %s, %s, %s, %s)"
-                params = (payment_data['invoice_id'], payment_data['amount'], payment_data['payment_date'], payment_data.get('payment_method', 'other'), payment_data.get('notes', ''))
-                cursor.execute(query, params)
-                payment_id = cursor.lastrowid
-
-                # Update invoice status based on total payments
-                if invoice_total is not None:
-                    cursor.execute("SELECT SUM(amount) FROM payments WHERE invoice_id = %s", (payment_data['invoice_id'],))
-                    total_paid_row = cursor.fetchone()
-                    total_paid = total_paid_row[0] or 0
-    
-                    new_status = 'Pending'
-                    if total_paid >= invoice_total:
-                        new_status = 'Paid'
-    
-                    cursor.execute("UPDATE invoices SET status = %s WHERE id = %s", (new_status, payment_data['invoice_id']))
-    
-                conn.commit()
-                return payment_id
-            except Exception as e:
-                conn.rollback()
-                raise e
-            finally:
-                conn.close()
