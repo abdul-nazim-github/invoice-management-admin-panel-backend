@@ -31,7 +31,6 @@ class Invoice(BaseModel):
 
     @classmethod
     def create(cls, data):
-        # Quantize decimal fields before insertion
         for field in ['subtotal_amount', 'discount_amount', 'tax_amount', 'total_amount']:
             if field in data and data[field] is not None:
                 data[field] = Decimal(data[field]).quantize(Decimal('0.00'))
@@ -39,14 +38,15 @@ class Invoice(BaseModel):
         query = "INSERT INTO invoices (customer_id, user_id, invoice_number, due_date, subtotal_amount, discount_amount, tax_percent, tax_amount, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
         params = (data['customer_id'], data['user_id'], data['invoice_number'], data['due_date'], data['subtotal_amount'], data['discount_amount'], data['tax_percent'], data['tax_amount'], data['total_amount'], data.get('status', 'Pending'))
         
-        # DBManager.execute_write_query is expected to return the last inserted ID for MySQL.
         invoice_id = DBManager.execute_write_query(query, params)
         return invoice_id
 
     @classmethod
     def add_item(cls, invoice_id, product_id, quantity, price):
-        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity, price) VALUES (%s, %s, %s, %s)"
-        params = (invoice_id, product_id, quantity, price)
+        # Calculate the total for the invoice item
+        total = Decimal(quantity) * Decimal(price)
+        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity, price, total) VALUES (%s, %s, %s, %s, %s)"
+        params = (invoice_id, product_id, quantity, price, total)
         DBManager.execute_write_query(query, params)
 
     @classmethod
@@ -105,7 +105,6 @@ class Invoice(BaseModel):
         rows = DBManager.execute_query(final_query, tuple(params), fetch='all')
         invoices = [cls.from_row(row) for row in rows] if rows else []
 
-        # Build the count query
         count_query_params = tuple(params[:-2]) # remove limit and offset
         count_query = "SELECT COUNT(DISTINCT i.id) as total FROM invoices i JOIN customers c ON i.customer_id = c.id" + where_sql
         
