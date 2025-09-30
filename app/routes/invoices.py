@@ -48,8 +48,9 @@ def get_invoice(invoice_id):
         invoice = Invoice.find_by_id(invoice_id)
         if not invoice:
             return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
-        
+
         return success_response(result=invoice.to_dict(), status=200)
+
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while fetching the invoice.', details=str(e), status=500)
 
@@ -220,7 +221,7 @@ def update_invoice(invoice_id):
         }
         Invoice.update(invoice_id, invoice_data)
 
-        updated_invoice = Invoice.find_by_.id(invoice_id)
+        updated_invoice = Invoice.find_by_id(invoice_id)
         return success_response(result=updated_invoice.to_dict(), status=200)
 
     except Exception as e:
