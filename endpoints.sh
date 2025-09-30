@@ -130,45 +130,27 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
 # -----------------
 # Invoices Endpoints
 # -----------------
-echo "\n### Create a New Invoice (Requires Admin Token) ###"
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "customer_id": 1,
-    "due_date": "2024-09-15",
-    "items": [
-        {"product_id": 1, "quantity": 3}
-    ],
-    "status": "Pending"
-}' "$BASE_URL/invoices/"
-
-
-echo "\n### Create a New Invoice with Precision Discount and Tax (Requires Admin Token) ###"
-# NOTE: 'discount_amount' and 'tax_percent' now handle precision correctly (e.g., 5.50, 8.20).
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "customer_id": 1,
-    "due_date": "2024-09-20",
-    "items": [
-        {"product_id": 1, "quantity": 2}
-    ],
-    "discount_amount": 5.50,
-    "tax_percent": 8.20,
-    "status": "Pending"
-}' "$BASE_URL/invoices/"
-
-
-echo "\n### Create an Invoice with an Initial Partial Payment (Requires Admin Token) ###"
-# NOTE: This will create an invoice and record a payment simultaneously.
-# The 'amount_paid' will be updated, and the status will remain 'Pending' if not fully paid.
+echo "\n### Create a New Invoice (Single Comprehensive Example) ###"
+# This single endpoint handles creating all invoices.
+# Optional fields like discount, tax, and initial payment can be included.
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
     "customer_id": 1,
     "due_date": "2024-09-30",
     "items": [
         {"product_id": 1, "quantity": 10} 
     ],
-    "initial_payment": {
-        "amount": 50.00,
-        "method": "upi",
-        "reference_no": "UPI-initial-payment-123"
-    }
+    "status": "Pending"
+
+    # --- OPTIONAL: Uncomment to add a discount and tax --- 
+    # "discount_amount": 5.50,
+    # "tax_percent": 8.20,
+
+    # --- OPTIONAL: Uncomment to record an initial payment --- 
+    # "initial_payment": {
+    #     "amount": 50.00,
+    #     "method": "upi",
+    #     "reference_no": "UPI-initial-payment-123"
+    # }
 }' "$BASE_URL/invoices/"
 
 
