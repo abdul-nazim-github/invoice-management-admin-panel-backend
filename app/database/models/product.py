@@ -2,6 +2,7 @@
 from .base_model import BaseModel
 from app.utils.utils import generate_unique_product_code
 from decimal import Decimal
+from app.database.db_manager import DBManager
 
 class Product(BaseModel):
     _table_name = 'products'
@@ -28,14 +29,20 @@ class Product(BaseModel):
             # As a fallback if name is not provided, though 'name' is required by schema
             data['product_code'] = generate_unique_product_code('Product')
         
-        # Explicitly quantize the price to two decimal places before insertion.
-        # This is a definitive safeguard to ensure "24.3" becomes "24.30".
-        if 'price' in data and data['price'] is not None:
-            # The schema converts the input to a Decimal. We quantize it here to
-            # enforce a scale of 2, ensuring values like 24.3 are stored as 24.30.
+        if 'price' in data and data['price' is not None:
             data['price'] = Decimal(data['price']).quantize(Decimal('0.00'))
 
         return super().create(data)
+
+    @classmethod
+    def update_stock(cls, product_id, quantity_change):
+        """
+        Updates the stock for a given product.
+        `quantity_change` is the amount to add to the stock (can be negative).
+        """
+        query = f"UPDATE {cls._table_name} SET stock = stock + %s WHERE id = %s"
+        params = (quantity_change, product_id)
+        DBManager.execute_write_query(query, params)
 
     @classmethod
     def search(cls, search_term, include_deleted=False):
