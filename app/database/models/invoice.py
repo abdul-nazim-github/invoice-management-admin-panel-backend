@@ -38,7 +38,7 @@ class Invoice(BaseModel):
 
         query = "INSERT INTO invoices (customer_id, user_id, due_date, subtotal_amount, discount_amount, tax_percent, tax_amount, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
         params = (data['customer_id'], data['user_id'], data['due_date'], data['subtotal_amount'], data['discount_amount'], data['tax_percent'], data['tax_amount'], data['total_amount'], data.get('status', 'Pending'))
-        result = DBManager.execute_write_query(query, params, fetch='one')
+        result = DBManager.execute_write_query(query, params)
         return result['id'] if result else None
 
     @classmethod

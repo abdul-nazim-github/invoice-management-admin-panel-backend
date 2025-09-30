@@ -25,7 +25,7 @@ class Payment(BaseModel):
             RETURNING id
         """
         params = (invoice_id, amount_decimal, method, reference_no)
-        result = DBManager.execute_write_query(query, params, fetch='one')
+        result = DBManager.execute_write_query(query, params)
         return result['id'] if result else None
 
     @classmethod
