@@ -29,7 +29,7 @@ def list_invoices():
         invoices, total = Invoice.list_all(customer_id=customer_id, status=status, offset=offset, limit=per_page, q=q)
 
         return success_response(
-            results=[invoice.to_dict() for invoice in invoices],
+            result=[invoice.to_dict() for invoice in invoices],
             meta={
                 'total': total,
                 'page': page,
