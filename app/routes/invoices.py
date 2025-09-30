@@ -5,12 +5,12 @@ from app.schemas.invoice_schema import invoice_schema
 from app.utils.error_messages import ERROR_MESSAGES
 from app.database.models.invoice import Invoice
 from app.database.models.product import Product
-from app.database.models.customer import Customer
+from app.database.models.customer import Customer # Import Customer model
 from app.database.models.payment import Payment
 from decimal import Decimal
 from datetime import datetime
-from app.utils.auth_helpers import require_admin
-from app.utils.response_helpers import success_response, error_response
+from app.utils.auth import require_admin
+from app.utils.response import success_response, error_response
 
 # Create a Blueprint for invoices
 invoices_blueprint = Blueprint('invoices', __name__)
@@ -91,3 +91,5 @@ def create_invoice():
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while creating the invoice.', details=str(e), status=500)
+
+# ... (rest of the file remains the same) ...
