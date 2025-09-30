@@ -33,13 +33,20 @@ class Payment(BaseModel):
         
         payment_id = DBManager.execute_write_query(query, params)
 
-        # Check if the invoice is fully paid
+        # Check and update invoice status
         invoice = Invoice.find_by_id(invoice_id)
         if invoice:
             all_payments = cls.find_by_invoice_id(invoice_id)
-            total_paid = sum(p.amount for p in all_payments)
-            if total_paid >= invoice.total_amount:
-                Invoice.update(invoice_id, {'status': 'Paid'})
+            total_paid = sum(Decimal(p.amount) for p in all_payments)
+            
+            new_status = 'Pending'
+            if total_paid >= Decimal(invoice.total_amount):
+                new_status = 'Paid'
+            elif total_paid > 0:
+                new_status = 'Partially Paid'
+
+            if invoice.status != new_status:
+                Invoice.update(invoice_id, {'status': new_status})
 
         return payment_id
 

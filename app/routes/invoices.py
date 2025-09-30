@@ -153,7 +153,7 @@ def update_invoice(invoice_id):
 
         # Determine invoice status based on payments
         payments = Payment.find_by_invoice_id(invoice_id)
-        total_paid = sum(p.amount for p in payments)
+        total_paid = sum(Decimal(p.amount) for p in payments)
 
         new_status = 'Pending'
         if total_paid >= total_amount:
