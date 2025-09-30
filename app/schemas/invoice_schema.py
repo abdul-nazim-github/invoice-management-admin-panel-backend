@@ -10,7 +10,7 @@ class InvoiceSchema(Schema):
     customer_id = fields.Int(required=True)
     due_date = fields.Date(allow_none=True)
     items = fields.List(fields.Nested(InvoiceItemSchema), required=True, validate=validate.Length(min=1))
-    status = fields.Str(validate=validate.OneOf(["Pending", "Paid", "Cancelled"]), default="Pending")
+    status = fields.Str(validate=validate.OneOf(["Pending", "Paid", "Overdue"]), load_default="Pending")
     discount_amount = fields.Decimal(places=2, as_string=True, allow_none=True)
     tax_percent = fields.Decimal(places=2, as_string=True, allow_none=True)
     initial_payment = fields.Nested(PaymentSchema, allow_none=True)
