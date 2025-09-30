@@ -139,18 +139,16 @@ curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_
     "items": [
         {"product_id": 1, "quantity": 10} 
     ],
-    "status": "Pending"
+    "status": "Pending",
 
-    # --- OPTIONAL: Uncomment to add a discount and tax --- 
-    # "discount_amount": 5.50,
-    # "tax_percent": 8.20,
+    "discount_amount": "5.50",
+    "tax_percent": "8.20",
 
-    # --- OPTIONAL: Uncomment to record an initial payment --- 
-    # "initial_payment": {
-    #     "amount": 50.00,
-    #     "method": "upi",
-    #     "reference_no": "UPI-initial-payment-123"
-    # }
+    "initial_payment": {
+        "amount": "50.00",
+        "method": "upi",
+        "reference_no": "UPI-initial-payment-123"
+    }
 }' "$BASE_URL/invoices/"
 
 
@@ -174,7 +172,7 @@ echo "\n### Pay an Invoice (Requires Admin Token) ###"
 # NOTE: To test this, first 'Get Invoice by ID' to see the current 'amount_paid', 
 # then run this command, and then 'Get Invoice by ID' again to see the updated 'amount_paid'.
 curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
-    "amount": 100.00,
+    "amount": "100.00",
     "method": "card",
     "reference_no": "PAY-12345"
 }' "$BASE_URL/invoices/1/pay/"

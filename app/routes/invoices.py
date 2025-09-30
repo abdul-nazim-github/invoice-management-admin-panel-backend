@@ -5,14 +5,13 @@ from app.schemas.invoice_schema import invoice_schema
 from app.utils.error_messages import ERROR_MESSAGES
 from app.database.models.invoice import Invoice
 from app.database.models.product import Product
-from app.database.models.customer import Customer # Import Customer model
+from app.database.models.customer import Customer
 from app.database.models.payment import Payment
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date  # Import date
 from app.utils.auth import require_admin
 from app.utils.response import success_response, error_response
 
-# Create a Blueprint for invoices
 invoices_blueprint = Blueprint('invoices', __name__)
 
 @invoices_blueprint.route('/invoices', methods=['POST'])
@@ -29,7 +28,6 @@ def create_invoice():
         return error_response(error_code='validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
-        # --- START: Customer and Product Validation ---
         customer = Customer.find_by_id(validated_data['customer_id'])
         if not customer:
             return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["customer"], status=404)
@@ -40,23 +38,19 @@ def create_invoice():
             if not product:
                 return error_response(error_code='not_found', message=f"Product with ID {item['product_id']} not found.", status=404)
             subtotal_amount += Decimal(product.price) * Decimal(item['quantity'])
-        # --- END: Customer and Product Validation ---
 
         current_user_id = get_jwt_identity()
-        discount_amount = validated_data.get('discount_amount', Decimal('0.00'))
-        tax_percent = validated_data.get('tax_percent', Decimal('0.00'))
+        discount_amount = Decimal(validated_data.get('discount_amount', '0.00'))
+        tax_percent = Decimal(validated_data.get('tax_percent', '0.00'))
 
         tax_amount = (subtotal_amount - discount_amount) * (tax_percent / Decimal('100.00'))
         total_amount = subtotal_amount - discount_amount + tax_amount
-
-        # --- START: Generate Invoice Number ---
         invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-        # --- END: Generate Invoice Number ---
 
         invoice_data = {
             'customer_id': validated_data['customer_id'],
             'user_id': current_user_id,
-            'invoice_number': invoice_number, # Add invoice_number to data
+            'invoice_number': invoice_number,
             'due_date': validated_data.get('due_date'),
             'subtotal_amount': subtotal_amount,
             'discount_amount': discount_amount,
@@ -71,14 +65,17 @@ def create_invoice():
             return error_response(error_code='server_error', message="Failed to create the invoice record.", status=500)
 
         for item in validated_data['items']:
-            Invoice.add_item(invoice_id, item['product_id'], item['quantity'])
+            product = Product.find_by_id(item['product_id'])
+            Invoice.add_item(invoice_id, item['product_id'], item['quantity'], product.price)
 
         # Handle initial payment if provided
-        if 'initial_payment' in validated_data:
+        if 'initial_payment' in validated_data and validated_data['initial_payment']:
             payment_info = validated_data['initial_payment']
+            # Use today's date for the initial payment
             Payment.record_payment(
                 invoice_id=invoice_id,
-                amount=payment_info['amount'],
+                amount=Decimal(payment_info['amount']),
+                payment_date=date.today(),  # Set payment_date to today
                 method=payment_info['method'],
                 reference_no=payment_info.get('reference_no')
             )
@@ -91,5 +88,3 @@ def create_invoice():
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while creating the invoice.', details=str(e), status=500)
-
-# ... (rest of the file remains the same) ...

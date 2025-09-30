@@ -1,6 +1,7 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
+from datetime import date
 
 class Payment(BaseModel):
     _table_name = 'payments'
@@ -15,15 +16,19 @@ class Payment(BaseModel):
         return cls(**row) if row else None
 
     @classmethod
-    def record_payment(cls, invoice_id, amount, method, reference_no=None):
+    def record_payment(cls, invoice_id, amount, method, payment_date=None, reference_no=None):
         # Ensure amount is a Decimal with two places
         amount_decimal = Decimal(amount).quantize(Decimal('0.00'))
+        
+        # Default to today's date if not provided
+        if payment_date is None:
+            payment_date = date.today()
 
         query = """
-            INSERT INTO payments (invoice_id, amount, method, reference_no) 
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO payments (invoice_id, amount, payment_date, method, reference_no) 
+            VALUES (%s, %s, %s, %s, %s)
         """
-        params = (invoice_id, amount_decimal, method, reference_no)
+        params = (invoice_id, amount_decimal, payment_date, method, reference_no)
         
         # DBManager.execute_write_query is expected to return the last inserted ID for MySQL.
         payment_id = DBManager.execute_write_query(query, params)

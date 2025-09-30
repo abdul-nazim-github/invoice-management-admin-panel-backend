@@ -44,9 +44,9 @@ class Invoice(BaseModel):
         return invoice_id
 
     @classmethod
-    def add_item(cls, invoice_id, product_id, quantity):
-        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity) VALUES (%s, %s, %s)"
-        params = (invoice_id, product_id, quantity)
+    def add_item(cls, invoice_id, product_id, quantity, price):
+        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity, price) VALUES (%s, %s, %s, %s)"
+        params = (invoice_id, product_id, quantity, price)
         DBManager.execute_write_query(query, params)
 
     @classmethod
