@@ -53,13 +53,6 @@ class Invoice(BaseModel):
         return invoice_id
 
     @classmethod
-    def add_item(cls, invoice_id, product_id, quantity, price):
-        total = Decimal(quantity) * Decimal(price)
-        query = "INSERT INTO invoice_items (invoice_id, product_id, quantity, price, total) VALUES (%s, %s, %s, %s, %s)"
-        params = (invoice_id, product_id, quantity, price, total)
-        DBManager.execute_write_query(query, params)
-
-    @classmethod
     def find_by_id(cls, invoice_id, include_deleted=False):
         query = f"""
             SELECT i.*, COALESCE(SUM(p.amount), 0) as amount_paid

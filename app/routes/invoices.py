@@ -67,7 +67,13 @@ def create_invoice():
 
         for item in validated_data['items']:
             product = Product.find_by_id(item['product_id'])
-            Invoice.add_item(invoice_id, item['product_id'], item['quantity'], product.price)
+            item_data = {
+                'invoice_id': invoice_id,
+                'product_id': item['product_id'],
+                'quantity': item['quantity'],
+                'price': product.price
+            }
+            InvoiceItem.create(item_data)
             # Update the stock for the product
             Product.update_stock(item['product_id'], -item['quantity'])
 
@@ -132,7 +138,13 @@ def update_invoice(invoice_id):
         InvoiceItem.delete_by_invoice_id(invoice_id)
         for item_data in new_items:
             product = Product.find_by_id(item_data['product_id'])
-            Invoice.add_item(invoice_id, item_data['product_id'], item_data['quantity'], product.price)
+            new_item_data = {
+                'invoice_id': invoice_id,
+                'product_id': item_data['product_id'],
+                'quantity': item_data['quantity'],
+                'price': product.price
+            }
+            InvoiceItem.create(new_item_data)
 
         # Recalculate totals
         subtotal_amount = sum(Decimal(Product.find_by_id(item['product_id']).price) * Decimal(item['quantity']) for item in new_items)

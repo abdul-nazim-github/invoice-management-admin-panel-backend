@@ -1,5 +1,6 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
+from decimal import Decimal
 
 class InvoiceItem(BaseModel):
     _table_name = 'invoice_items'
@@ -19,3 +20,15 @@ class InvoiceItem(BaseModel):
         query = f"DELETE FROM {cls._table_name} WHERE invoice_id = %s"
         params = (invoice_id,)
         DBManager.execute_write_query(query, params)
+
+    @classmethod
+    def create(cls, data):
+        quantity = Decimal(data['quantity'])
+        price = Decimal(data['price'])
+        total = quantity * price
+
+        query = f"INSERT INTO {cls._table_name} (invoice_id, product_id, quantity, price, total) VALUES (%s, %s, %s, %s, %s)"
+        params = (data['invoice_id'], data['product_id'], quantity, price, total)
+        
+        item_id = DBManager.execute_write_query(query, params)
+        return item_id
