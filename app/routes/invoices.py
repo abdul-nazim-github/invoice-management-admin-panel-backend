@@ -28,13 +28,15 @@ def list_invoices():
         offset = (page - 1) * per_page
         invoices, total = Invoice.list_all(customer_id=customer_id, status=status, offset=offset, limit=per_page, q=q)
 
-        results = [invoice.to_dict() for invoice in invoices]
-        meta = {
-            'total': total,
-            'page': page,
-            'per_page': per_page,
-        }
-        return success_response(result=results, meta=meta, status=200)
+        return success_response(
+            results=[invoice.to_dict() for invoice in invoices],
+            meta={
+                'total': total,
+                'page': page,
+                'per_page': per_page,
+            },
+            status=200
+        )
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while fetching invoices.', details=str(e), status=500)

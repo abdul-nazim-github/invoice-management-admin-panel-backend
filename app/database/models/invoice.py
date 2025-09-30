@@ -25,7 +25,7 @@ class Invoice(BaseModel):
 
     def to_dict(self):
         total_amount_float = float(self.total_amount)
-        amount_paid_float = float(getattr(self, 'amount_paid', '0.00'))
+        due_amount_float = float(getattr(self, 'due_amount', '0.00'))
         return {
             "id": self.id,
             "customer_id": self.customer_id,
@@ -33,7 +33,7 @@ class Invoice(BaseModel):
             "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
             "total_amount": int(total_amount_float) if total_amount_float.is_integer() else total_amount_float,
-            "amount_paid": int(amount_paid_float) if amount_paid_float.is_integer() else amount_paid_float,
+            "due_amount": int(due_amount_float) if due_amount_float.is_integer() else due_amount_float,
             "status": self.status,
             "updated_at": self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
@@ -57,7 +57,7 @@ class Invoice(BaseModel):
     @classmethod
     def find_by_id(cls, invoice_id, include_deleted=False):
         query = f"""
-            SELECT i.*, COALESCE(SUM(p.amount), 0) as amount_paid
+            SELECT i.*, COALESCE(SUM(p.amount), 0) as amount_paid, (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
             FROM {cls._table_name} i
             LEFT JOIN payments p ON i.id = p.invoice_id
             WHERE i.id = %s
@@ -83,7 +83,6 @@ class Invoice(BaseModel):
         params = []
         query_base = """ 
             SELECT i.*, c.name as customer_name, 
-                   COALESCE(SUM(p.amount), 0) as amount_paid,
                    (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
