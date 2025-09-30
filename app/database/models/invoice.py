@@ -19,6 +19,7 @@ class Invoice(BaseModel):
             "issue_date": self.issue_date.isoformat() if self.issue_date else None,
             "due_date": self.due_date.isoformat() if self.due_date else None,
             "total_amount": str(self.total_amount),
+            "amount_paid": str(getattr(self, 'amount_paid', '0.00')),
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -48,9 +49,15 @@ class Invoice(BaseModel):
 
     @classmethod
     def find_by_id(cls, invoice_id, include_deleted=False):
-        query = f"SELECT * FROM {cls._table_name} WHERE id = %s"
+        query = f"""
+            SELECT i.*, COALESCE(SUM(p.amount), 0) as amount_paid
+            FROM {cls._table_name} i
+            LEFT JOIN payments p ON i.id = p.invoice_id
+            WHERE i.id = %s
+        """
         if not include_deleted:
-            query += " AND deleted_at IS NULL"
+            query += " AND i.deleted_at IS NULL"
+        query += " GROUP BY i.id"
         row = DBManager.execute_query(query, (invoice_id,), fetch='one')
         return cls.from_row(row)
 
@@ -69,6 +76,7 @@ class Invoice(BaseModel):
         params = []
         query_base = """ 
             SELECT i.*, c.name as customer_name, 
+                   COALESCE(SUM(p.amount), 0) as amount_paid,
                    (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id

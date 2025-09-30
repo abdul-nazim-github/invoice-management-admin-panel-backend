@@ -29,7 +29,7 @@ class InvoiceSchema(Schema):
         error_messages={"required": "Due date is required.", "invalid": "Invalid date format. Use YYYY-MM-DD."}
     )
     # dump_only fields are calculated and not loaded, so no precision fix needed here.
-    subtotal_amount = fields.Decimal(as_string=False, dump_only=True)
+    subtotal_amount = fields.Decimal(as_string=True, dump_only=True)
     
     # Fix precision on loaded decimal fields
     discount_amount = fields.Decimal(
@@ -44,8 +44,9 @@ class InvoiceSchema(Schema):
     )
     
     # dump_only fields are calculated and not loaded, so no precision fix needed here.
-    tax_amount = fields.Decimal(as_string=False, dump_only=True)
-    total_amount = fields.Decimal(as_string=False, dump_only=True)
+    tax_amount = fields.Decimal(as_string=True, dump_only=True)
+    total_amount = fields.Decimal(as_string=True, dump_only=True)
+    amount_paid = fields.Decimal(as_string=True, dump_only=True)
     
     status = fields.Str(
         validate=validate.OneOf(['Pending', 'Paid', 'Overdue'], error="Invalid status. Must be one of: Pending, Paid, Overdue.")
