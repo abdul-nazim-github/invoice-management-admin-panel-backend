@@ -85,6 +85,7 @@ class Invoice(BaseModel):
         params = []
         query_base = """ 
             SELECT i.*, c.name as customer_name, 
+                   COALESCE(SUM(p.amount), 0) as amount_paid,
                    (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
