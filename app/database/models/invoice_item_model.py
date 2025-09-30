@@ -19,6 +19,10 @@ class InvoiceItem(BaseModel):
         }
 
     @classmethod
+    def from_row(cls, row):
+        return cls(**row) if row else None
+
+    @classmethod
     def find_by_invoice_id(cls, invoice_id):
         query = f"SELECT * FROM {cls._table_name} WHERE invoice_id = %s"
         params = (invoice_id,)
