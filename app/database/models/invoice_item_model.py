@@ -40,5 +40,5 @@ class InvoiceItem(BaseModel):
         query = f"INSERT INTO {cls._table_name} (invoice_id, product_id, quantity, price, total) VALUES (%s, %s, %s, %s, %s)"
         params = (data['invoice_id'], data['product_id'], quantity, price, total)
         
-        item__id = DBManager.execute_write_query(query, params)
+        item_id = DBManager.execute_write_query(query, params)
         return item_id
