@@ -30,8 +30,8 @@ class Invoice(BaseModel):
             "invoice_number": self.invoice_number,
             "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
-            "total_amount": str(self.total_amount),
-            "amount_paid": str(getattr(self, 'amount_paid', '0.00')),
+            "total_amount": float(self.total_amount),
+            "amount_paid": float(getattr(self, 'amount_paid', '0.00')),
             "status": self.status,
             "updated_at": self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
@@ -82,7 +82,7 @@ class Invoice(BaseModel):
         query_base = """ 
             SELECT i.*, c.name as customer_name, 
                    COALESCE(SUM(p.amount), 0) as amount_paid,
-                   (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
+                   (i.total_amount - COALLESCE(SUM(p.amount), 0)) as due_amount
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
             LEFT JOIN payments p ON i.id = p.invoice_id
