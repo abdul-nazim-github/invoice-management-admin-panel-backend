@@ -86,8 +86,6 @@ def create_invoice():
                 method=payment_info['method'],
                 reference_no=payment_info.get('reference_no')
             )
-            if Decimal(payment_info['amount']) >= total_amount:
-                Invoice.update_status(invoice_id, 'Paid')
 
         created_invoice = Invoice.find_by_id(invoice_id)
         return success_response(result=created_invoice.to_dict(), status=201)
@@ -153,6 +151,16 @@ def update_invoice(invoice_id):
         tax_amount = (subtotal_amount - discount_amount) * (tax_percent / Decimal('100.00'))
         total_amount = subtotal_amount - discount_amount + tax_amount
 
+        # Determine invoice status based on payments
+        payments = Payment.find_by_invoice_id(invoice_id)
+        total_paid = sum(p.amount for p in payments)
+
+        new_status = 'Pending'
+        if total_paid >= total_amount:
+            new_status = 'Paid'
+        elif total_paid > 0:
+            new_status = 'Partially Paid'
+
         invoice_data = {
             'customer_id': validated_data['customer_id'],
             'due_date': validated_data.get('due_date'),
@@ -161,7 +169,7 @@ def update_invoice(invoice_id):
             'tax_percent': tax_percent,
             'tax_amount': tax_amount,
             'total_amount': total_amount,
-            'status': validated_data.get('status', 'Pending')
+            'status': new_status
         }
         Invoice.update(invoice_id, invoice_data)
 

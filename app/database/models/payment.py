@@ -2,6 +2,7 @@ from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
 from datetime import date
+from app.database.models.invoice import Invoice
 
 class Payment(BaseModel):
     _table_name = 'payments'
@@ -30,8 +31,16 @@ class Payment(BaseModel):
         """
         params = (invoice_id, amount_decimal, payment_date, method, reference_no)
         
-        # DBManager.execute_write_query is expected to return the last inserted ID for MySQL.
         payment_id = DBManager.execute_write_query(query, params)
+
+        # Check if the invoice is fully paid
+        invoice = Invoice.find_by_id(invoice_id)
+        if invoice:
+            all_payments = cls.find_by_invoice_id(invoice_id)
+            total_paid = sum(p.amount for p in all_payments)
+            if total_paid >= invoice.total_amount:
+                Invoice.update(invoice_id, {'status': 'Paid'})
+
         return payment_id
 
     @classmethod
