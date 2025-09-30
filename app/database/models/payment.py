@@ -12,6 +12,16 @@ class Payment(BaseModel):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'invoice_id': self.invoice_id,
+            'amount': self.amount,
+            'payment_date': self.payment_date.isoformat() if isinstance(self.payment_date, date) else None,
+            'method': self.method,
+            'reference_no': self.reference_no
+        }
+
     @classmethod
     def from_row(cls, row):
         return cls(**row) if row else None
