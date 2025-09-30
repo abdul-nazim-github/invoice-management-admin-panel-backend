@@ -117,11 +117,6 @@ class Invoice(BaseModel):
         return invoices, total
     
     @classmethod
-    def update_status(cls, invoice_id, new_status):
-        query = "UPDATE invoices SET status = %s, updated_at = NOW() WHERE id = %s"
-        DBManager.execute_write_query(query, (new_status, invoice_id))
-
-    @classmethod
     def bulk_soft_delete(cls, ids):
         if not ids:
             return 0

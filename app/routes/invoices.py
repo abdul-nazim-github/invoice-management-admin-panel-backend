@@ -48,6 +48,15 @@ def create_invoice():
         total_amount = subtotal_amount - discount_amount + tax_amount
         invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
+        # Determine initial status
+        initial_status = 'Pending'
+        if 'initial_payment' in validated_data and validated_data['initial_payment']:
+            initial_payment_amount = Decimal(validated_data['initial_payment']['amount'])
+            if initial_payment_amount >= total_amount:
+                initial_status = 'Paid'
+            elif initial_payment_amount > 0:
+                initial_status = 'Partially Paid'
+
         invoice_data = {
             'customer_id': validated_data['customer_id'],
             'user_id': current_user_id,
@@ -58,7 +67,7 @@ def create_invoice():
             'tax_percent': tax_percent,
             'tax_amount': tax_amount,
             'total_amount': total_amount,
-            'status': validated_data.get('status', 'Pending')
+            'status': initial_status
         }
 
         invoice_id = Invoice.create(invoice_data)
