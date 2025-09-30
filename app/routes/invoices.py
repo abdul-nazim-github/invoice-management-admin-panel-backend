@@ -15,6 +15,33 @@ from app.utils.response import success_response, error_response
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
+@invoices_blueprint.route('/invoices', methods=['GET'])
+@jwt_required()
+def list_invoices():
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        status = request.args.get('status')
+        customer_id = request.args.get('customer_id')
+        q = request.args.get('q')
+
+        offset = (page - 1) * limit
+        invoices, total = Invoice.list_all(customer_id=customer_id, status=status, offset=offset, limit=limit, q=q)
+
+        response_data = {
+            'results': [invoice.to_dict() for invoice in invoices],
+            'meta': {
+                'total': total,
+                'page': page,
+                'limit': limit,
+                'totalPages': (total + limit - 1) // limit
+            }
+        }
+        return success_response(result=response_data, status=200)
+
+    except Exception as e:
+        return error_response(error_code='server_error', message='An unexpected error occurred while fetching invoices.', details=str(e), status=500)
+
 @invoices_blueprint.route('/invoices', methods=['POST'])
 @jwt_required()
 @require_admin
