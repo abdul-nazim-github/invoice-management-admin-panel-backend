@@ -1,4 +1,3 @@
-
 from .base_model import BaseModel
 from app.utils.utils import generate_unique_product_code
 from decimal import Decimal
@@ -29,7 +28,7 @@ class Product(BaseModel):
             # As a fallback if name is not provided, though 'name' is required by schema
             data['product_code'] = generate_unique_product_code('Product')
         
-        if 'price' in data and data['price' is not None:
+        if 'price' in data and data['price'] is not None:
             data['price'] = Decimal(data['price']).quantize(Decimal('0.00'))
 
         return super().create(data)
@@ -40,7 +39,7 @@ class Product(BaseModel):
         Updates the stock for a given product.
         `quantity_change` is the amount to add to the stock (can be negative).
         """
-        query = f"UPDATE {cls._table_name} SET stock = stock + %s WHERE id = %s"
+        query = f"UPDATE {cls._table_name} SET stock_quantity = stock_quantity + %s WHERE id = %s"
         params = (quantity_change, product_id)
         DBManager.execute_write_query(query, params)
 
