@@ -22,11 +22,12 @@ class Payment(BaseModel):
         query = """
             INSERT INTO payments (invoice_id, amount, method, reference_no) 
             VALUES (%s, %s, %s, %s)
-            RETURNING id
         """
         params = (invoice_id, amount_decimal, method, reference_no)
-        result = DBManager.execute_write_query(query, params)
-        return result['id'] if result else None
+        
+        # DBManager.execute_write_query is expected to return the last inserted ID for MySQL.
+        payment_id = DBManager.execute_write_query(query, params)
+        return payment_id
 
     @classmethod
     def find_by_id(cls, payment_id):
