@@ -36,8 +36,8 @@ class Invoice(BaseModel):
             if field in data and data[field] is not None:
                 data[field] = Decimal(data[field]).quantize(Decimal('0.00'))
 
-        query = "INSERT INTO invoices (customer_id, user_id, due_date, subtotal_amount, discount_amount, tax_percent, tax_amount, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
-        params = (data['customer_id'], data['user_id'], data['due_date'], data['subtotal_amount'], data['discount_amount'], data['tax_percent'], data['tax_amount'], data['total_amount'], data.get('status', 'Pending'))
+        query = "INSERT INTO invoices (customer_id, user_id, invoice_number, due_date, subtotal_amount, discount_amount, tax_percent, tax_amount, total_amount, status) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        params = (data['customer_id'], data['user_id'], data['invoice_number'], data['due_date'], data['subtotal_amount'], data['discount_amount'], data['tax_percent'], data['tax_amount'], data['total_amount'], data.get('status', 'Pending'))
         
         # DBManager.execute_write_query is expected to return the last inserted ID for MySQL.
         invoice_id = DBManager.execute_write_query(query, params)
