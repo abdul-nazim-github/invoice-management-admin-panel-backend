@@ -16,13 +16,12 @@ class Invoice(BaseModel):
             "id": self.id,
             "customer_id": self.customer_id,
             "invoice_number": self.invoice_number,
-            "issue_date": self.issue_date.isoformat() if self.issue_date else None,
-            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "issue_date": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
+            "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
             "total_amount": str(self.total_amount),
             "amount_paid": str(getattr(self, 'amount_paid', '0.00')),
             "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "updated_at": self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
 
     @classmethod
@@ -43,7 +42,6 @@ class Invoice(BaseModel):
 
     @classmethod
     def add_item(cls, invoice_id, product_id, quantity, price):
-        # Calculate the total for the invoice item
         total = Decimal(quantity) * Decimal(price)
         query = "INSERT INTO invoice_items (invoice_id, product_id, quantity, price, total) VALUES (%s, %s, %s, %s, %s)"
         params = (invoice_id, product_id, quantity, price, total)
@@ -105,7 +103,7 @@ class Invoice(BaseModel):
         rows = DBManager.execute_query(final_query, tuple(params), fetch='all')
         invoices = [cls.from_row(row) for row in rows] if rows else []
 
-        count_query_params = tuple(params[:-2]) # remove limit and offset
+        count_query_params = tuple(params[:-2])
         count_query = "SELECT COUNT(DISTINCT i.id) as total FROM invoices i JOIN customers c ON i.customer_id = c.id" + where_sql
         
         count_result = DBManager.execute_query(count_query, count_query_params, fetch='one')
