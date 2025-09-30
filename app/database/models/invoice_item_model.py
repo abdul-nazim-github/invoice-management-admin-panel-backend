@@ -9,13 +9,15 @@ class InvoiceItem(BaseModel):
         super().__init__(**kwargs)
 
     def to_dict(self):
+        price_float = float(self.price)
+        total_float = float(self.total)
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
             'product_id': self.product_id,
             'quantity': self.quantity,
-            'price': self.price,
-            'total': self.total
+            'price': int(price_float) if price_float.is_integer() else price_float,
+            'total': int(total_float) if total_float.is_integer() else total_float
         }
 
     @classmethod
