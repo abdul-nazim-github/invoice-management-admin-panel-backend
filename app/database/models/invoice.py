@@ -28,7 +28,7 @@ class Invoice(BaseModel):
             "id": self.id,
             "customer_id": self.customer_id,
             "invoice_number": self.invoice_number,
-            "issue_date": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
+            "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
             "total_amount": str(self.total_amount),
             "amount_paid": str(getattr(self, 'amount_paid', '0.00')),
