@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   tax_percent DECIMAL(5,2) DEFAULT 0,
   tax_amount DECIMAL(10,2) NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL,     -- The final amount of the invoice
-  status ENUM('Paid','Pending','Overdue') DEFAULT 'Pending', -- Current status of the invoice
+  status ENUM('Paid','Pending','Overdue', 'Partially Paid') DEFAULT 'Pending', -- Current status of the invoice
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Timestamp of invoice creation
   updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   deleted_at TIMESTAMP NULL DEFAULT NULL,   -- Timestamp of soft deletion
