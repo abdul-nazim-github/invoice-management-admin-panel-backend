@@ -1,6 +1,6 @@
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 class Invoice(BaseModel):
@@ -9,6 +9,18 @@ class Invoice(BaseModel):
     def __init__(self, **kwargs):
         super().__init__()
         for key, value in kwargs.items():
+            # Convert date/datetime strings from DB to objects upon instantiation
+            if key in ('created_at', 'updated_at') and value and isinstance(value, str):
+                try:
+                    value = datetime.fromisoformat(value.replace(' ', 'T'))
+                except ValueError:
+                    pass  # Keep original value if parsing fails
+            elif key == 'due_date' and value and isinstance(value, str):
+                try:
+                    value = date.fromisoformat(value)
+                except ValueError:
+                    pass  # Keep original value if parsing fails
+
             setattr(self, key, value)
 
     def to_dict(self):
