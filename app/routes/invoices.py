@@ -8,7 +8,7 @@ from app.database.models.product import Product
 from app.database.models.customer import Customer
 from app.database.models.payment import Payment
 from decimal import Decimal
-from datetime import datetime, date  # Import date
+from datetime import datetime, date
 from app.utils.auth import require_admin
 from app.utils.response import success_response, error_response
 
@@ -68,23 +68,20 @@ def create_invoice():
             product = Product.find_by_id(item['product_id'])
             Invoice.add_item(invoice_id, item['product_id'], item['quantity'], product.price)
 
-        # Handle initial payment if provided
         if 'initial_payment' in validated_data and validated_data['initial_payment']:
             payment_info = validated_data['initial_payment']
-            # Use today's date for the initial payment
             Payment.record_payment(
                 invoice_id=invoice_id,
                 amount=Decimal(payment_info['amount']),
-                payment_date=date.today(),  # Set payment_date to today
+                payment_date=date.today(),
                 method=payment_info['method'],
                 reference_no=payment_info.get('reference_no')
             )
-            # Check if invoice is fully paid and update status
             if Decimal(payment_info['amount']) >= total_amount:
                 Invoice.update_status(invoice_id, 'Paid')
 
         created_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(data=created_invoice.to_dict(), status=201)
+        return success_response(result=created_invoice.to_dict(), status=201)
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while creating the invoice.', details=str(e), status=500)
