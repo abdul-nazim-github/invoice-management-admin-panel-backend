@@ -13,7 +13,6 @@ class InvoiceItem(BaseModel):
         total_float = float(self.total)
         
         product_details = {
-            'id': self.product_id,
             'name': getattr(self, 'product_name', None),
             'product_code': getattr(self, 'product_code', None),
             'description': getattr(self, 'product_description', None),
@@ -23,6 +22,7 @@ class InvoiceItem(BaseModel):
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
+            'product_id': self.product_id,
             'quantity': self.quantity,
             'price': price_float,
             'total': total_float,
