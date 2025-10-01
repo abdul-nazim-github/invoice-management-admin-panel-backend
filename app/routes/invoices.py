@@ -181,7 +181,7 @@ def update_invoice(invoice_id):
                 old_qty = old_items_map.get(pid, 0)
                 new_qty = new_items_map.get(pid, 0)
                 if old_qty != new_qty:
-                    quantity_diff = old_qty - new_qty
+                    quantity_diff = int(old_qty) - int(new_qty)
                     Product.update_stock(pid, quantity_diff)
 
             InvoiceItem.delete_by_invoice_id(invoice_id)

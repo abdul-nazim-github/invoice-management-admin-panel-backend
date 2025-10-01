@@ -40,7 +40,7 @@ class Product(BaseModel):
         `quantity_change` is the amount to add to the stock (can be negative).
         """
         query = f"UPDATE {cls._table_name} SET stock = stock + %s WHERE id = %s"
-        params = (quantity_change, product_id)
+        params = (int(quantity_change), product_id)
         DBManager.execute_write_query(query, params)
 
     @classmethod
