@@ -11,13 +11,22 @@ class InvoiceItem(BaseModel):
     def to_dict(self):
         price_float = float(self.price)
         total_float = float(self.total)
+        
+        product_details = {
+            'id': self.product_id,
+            'name': getattr(self, 'product_name', None),
+            'product_code': getattr(self, 'product_code', None),
+            'description': getattr(self, 'product_description', None),
+            'stock': getattr(self, 'stock', None)
+        }
+
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
-            'product_id': self.product_id,
             'quantity': self.quantity,
-            'price': int(price_float) if price_float.is_integer() else price_float,
-            'total': int(total_float) if total_float.is_integer() else total_float
+            'price': price_float,
+            'total': total_float,
+            'product': product_details
         }
 
     @classmethod
@@ -26,10 +35,17 @@ class InvoiceItem(BaseModel):
 
     @classmethod
     def find_by_invoice_id(cls, invoice_id):
-        query = f"SELECT * FROM {cls._table_name} WHERE invoice_id = %s"
+        query = """
+            SELECT
+                ii.id, ii.invoice_id, ii.product_id, ii.quantity, ii.price, ii.total,
+                p.name as product_name, p.product_code, p.description as product_description, p.stock
+            FROM invoice_items ii
+            JOIN products p ON ii.product_id = p.id
+            WHERE ii.invoice_id = %s
+        """
         params = (invoice_id,)
         rows = DBManager.execute_query(query, params, fetch='all')
-        return [cls.from_row(row) for row in rows]
+        return [cls.from_row(row) for row in rows] if rows else []
 
     @classmethod
     def delete_by_invoice_id(cls, invoice_id):

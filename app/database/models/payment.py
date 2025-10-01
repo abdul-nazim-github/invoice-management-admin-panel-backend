@@ -17,7 +17,7 @@ class Payment(BaseModel):
         return {
             'id': self.id,
             'invoice_id': self.invoice_id,
-            'amount': int(amount_float) if amount_float.is_integer() else amount_float,
+            'amount': amount_float,
             'payment_date': self.payment_date.isoformat() if isinstance(self.payment_date, date) else None,
             'method': self.method,
             'reference_no': self.reference_no

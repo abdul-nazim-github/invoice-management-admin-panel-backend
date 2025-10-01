@@ -33,9 +33,9 @@ class Invoice(BaseModel):
             "invoice_number": self.invoice_number,
             "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
-            "total_amount": int(total_amount_float) if total_amount_float.is_integer() else total_amount_float,
-            "due_amount": int(due_amount_float) if due_amount_float.is_integer() else due_amount_float,
-            "amount_paid": int(amount_paid_float) if amount_paid_float.is_integer() else amount_paid_float,
+            "total_amount": total_amount_float,
+            "due_amount": due_amount_float,
+            "amount_paid": amount_paid_float,
             "status": self.status,
             "updated_at": self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
