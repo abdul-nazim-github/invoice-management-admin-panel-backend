@@ -65,6 +65,30 @@ class Invoice(BaseModel):
         return invoice_id
 
     @classmethod
+    def update(cls, invoice_id, data):
+        if not data:
+            return
+
+        for field in ['subtotal_amount', 'discount_amount', 'tax_amount', 'total_amount']:
+            if field in data and data[field] is not None:
+                data[field] = Decimal(data[field]).quantize(Decimal('0.00'))
+        
+        data['updated_at'] = datetime.now()
+
+        set_clauses = []
+        params = []
+        for key, value in data.items():
+            set_clauses.append(f"{key} = %s")
+            params.append(value)
+
+        if not set_clauses:
+            return
+
+        query = f"UPDATE {cls._table_name} SET {', '.join(set_clauses)} WHERE id = %s"
+        params.append(invoice_id)
+        DBManager.execute_write_query(query, tuple(params))
+
+    @classmethod
     def find_by_id(cls, invoice_id, include_deleted=False):
         query = f"""
             SELECT i.*, COALESCE(SUM(p.amount), 0) as amount_paid, (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount

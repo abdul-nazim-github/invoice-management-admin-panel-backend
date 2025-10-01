@@ -158,80 +158,84 @@ def update_invoice(invoice_id):
     if not data:
         return error_response(error_code='validation_error', message=ERROR_MESSAGES["validation"]["request_body_empty"], status=400)
 
+    invoice = Invoice.find_by_id(invoice_id)
+    if not invoice:
+        return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
+
     try:
-        validated_data = invoice_schema.load(data)
+        validated_data = invoice_schema.load(data, partial=True)
     except ValidationError as err:
         return error_response(error_code='validation_error', message="The provided data is invalid.", details=err.messages, status=400)
 
     try:
-        invoice = Invoice.find_by_id(invoice_id)
-        if not invoice:
-            return error_response(error_code='not_found', message=ERROR_MESSAGES["not_found"]["invoice"], status=404)
+        # If items are being updated, handle stock changes and replace items.
+        if 'items' in validated_data:
+            old_items = InvoiceItem.find_by_invoice_id(invoice_id)
+            old_items_map = {item.product_id: item.quantity for item in old_items}
+            new_items_data = validated_data['items']
+            new_items_map = {item['product_id']: item['quantity'] for item in new_items_data}
+            
+            all_product_ids = set(old_items_map.keys()) | set(new_items_map.keys())
 
-        old_items = InvoiceItem.find_by_invoice_id(invoice_id)
-        old_items_map = {item.product_id: item for item in old_items}
-        new_items = validated_data['items']
+            for pid in all_product_ids:
+                old_qty = old_items_map.get(pid, 0)
+                new_qty = new_items_map.get(pid, 0)
+                if old_qty != new_qty:
+                    quantity_diff = old_qty - new_qty
+                    Product.update_stock(pid, quantity_diff)
 
-        # Calculate stock changes
-        for item_data in new_items:
-            product_id = item_data['product_id']
-            new_quantity = item_data['quantity']
+            InvoiceItem.delete_by_invoice_id(invoice_id)
+            for item_data in new_items_data:
+                product = Product.find_by_id(item_data['product_id'])
+                InvoiceItem.create({
+                    'invoice_id': invoice_id,
+                    'product_id': item_data['product_id'],
+                    'quantity': item_data['quantity'],
+                    'price': product.price
+                })
 
-            if product_id in old_items_map:
-                old_quantity = old_items_map[product_id].quantity
-                quantity_diff = old_quantity - new_quantity
-                Product.update_stock(product_id, quantity_diff)
-                del old_items_map[product_id]
-            else:
-                Product.update_stock(product_id, -new_quantity)
+        # Recalculate totals if financial fields have changed.
+        recalculate = 'items' in validated_data or 'discount_amount' in validated_data or 'tax_percent' in validated_data
+        if recalculate:
+            current_items = InvoiceItem.find_by_invoice_id(invoice_id)
+            subtotal_amount = sum(Decimal(item.price) * Decimal(item.quantity) for item in current_items)
+            
+            discount_amount = Decimal(validated_data.get('discount_amount', invoice.discount_amount))
+            tax_percent = Decimal(validated_data.get('tax_percent', invoice.tax_percent))
+            
+            tax_amount = (subtotal_amount - discount_amount) * (tax_percent / Decimal('100.00'))
+            total_amount = subtotal_amount - discount_amount + tax_amount
 
-        # For items that were removed, add their quantities back to the stock
-        for old_item in old_items_map.values():
-            Product.update_stock(old_item.product_id, old_item.quantity)
+            validated_data['subtotal_amount'] = subtotal_amount
+            validated_data['discount_amount'] = discount_amount
+            validated_data['tax_percent'] = tax_percent
+            validated_data['tax_amount'] = tax_amount
+            validated_data['total_amount'] = total_amount
+        else:
+            total_amount = invoice.total_amount
 
-        # Update invoice and items
-        InvoiceItem.delete_by_invoice_id(invoice_id)
-        for item_data in new_items:
-            product = Product.find_by_id(item_data['product_id'])
-            new_item_data = {
-                'invoice_id': invoice_id,
-                'product_id': item_data['product_id'],
-                'quantity': item_data['quantity'],
-                'price': product.price
-            }
-            InvoiceItem.create(new_item_data)
-
-        # Recalculate totals
-        subtotal_amount = sum(Decimal(Product.find_by_id(item['product_id']).price) * Decimal(item['quantity']) for item in new_items)
-        discount_amount = Decimal(validated_data.get('discount_amount', '0.00'))
-        tax_percent = Decimal(validated_data.get('tax_percent', '0.00'))
-        tax_amount = (subtotal_amount - discount_amount) * (tax_percent / Decimal('100.00'))
-        total_amount = subtotal_amount - discount_amount + tax_amount
-
-        # Determine invoice status based on payments
+        # Always re-evaluate status
         payments = Payment.find_by_invoice_id(invoice_id)
-        total_paid = sum(Decimal(p.amount) for p in payments)
+        total_paid = sum(p.amount for p in payments)
 
-        new_status = 'Pending'
         if total_paid >= total_amount:
-            new_status = 'Paid'
+            validated_data['status'] = 'Paid'
         elif total_paid > 0:
-            new_status = 'Partially Paid'
+            validated_data['status'] = 'Partially Paid'
+        else:
+            validated_data['status'] = 'Pending'
 
-        invoice_data = {
-            'customer_id': validated_data['customer_id'],
-            'due_date': validated_data.get('due_date'),
-            'subtotal_amount': subtotal_amount,
-            'discount_amount': discount_amount,
-            'tax_percent': tax_percent,
-            'tax_amount': tax_amount,
-            'total_amount': total_amount,
-            'status': new_status
-        }
-        Invoice.update(invoice_id, invoice_data)
+        # Remove 'items' as it's not a direct column in the 'invoices' table
+        validated_data.pop('items', None)
 
-        updated_invoice = Invoice.find_by_id(invoice_id)
-        return success_response(result=updated_invoice.to_dict(), status=200)
+        # Update the invoice record
+        if validated_data:
+            Invoice.update(invoice_id, validated_data)
+
+        # Fetch and return the fully updated invoice
+        updated_invoice_data = get_invoice(invoice_id).get_json()['result']
+
+        return success_response(result=updated_invoice_data, status=200)
 
     except Exception as e:
         return error_response(error_code='server_error', message='An unexpected error occurred while updating the invoice.', details=str(e), status=500)
