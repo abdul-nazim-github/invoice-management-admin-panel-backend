@@ -27,12 +27,20 @@ class Invoice(BaseModel):
         total_amount_float = float(self.total_amount)
         due_amount_float = float(getattr(self, 'due_amount', '0.00'))
         amount_paid_float = float(getattr(self, 'amount_paid', '0.00'))
+        subtotal_amount_float = float(self.subtotal_amount)
+        discount_amount_float = float(self.discount_amount)
+        tax_percent_float = float(self.tax_percent)
+        tax_amount_float = float(self.tax_amount)
         return {
             "id": self.id,
             "customer_id": self.customer_id,
             "invoice_number": self.invoice_number,
             "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
             "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
+            "subtotal_amount": subtotal_amount_float,
+            "discount_amount": discount_amount_float,
+            "tax_percent": tax_percent_float,
+            "tax_amount": tax_amount_float,
             "total_amount": total_amount_float,
             "due_amount": due_amount_float,
             "amount_paid": amount_paid_float,
