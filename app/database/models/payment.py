@@ -10,6 +10,8 @@ class Payment(BaseModel):
     def __init__(self, **kwargs):
         super().__init__()
         for key, value in kwargs.items():
+            if key == 'amount' and value is not None:
+                value = Decimal(value)
             setattr(self, key, value)
 
     def to_dict(self):

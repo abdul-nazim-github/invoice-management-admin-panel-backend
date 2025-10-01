@@ -181,7 +181,7 @@ def update_invoice(invoice_id):
                 old_qty = old_items_map.get(pid, 0)
                 new_qty = new_items_map.get(pid, 0)
                 if old_qty != new_qty:
-                    quantity_diff = int(old_qty) - int(new_qty)
+                    quantity_diff = old_qty - new_qty
                     Product.update_stock(pid, quantity_diff)
 
             InvoiceItem.delete_by_invoice_id(invoice_id)
@@ -198,7 +198,7 @@ def update_invoice(invoice_id):
         recalculate = 'items' in validated_data or 'discount_amount' in validated_data or 'tax_percent' in validated_data
         if recalculate:
             current_items = InvoiceItem.find_by_invoice_id(invoice_id)
-            subtotal_amount = sum(Decimal(item.price) * Decimal(item.quantity) for item in current_items)
+            subtotal_amount = sum(item.price * item.quantity for item in current_items)
             
             discount_amount = Decimal(validated_data.get('discount_amount', invoice.discount_amount))
             tax_percent = Decimal(validated_data.get('tax_percent', invoice.tax_percent))

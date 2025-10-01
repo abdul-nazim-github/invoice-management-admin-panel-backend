@@ -6,7 +6,11 @@ class InvoiceItem(BaseModel):
     _table_name = 'invoice_items'
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__()
+        for key, value in kwargs.items():
+            if key in ('quantity', 'price', 'total') and value is not None:
+                value = Decimal(value)
+            setattr(self, key, value)
 
     def to_dict(self):
         price_float = float(self.price)

@@ -7,7 +7,13 @@ class Product(BaseModel):
     _table_name = 'products'
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__()
+        for key, value in kwargs.items():
+            if key == 'stock' and value is not None:
+                value = int(value)
+            if key == 'price' and value is not None:
+                value = Decimal(value)
+            setattr(self, key, value)
 
     @classmethod
     def from_row(cls, row):
@@ -34,7 +40,7 @@ class Product(BaseModel):
         return super().create(data)
 
     @classmethod
-    def update_stock(cls, product_id, quantity_change):
+    def update_stock(cls, product_.py id, quantity_change):
         """
         Updates the stock for a given product.
         `quantity_change` is the amount to add to the stock (can be negative).
