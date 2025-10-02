@@ -56,9 +56,35 @@ curl -X POST -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/auth/sig
 # -----------------
 # Users Endpoints
 # -----------------
+echo "\n### Get All Users (Requires Admin Token) ###"
+curl -X GET -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" "$BASE_URL/users/"
+
 echo "\n### Get Current User Profile (Requires User Token) ###"
 curl -X GET -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" "$BASE_URL/users/me/"
 
+echo "\n### Get User by ID (Admin can get any, User can get self) ###"
+curl -X GET -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" "$BASE_URL/users/1/"
+
+echo "\n### Update Current User Profile (Requires User Token) ###"
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" -d '{
+    "name": "New Test User Name",
+    "phone": "9876543210",
+    "password": "newpassword123",
+    "billing_address": "456 New Billing Rd",
+    "billing_city": "New City",
+    "billing_state": "NC",
+    "billing_pin": "54321",
+    "billing_gst": "NEWGSTIN54321"
+}' "$BASE_URL/users/me/"
+
+echo "\n### Update a User by ID (Requires Admin Token) ###"
+curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" -d '{
+    "name": "Updated Name by Admin",
+    "role": "manager"
+}' "$BASE_URL/users/1/"
+
+echo "\n### Soft-Delete a User (Requires Admin Token) ###"
+curl -X DELETE -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" "$BASE_URL/users/2/"
 
 # -----------------
 # Customers Endpoints
