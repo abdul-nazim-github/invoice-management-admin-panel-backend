@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from marshmallow import ValidationError
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.database.models.user import User
 from app.utils.response import success_response, error_response
@@ -60,7 +60,12 @@ def update_user_profile(user_id):
         )
 
     if 'password' in validated_data:
+        if 'old_password' not in validated_data:
+            return error_response(error_code='validation_error', message="Old password is required to set a new password.", status=400)
+        if not target_user.check_password(validated_data['old_password']):
+            return error_response(error_code='unauthorized', message="Invalid old password.", status=401)
         validated_data['password_hash'] = generate_password_hash(validated_data.pop('password'), method='scrypt')
+        validated_data.pop('old_password', None)
 
     try:
         if not User.update(user_id, validated_data):

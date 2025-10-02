@@ -69,6 +69,7 @@ echo "\n### Update Current User Profile (Requires User Token) ###"
 curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer YOUR_USER_TOKEN_HERE" -d '{
     "name": "New Test User Name",
     "phone": "9876543210",
+    "old_password": "password123",
     "password": "newpassword123",
     "billing_address": "456 New Billing Rd",
     "billing_city": "New City",
