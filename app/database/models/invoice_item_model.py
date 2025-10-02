@@ -1,3 +1,4 @@
+
 from .base_model import BaseModel
 from app.database.db_manager import DBManager
 from decimal import Decimal
@@ -6,7 +7,7 @@ class InvoiceItem(BaseModel):
     _table_name = 'invoice_items'
 
     def __init__(self, **kwargs):
-        super().__init__()
+        super().__init__(**kwargs)
         for key, value in kwargs.items():
             if key in ('quantity', 'price', 'total') and value is not None:
                 value = Decimal(value)

@@ -24,5 +24,5 @@ class ProductSchema(Schema):
         required=True,
         validate=validate.Range(min=0, error="Stock must be a non-negative integer.")
     )
-    created_at = fields.DateTime(dump_only=True)
-    updated_at = fields.DateTime(dump_only=True)
+    created_at = fields.DateTime(format='%Y-%m-%dT%H:%M:%S', dump_only=True)
+    updated_at = fields.DateTime(format='%Y-%m-%dT%H:%M:%S', dump_only=True)

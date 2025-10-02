@@ -8,13 +8,9 @@ class Product(BaseModel):
     _table_name = 'products'
 
     def __init__(self, **kwargs):
-        super().__init__()
-        for key, value in kwargs.items():
-            if key == 'stock' and value is not None:
-                value = int(value)
-            if key == 'price' and value is not None:
-                value = Decimal(value)
-            setattr(self, key, value)
+        super().__init__(**kwargs)
+        if 'stock' in kwargs and kwargs['stock'] is not None:
+            self.stock = int(kwargs['stock'])
 
     @classmethod
     def from_row(cls, row):
@@ -32,7 +28,6 @@ class Product(BaseModel):
         if 'name' in data:
             data['product_code'] = generate_unique_product_code(data['name'])
         else:
-            # As a fallback if name is not provided, though 'name' is required by schema
             data['product_code'] = generate_unique_product_code('Product')
         
         if 'price' in data and data['price'] is not None:

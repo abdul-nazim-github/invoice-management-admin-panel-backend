@@ -36,6 +36,9 @@ class BaseModel:
 
     @classmethod
     def create(cls, data):
+        now = datetime.utcnow()
+        data['created_at'] = now
+        data['updated_at'] = now
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["%s"] * len(data))
         query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders})'
