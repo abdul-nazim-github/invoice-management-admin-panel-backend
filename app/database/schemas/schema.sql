@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,    -- User's unique email address
   password_hash VARCHAR(255) NOT NULL,   -- Hashed password for security
   name VARCHAR(255),                     -- User's full name
+  phone VARCHAR(20),                     -- User's phone number
   role ENUM('admin','staff','manager') DEFAULT 'staff', -- User's role for access control
   twofa_secret VARCHAR(64),              -- Secret key for two-factor authentication
   billing_address TEXT,                     -- Billing address details

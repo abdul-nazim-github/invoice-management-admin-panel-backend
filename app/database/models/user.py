@@ -6,13 +6,19 @@ from app.database.db_manager import DBManager
 class User(BaseModel):
     _table_name = 'users'
 
-    def __init__(self, id, username, email, password_hash, role='staff', name=None, **kwargs):
+    def __init__(self, id, username, email, password_hash, role='staff', name=None, phone=None, billing_address=None, billing_city=None, billing_state=None, billing_pin=None, billing_gst=None, **kwargs):
         self.id = id
         self.username = username
         self.email = email
         self.password_hash = password_hash
         self.role = role
         self.name = name
+        self.phone = phone
+        self.billing_address = billing_address
+        self.billing_city = billing_city
+        self.billing_state = billing_state
+        self.billing_pin = billing_pin
+        self.billing_gst = billing_gst
         # Absorb any extra columns that might be in the database row
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -26,7 +32,13 @@ class User(BaseModel):
             'username': self.username,
             'email': self.email,
             'role': self.role,
-            'name': self.name
+            'name': self.name,
+            'phone': self.phone,
+            'billing_address': self.billing_address,
+            'billing_city': self.billing_city,
+            'billing_state': self.billing_state,
+            'billing_pin': self.billing_pin,
+            'billing_gst': self.billing_gst
         }
 
     @classmethod
@@ -41,11 +53,12 @@ class User(BaseModel):
         hashed_password = generate_password_hash(data['password'], method='scrypt')
         role = data.get('role', 'staff')
         name = data.get('name')
+        phone = data.get('phone')
         username = data['username']
         email = data['email']
 
-        query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role) VALUES (%s, %s, %s, %s, %s)'
-        user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role))
+        query = f'INSERT INTO {cls._table_name} (username, email, password_hash, name, role, phone) VALUES (%s, %s, %s, %s, %s, %s)'
+        user_id = DBManager.execute_write_query(query, (username, email, hashed_password, name, role, phone))
         
         # Return the ID directly. The route will be responsible for fetching.
         return user_id
