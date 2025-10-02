@@ -7,15 +7,24 @@ class InvoiceItem(BaseModel):
     _table_name = 'invoice_items'
 
     def __init__(self, **kwargs):
+        # Let the base model set all attributes from the database row
         super().__init__(**kwargs)
-        for key, value in kwargs.items():
-            if key in ('quantity', 'price', 'total') and value is not None:
-                value = Decimal(value)
-            setattr(self, key, value)
+
+        # Now, specifically override and forcefully cast the attributes to their correct types.
+        # This corrects any automatic type conversions (e.g., INT to Decimal) by the DB driver.
+        if hasattr(self, 'quantity') and self.quantity is not None:
+            self.quantity = int(self.quantity)
+        
+        if hasattr(self, 'price') and self.price is not None:
+            self.price = Decimal(self.price)
+
+        if hasattr(self, 'total') and self.total is not None:
+            self.total = Decimal(self.total)
 
     def to_dict(self):
-        price_float = float(self.price)
-        total_float = float(self.total)
+        # Ensure price and total are converted to float for JSON serialization
+        price_float = float(self.price) if self.price is not None else 0.0
+        total_float = float(self.total) if self.total is not None else 0.0
         
         product_details = {
             'name': getattr(self, 'product_name', None),
@@ -28,7 +37,7 @@ class InvoiceItem(BaseModel):
             'id': self.id,
             'invoice_id': self.invoice_id,
             'product_id': self.product_id,
-            'quantity': self.quantity,
+            'quantity': self.quantity, # Guaranteed to be an int
             'price': price_float,
             'total': total_float,
             'product': product_details
@@ -60,7 +69,8 @@ class InvoiceItem(BaseModel):
 
     @classmethod
     def create(cls, data):
-        quantity = Decimal(data['quantity'])
+        # Ensure correct types before insertion
+        quantity = int(data['quantity'])
         price = Decimal(data['price'])
         total = quantity * price
 
