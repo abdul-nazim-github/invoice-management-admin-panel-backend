@@ -233,7 +233,15 @@ def update_invoice(invoice_id):
             Invoice.update(invoice_id, validated_data)
 
         # Fetch and return the fully updated invoice
-        updated_invoice_data = get_invoice(invoice_id).get_json()['result']
+        updated_invoice = Invoice.find_by_id(invoice_id)
+        customer = Customer.find_by_id(updated_invoice.customer_id)
+        invoice_items = InvoiceItem.find_by_invoice_id(invoice_id)
+        payments = Payment.find_by_invoice_id(invoice_id)
+
+        updated_invoice_data = updated_invoice.to_dict()
+        updated_invoice_data['customer'] = customer.to_dict() if customer else None
+        updated_invoice_data['items'] = [item.to_dict() for item in invoice_items]
+        updated_invoice_data['payments'] = [payment.to_dict() for payment in payments]
 
         return success_response(result=updated_invoice_data, status=200)
 
