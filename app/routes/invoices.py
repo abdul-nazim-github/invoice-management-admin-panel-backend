@@ -187,6 +187,8 @@ def update_invoice(invoice_id):
             InvoiceItem.delete_by_invoice_id(invoice_id)
             for item_data in new_items_data:
                 product = Product.find_by_id(item_data['product_id'])
+                if not product:
+                    return error_response(error_code='not_found', message=f"Product with ID {item_data['product_id']} not found.", status=404)
                 InvoiceItem.create({
                     'invoice_id': invoice_id,
                     'product_id': item_data['product_id'],
