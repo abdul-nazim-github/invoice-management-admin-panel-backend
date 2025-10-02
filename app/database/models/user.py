@@ -23,6 +23,10 @@ class User(BaseModel):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    @property
+    def is_admin(self):
+        return self.role == 'admin'
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
