@@ -1,3 +1,4 @@
+
 from .base_model import BaseModel
 from app.utils.utils import generate_unique_product_code
 from decimal import Decimal
@@ -40,7 +41,7 @@ class Product(BaseModel):
         return super().create(data)
 
     @classmethod
-    def update_stock(cls, product_.py id, quantity_change):
+    def update_stock(cls, product_id, quantity_change):
         """
         Updates the stock for a given product.
         `quantity_change` is the amount to add to the stock (can be negative).
