@@ -36,11 +36,13 @@ class BaseModel:
 
     @classmethod
     def create(cls, data):
-        now = datetime.utcnow()
-        data['created_at'] = now
-        data['updated_at'] = now
+        # The DB schema handles created_at and updated_at on creation
+        data.pop('created_at', None)
+        data.pop('updated_at', None)
+
         columns = ", ".join(data.keys())
         placeholders = ", ".join(["%s"] * len(data))
+
         query = f'INSERT INTO {cls._table_name} ({columns}) VALUES ({placeholders})'
         return DBManager.execute_write_query(query, tuple(data.values()))
 
@@ -65,13 +67,14 @@ class BaseModel:
         if not cls.find_by_id(id):
             return False
         
-        if not data:
-            return True
+        # The DB schema handles updated_at on update
+        data.pop('created_at', None)
+        data.pop('updated_at', None)
 
-        set_clause_parts = [f"{key} = %s" for key in data.keys()]
-        set_clause_parts.append("updated_at = NOW()")
-        
-        set_clause = ", ".join(set_clause_parts)
+        if not data:
+            return True # Nothing to update
+
+        set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
         
         query = f'UPDATE {cls._table_name} SET {set_clause} WHERE id = %s'
         
