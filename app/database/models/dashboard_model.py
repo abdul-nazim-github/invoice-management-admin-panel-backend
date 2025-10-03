@@ -173,7 +173,7 @@ def get_sales_performance() -> List[Dict[str, Any]]:
 
 def get_latest_invoices() -> List[Dict[str, Any]]:
     """
-    Fetches the 10 most recent invoices along with customer names.
+    Fetches the 10 most recent invoices along with customer info and due amount.
     """
     conn = get_db_connection()
     try:
@@ -184,25 +184,39 @@ def get_latest_invoices() -> List[Dict[str, Any]]:
                     i.id, 
                     i.total_amount, 
                     i.status,
-                    c.name as customer_name,
-                    i.created_at
+                    c.id AS customer_id,
+                    c.name AS customer_name,
+                    c.phone AS customer_phone,
+                    i.created_at,
+                    COALESCE(SUM(p.amount), 0) AS amount_paid
                 FROM invoices i
                 JOIN customers c ON i.customer_id = c.id
+                LEFT JOIN payments p ON i.id = p.invoice_id
                 WHERE i.deleted_at IS NULL
+                GROUP BY i.id, c.id, c.name, c.phone
                 ORDER BY i.created_at DESC
                 LIMIT 10
                 """
             )
             invoices = cur.fetchall()
-            # Manually converting to a list of dicts with correct types
+
             result = []
             for inv in invoices:
+                total_amount = Decimal(inv["total_amount"])
+                amount_paid = Decimal(inv["amount_paid"])
+                due_amount = total_amount - amount_paid
+
                 result.append({
                     "id": inv["id"],
-                    "total_amount": Decimal(inv["total_amount"]),
+                    "total_amount": total_amount,
+                    "due_amount": due_amount,
                     "status": inv["status"],
-                    "customer_name": inv["customer_name"],
-                    "created_at": inv["created_at"].isoformat()
+                    "created_at": inv["created_at"].isoformat() if inv["created_at"] else None,
+                    "customer": {
+                        "id": inv["customer_id"],
+                        "name": inv["customer_name"],
+                        "phone": inv["customer_phone"]
+                    }
                 })
             return result
     finally:

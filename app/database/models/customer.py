@@ -160,6 +160,7 @@ class Customer(BaseModel):
     def list_all(cls, q=None, status=None, offset=0, limit=20, customer_id=None, include_deleted=False):
         where = []
         params = []
+
         if not include_deleted:
             where.append("c.deleted_at IS NULL")
         if customer_id:
@@ -169,16 +170,16 @@ class Customer(BaseModel):
             where.append("(c.name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
             like = f"%{q}%"
             params.extend([like, like, like])
+
         where_sql = " WHERE " + " AND ".join(where) if where else ""
 
         base_query = f"""
             SELECT 
                 c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at,
                 CASE
-                    WHEN COUNT(i.id) = 0 THEN 'New'
-                    WHEN SUM(CASE WHEN i.status = 'Overdue' OR (i.status = 'Pending' AND i.due_date < NOW()) THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
+                    WHEN SUM(CASE WHEN i.status = 'Overdue' THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
-                    WHEN SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
+                    WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                     ELSE 'New'
                 END AS status
             FROM {cls._table_name} c
@@ -189,15 +190,20 @@ class Customer(BaseModel):
 
         outer_where = ""
         if status:
-            outer_where = " WHERE sub.status = %s"
-        
-        final_query = f"SELECT * FROM ({base_query}) AS sub {outer_where} ORDER BY sub.id DESC LIMIT %s OFFSET %s"
-        
+            outer_where = " HAVING status = %s"  # Use HAVING instead of WHERE for aggregated column
+
+        final_query = f"{base_query} {outer_where} ORDER BY c.id DESC LIMIT %s OFFSET %s"
+
         pagination_params = params + ([status] if status else []) + [limit, offset]
+
         rows = DBManager.execute_query(final_query, tuple(pagination_params), fetch='all')
         customers = [cls.from_row(row) for row in rows] if rows else []
 
-        count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub {outer_where}"
+        # Count total
+        count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub"
+        if status:
+            count_query += " HAVING status = %s"
+
         count_params = tuple(params + ([status] if status else []))
         result = DBManager.execute_query(count_query, count_params, fetch='one')
         total = result['total'] if result else 0
