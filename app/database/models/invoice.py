@@ -14,38 +14,34 @@ class Invoice(BaseModel):
                 try:
                     value = datetime.fromisoformat(value.replace(' ', 'T'))
                 except ValueError:
-                    pass  # Keep original value if parsing fails
+                    pass
             elif key == 'due_date' and value and isinstance(value, str):
                 try:
                     value = date.fromisoformat(value)
                 except ValueError:
-                    pass  # Keep original value if parsing fails
-
+                    pass
             setattr(self, key, value)
 
     def to_dict(self):
-        total_amount_float = float(self.total_amount)
-        due_amount_float = float(getattr(self, 'due_amount', '0.00'))
-        amount_paid_float = float(getattr(self, 'amount_paid', '0.00'))
-        subtotal_amount_float = float(self.subtotal_amount)
-        discount_amount_float = float(self.discount_amount)
-        tax_percent_float = float(self.tax_percent)
-        tax_amount_float = float(self.tax_amount)
         return {
             "id": self.id,
-            "customer_id": self.customer_id,
             "invoice_number": self.invoice_number,
-            "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
-            "due_date": self.due_date.isoformat() if hasattr(self, 'due_date') and self.due_date else None,
-            "subtotal_amount": subtotal_amount_float,
-            "discount_amount": discount_amount_float,
-            "tax_percent": tax_percent_float,
-            "tax_amount": tax_amount_float,
-            "total_amount": total_amount_float,
-            "due_amount": due_amount_float,
-            "amount_paid": amount_paid_float,
+            "created_at": self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            "due_date": self.due_date.isoformat() if getattr(self, 'due_date', None) else None,
+            "subtotal_amount": float(self.subtotal_amount),
+            "discount_amount": float(self.discount_amount),
+            "tax_percent": float(self.tax_percent),
+            "tax_amount": float(self.tax_amount),
+            "total_amount": float(self.total_amount),
+            "due_amount": float(getattr(self, 'due_amount', 0.0)),
+            "amount_paid": float(getattr(self, 'amount_paid', 0.0)),
             "status": self.status,
-            "updated_at": self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
+            "updated_at": self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None,
+            "customer": {
+                "id": getattr(self, "customer_id", None),
+                "name": getattr(self, "customer_name", None),
+                "phone": getattr(self, "customer_phone", None),
+            }
         }
 
     @classmethod
@@ -81,9 +77,6 @@ class Invoice(BaseModel):
             set_clauses.append(f"{key} = %s")
             params.append(value)
 
-        if not set_clauses:
-            return
-
         query = f"UPDATE {cls._table_name} SET {', '.join(set_clauses)} WHERE id = %s"
         params.append(invoice_id)
         DBManager.execute_write_query(query, tuple(params))
@@ -116,9 +109,12 @@ class Invoice(BaseModel):
 
         params = []
         query_base = """ 
-            SELECT i.*, c.name as customer_name, 
-                   COALESCE(SUM(p.amount), 0) as amount_paid,
-                   (i.total_amount - COALESCE(SUM(p.amount), 0)) as due_amount
+            SELECT i.*, 
+                   c.id AS customer_id,
+                   c.name AS customer_name,
+                   c.phone AS customer_phone,
+                   COALESCE(SUM(p.amount), 0) AS amount_paid,
+                   (i.total_amount - COALESCE(SUM(p.amount), 0)) AS due_amount
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
             LEFT JOIN payments p ON i.id = p.invoice_id
@@ -136,8 +132,7 @@ class Invoice(BaseModel):
             params.extend([like_q, like_q])
 
         where_sql = " WHERE " + " AND ".join(where) if where else ""
-        
-        group_by_sql = " GROUP BY i.id, c.name ORDER BY i.id DESC LIMIT %s OFFSET %s"
+        group_by_sql = " GROUP BY i.id, c.id, c.name, c.phone ORDER BY i.id DESC LIMIT %s OFFSET %s"
         final_query = query_base + where_sql + group_by_sql
         params.extend([limit, offset])
 
@@ -145,8 +140,12 @@ class Invoice(BaseModel):
         invoices = [cls.from_row(row) for row in rows] if rows else []
 
         count_query_params = tuple(params[:-2])
-        count_query = "SELECT COUNT(DISTINCT i.id) as total FROM invoices i JOIN customers c ON i.customer_id = c.id" + where_sql
-        
+        count_query = """
+            SELECT COUNT(DISTINCT i.id) as total 
+            FROM invoices i 
+            JOIN customers c ON i.customer_id = c.id
+        """ + where_sql
+
         count_result = DBManager.execute_query(count_query, count_query_params, fetch='one')
         total = count_result['total'] if count_result else 0
 

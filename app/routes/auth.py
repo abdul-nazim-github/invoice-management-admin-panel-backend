@@ -17,7 +17,7 @@ def sign_in():
     if not data:
         return error_response(error_code='validation_error', message="Request body cannot be empty.", status=400)
 
-    login_identifier = data.get('email') or data.get('username')
+    login_identifier = data.get('identifier')
     password = data.get('password')
 
     if not login_identifier or not password:
