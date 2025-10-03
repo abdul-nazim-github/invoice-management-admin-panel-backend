@@ -28,7 +28,7 @@ def sign_in():
     if user and user.check_password(password):
         additional_claims = {"role": user.role}
         access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
-        return success_response({'access_token': access_token}, message="Authentication successful.")
+        return success_response({'access_token': access_token, 'user_info': user.to_dict()}, message="Authentication successful.")
     
     return error_response(error_code='invalid_credentials', message=ERROR_MESSAGES["auth"]["invalid_credentials"], status=401)
 
