@@ -1,5 +1,4 @@
 
-import pymysql
 import os
 from app.database.base import get_db_connection
 from werkzeug.security import generate_password_hash
