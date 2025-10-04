@@ -25,7 +25,7 @@ class Customer(BaseModel):
 
         return {
             'id': self.id,
-            'full_name': self.name,
+            'name': self.name,
             'email': self.email,
             'phone': self.phone,
             'address': self.address,
@@ -187,6 +187,7 @@ class Customer(BaseModel):
                 CASE
                     WHEN SUM(CASE WHEN i.status = 'Overdue' THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
+                    WHEN SUM(CASE WHEN i.status = 'Partially Paid' THEN 1 ELSE 0 END) > 0 THEN 'Partially Paid'
                     WHEN COUNT(i.id) > 0 AND SUM(CASE WHEN i.status = 'Paid' THEN 1 ELSE 0 END) = COUNT(i.id) THEN 'Paid'
                     ELSE 'New'
                 END AS status
