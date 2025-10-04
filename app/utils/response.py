@@ -1,4 +1,4 @@
-from flask import current_app, jsonify
+from flask import current_app
 import json
 from decimal import Decimal
 from datetime import datetime
@@ -7,17 +7,17 @@ class CustomJSONEncoder(json.JSONEncoder):
     """
     Custom JSON encoder to handle special data types like Decimal and datetime.
     """
-    def default(self, obj):
-        if isinstance(obj, Decimal):
+    def default(self, o):
+        if isinstance(o, Decimal):
             # If the number is a whole number, convert to int, otherwise convert to float
-            if obj == obj.to_integral_value():
-                return int(obj)
+            if o == o.to_integral_value():
+                return int(o)
             else:
-                return float(obj)
-        if isinstance(obj, datetime):
+                return float(o)
+        if isinstance(o, datetime):
             # Convert datetime to ISO 8601 string format
-            return obj.isoformat()
-        return super().default(obj)
+            return o.isoformat()
+        return super().default(o)
 
 def success_response(result=None, message="Success", meta=None, status=200):
     """

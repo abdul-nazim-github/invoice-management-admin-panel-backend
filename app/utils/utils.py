@@ -1,4 +1,3 @@
-
 from datetime import datetime
 import hashlib
 import random
@@ -13,7 +12,6 @@ def short_customer_code(customer_id: str, length: int = 4) -> str:
     customer_id_str = str(customer_id)
     hash_val = hashlib.md5(customer_id_str.encode()).hexdigest()
     return hash_val[:length].upper()
-
 
 def generate_invoice_number(customer_id: str) -> str:
     """
@@ -30,10 +28,15 @@ def generate_invoice_number(customer_id: str) -> str:
         FROM invoices
         WHERE invoice_number REGEXP 'INV-[0-9]{6}-[A-Z0-9]+-[0-9]{3}'
     """
-    result = DBManager.execute_query(query, fetch='one')
+    result = DBManager.execute_query(query, fetch="one")
     max_seq = 0
-    if result and isinstance(result, dict) and 'max_seq' in result and result['max_seq'] is not None:
-        max_seq = int(result['max_seq'])
+    if (
+        result
+        and isinstance(result, dict)
+        and "max_seq" in result
+        and result["max_seq"] is not None
+    ):
+        max_seq = int(result["max_seq"])
 
     seq = max_seq + 1
     seq_str = str(seq).zfill(3)
@@ -43,7 +46,7 @@ def generate_unique_product_code(product_name):
     """
     Generates a unique, human-readable product code from a product name.
     e.g., "Classic Blue T-Shirt" -> "CBT-1234"
-    
+
     Args:
         product_name (str): The name of the product.
 
@@ -54,23 +57,25 @@ def generate_unique_product_code(product_name):
     try:
         while True:
             # 1. Generate a 3-letter prefix from the product name.
-            clean_name = re.sub(r'[^A-Za-z0-9 ]', '', product_name).strip()
+            clean_name = re.sub(r"[^A-Za-z0-9 ]", "", product_name).strip()
             words = clean_name.split()
             prefix = "".join(word[0].upper() for word in words[:3])
-            
+
             # Ensure the prefix is exactly 3 characters long.
             if len(prefix) < 3 and words:
-                prefix += (words[0][1:1 + (3 - len(prefix))].upper())
+                prefix += words[0][1 : 1 + (3 - len(prefix))].upper()
             if len(prefix) < 3:
                 prefix += "X" * (3 - len(prefix))
 
             # 2. Append a 4-digit random number.
-            rand_num = ''.join(random.choices(string.digits, k=4))
+            rand_num = "".join(random.choices(string.digits, k=4))
             product_code = f"{prefix}-{rand_num}"
 
             # 3. Check for uniqueness in the database.
             with conn.cursor() as cur:
-                cur.execute("SELECT id FROM products WHERE product_code = %s", (product_code,))
+                cur.execute(
+                    "SELECT id FROM products WHERE product_code = %s", (product_code,)
+                )
                 if not cur.fetchone():
                     return product_code
     finally:
