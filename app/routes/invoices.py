@@ -13,6 +13,7 @@ from datetime import datetime, date
 from app.utils.auth import require_admin
 from app.utils.response import success_response, error_response
 from app.utils.pagination import get_pagination
+from app.utils.utils import generate_invoice_number
 
 invoices_blueprint = Blueprint('invoices', __name__)
 
@@ -94,7 +95,7 @@ def create_invoice():
 
         tax_amount = (subtotal_amount - discount_amount) * (tax_percent / Decimal('100.00'))
         total_amount = subtotal_amount - discount_amount + tax_amount
-        invoice_number = f"INV-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        invoice_number = generate_invoice_number(customer.id)
 
         # Determine initial status
         initial_status = 'Pending'
