@@ -59,3 +59,10 @@ class Payment(BaseModel):
         query = f"SELECT * FROM {cls._table_name} WHERE invoice_id = %s ORDER BY payment_date DESC"
         rows = DBManager.execute_query(query, (invoice_id,), fetch='all')
         return [cls.from_row(row) for row in rows] if rows else []
+    
+    @classmethod
+    def find_latest_by_invoice_id(cls, invoice_id):
+        # return only one (latest) payment
+        query = f"SELECT * FROM {cls._table_name} WHERE invoice_id = %s ORDER BY payment_date DESC LIMIT 1"
+        row = DBManager.execute_query(query, (invoice_id,), fetch='one')
+        return cls.from_row(row) if row else None

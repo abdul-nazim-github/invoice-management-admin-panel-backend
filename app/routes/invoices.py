@@ -51,12 +51,12 @@ def get_invoice(invoice_id):
 
         customer = Customer.find_by_id(invoice.customer_id)
         invoice_items = InvoiceItem.find_by_invoice_id(invoice_id)
-        payments = Payment.find_by_invoice_id(invoice_id)
+        payment = Payment.find_latest_by_invoice_id(invoice_id)
 
         invoice_data = invoice.to_dict()
         invoice_data['customer'] = customer.to_dict() if customer else None
         invoice_data['items'] = [item.to_dict() for item in invoice_items]
-        invoice_data['payments'] = [payment.to_dict() for payment in payments]
+        invoice_data['payment'] = payment.to_dict() if payment else None
 
         return success_response(result=invoice_data, status=200)
 

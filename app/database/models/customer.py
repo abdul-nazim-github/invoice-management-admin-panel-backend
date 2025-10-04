@@ -173,9 +173,17 @@ class Customer(BaseModel):
 
         where_sql = " WHERE " + " AND ".join(where) if where else ""
 
+        # base query without filters on alias
         base_query = f"""
             SELECT 
-                c.id, c.name, c.email, c.phone, c.address, c.gst_number, c.created_at, c.updated_at,
+                c.id, 
+                c.name, 
+                c.email, 
+                c.phone, 
+                c.address, 
+                c.gst_number, 
+                c.created_at, 
+                c.updated_at,
                 CASE
                     WHEN SUM(CASE WHEN i.status = 'Overdue' THEN 1 ELSE 0 END) > 0 THEN 'Overdue'
                     WHEN SUM(CASE WHEN i.status = 'Pending' THEN 1 ELSE 0 END) > 0 THEN 'Pending'
@@ -188,22 +196,33 @@ class Customer(BaseModel):
             GROUP BY c.id
         """
 
+        # wrap base_query so we can filter using alias "status"
         outer_where = ""
         if status:
-            outer_where = " HAVING status = %s"  # Use HAVING instead of WHERE for aggregated column
+            outer_where = "WHERE sub.status = %s"
 
-        final_query = f"{base_query} {outer_where} ORDER BY c.id DESC LIMIT %s OFFSET %s"
+        final_query = f"""
+            SELECT * FROM (
+                {base_query}
+            ) AS sub
+            {outer_where}
+            ORDER BY sub.id DESC
+            LIMIT %s OFFSET %s
+        """
 
         pagination_params = params + ([status] if status else []) + [limit, offset]
 
         rows = DBManager.execute_query(final_query, tuple(pagination_params), fetch='all')
         customers = [cls.from_row(row) for row in rows] if rows else []
 
-        # Count total
-        count_query = f"SELECT COUNT(*) AS total FROM ({base_query}) AS sub"
-        if status:
-            count_query += " HAVING status = %s"
-
+        # count query
+        count_query = f"""
+            SELECT COUNT(*) AS total 
+            FROM (
+                {base_query}
+            ) AS sub
+            {outer_where}
+        """
         count_params = tuple(params + ([status] if status else []))
         result = DBManager.execute_query(count_query, count_params, fetch='one')
         total = result['total'] if result else 0

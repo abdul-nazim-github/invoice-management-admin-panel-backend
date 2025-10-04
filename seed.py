@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 # --- Default Admin User Details ---
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "adminpassword"
+ADMIN_PASSWORD = "Sknazim1818@"
 ADMIN_ROLE = "admin"
 ADMIN_NAME = "Administrator"
 
