@@ -31,11 +31,14 @@ def generate_invoice_number(customer_id: str) -> str:
         WHERE invoice_number REGEXP 'INV-[0-9]{6}-[A-Z0-9]+-[0-9]{3}'
     """
     result = DBManager.execute_query(query, fetch='one')
-    max_seq = result['max_seq'] if result and result['max_seq'] else 0
-    seq = max_seq + 1
+    max_seq = 0
+    if result and isinstance(result, dict) and 'max_seq' in result and result['max_seq'] is not None:
+        max_seq = int(result['max_seq'])
 
+    seq = max_seq + 1
     seq_str = str(seq).zfill(3)
     return f"INV-{ym}-{cust_code}-{seq_str}"
+
 def generate_unique_product_code(product_name):
     """
     Generates a unique, human-readable product code from a product name.
