@@ -2,7 +2,7 @@ from marshmallow import Schema, fields
 
 class CustomerSchema(Schema):
     """Schema for validating and serializing customer data."""
-    id = fields.Str(dump_only=True)
+    id = fields.Int(dump_only=True)
     name = fields.Str(required=True, metadata={"description": "Customer's full name."})
     email = fields.Email(required=True, metadata={"description": "Unique email address."})
     phone = fields.Str(required=True, metadata={"description": "Contact phone number."})
